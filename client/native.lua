@@ -418,7 +418,7 @@ _G["Utility"] = {
             end
         
             if second_job ~= nil then
-                RegisterNetEvent('esx:set'..second_job:sub(1,1):upper()..second_job:sub(2), function(job)        
+                RegisterNetEvent('esx:set'..string.upper(second_job:sub(1,1))..second_job:sub(2), function(job)        
                     xPlayer[second_job] = job
                 end)
             end
@@ -728,7 +728,7 @@ _G["Utility"] = {
                 Utility.Cache["SetData"][id][k] = v
             end
         else -- Single
-            developer("^2Setting^0", "data", "("..id..") ["..property.." = "..value.."] {single}")
+            developer("^2Setting^0", "data", "("..id..") ["..property.." = "..json.encode(value).."] {single}")
             Utility.Cache["SetData"][id][property] = value
         end
     end
@@ -747,7 +747,6 @@ _G["Utility"] = {
                 return Utility.Cache["SetData"][id][property]
             end
         else
-            error("[GetFrom] Id "..id.." dont have any data!")
             return nil
         end
     end
