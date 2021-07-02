@@ -1,6 +1,8 @@
 # Documentation
 https://utility-library.github.io
 
+---
+
 ## Why?
 Utility serves to reduce and simplify the long and tedious processes of creating a script.
 Take for example the initialization of ESX which translates to StartESX().
