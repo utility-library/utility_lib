@@ -57,7 +57,7 @@ _G["Utility"] = {
 
     _G.old_DisableControlAction = DisableControlAction
     DisableControlAction = function(control, disable)
-        return old_DisableControlAction(0, Keys[control:upper()], true or disable)
+        return old_DisableControlAction(0, Keys[string.upper(control)], true or disable)
     end
 
     DisableControlForSeconds = function(control, seconds)
@@ -73,7 +73,7 @@ _G["Utility"] = {
 
         Citizen.CreateThread(function()
             while sec > 0 do
-                DisableControlAction(Keys[control:upper()])
+                DisableControlAction(Keys[string.upper(control)])
                 Citizen.Wait(1)
             end
             return
