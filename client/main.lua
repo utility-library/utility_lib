@@ -15,13 +15,7 @@ local old_job = {}
 local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords, _DrawMarker, _GetEntityCoords, _pairs, _AddTextEntry, _BeginTextCommandDisplayHelp, _EndTextCommandDisplayHelp = TriggerServerEvent, GetPlayerName, PlayerId, GetDistanceBetweenCoords, DrawMarker, GetEntityCoords, pairs, AddTextEntry, BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp
 
 --// Job //--
-    Citizen.CreateThread(function()
-        local player = PlayerPedId()
-
-        while not HasCollisionLoadedAroundEntity(player) do
-            Citizen.Wait(100)
-        end
-
+    AddEventHandler("esx:playerLoaded", function(xPlayer)
         StartESX()
         Citizen.Wait(100)
 
