@@ -86,7 +86,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                 if distance[k] < v.render_distance then
                     if v.type == 0 then
                         if v.text ~= "" then
-                            DrawText3Ds(v.coords, v.text, 0.35)
+                            DrawText3Ds(v.coords, v.text, v._scale or 0.35, v.font or 4, v.rect or false)
                         end
                     elseif v.type == 1 then
                         local dir = v._direction or {x = 0.0, y = 0.0, z = 0.0}
