@@ -19,11 +19,11 @@ Config.UpdateCooldown = 500 -- (default: 500ms) This is the time when the positi
 ------------------------------------------------------------------------------------------------------------------------------
 
 -- Implement GetDataFromDb, SaveDataToDb and UpdateDataToDb native (the db table can be only the default)
-Config.DB_integration = true
+Config.DB_integration = false
 
 -- Implement AddItem, GetItem, RemoveItem, AddMoney and RemoveMoney native/trigger
 Config.ESX_integration = {
-    main_switch = true, -- This is the main switch, if it is disabled all the trigger below will be disabled, otherwise only those you have activated will be functional
+    main_switch = false, -- This is the main switch, if it is disabled all the trigger below will be disabled, otherwise only those you have activated will be functional
 
     AddItem     = true,
     GetItem     = true,
