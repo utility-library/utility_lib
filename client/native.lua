@@ -938,6 +938,49 @@ _G["Utility"] = {
             _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
+        -- 3dText
+        Set3dTextScale = function(id, scale)
+            if type(scale) ~= "number" then
+                developer("^1Error^0","Marker scale can be only a number", "[Marker]")
+                return 
+            end
+            
+            if DoesExist("marker", id) then
+                Utility.Cache.Marker[id]._scale = scale
+            else
+                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
+            end
+            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
+        end
+
+        Set3dTextDrawRect = function(id, active)
+            if type(active) ~= "boolean" then
+                developer("^1Error^0","Marker rect can be only a boolean (true/false)", "[Marker]")
+                return 
+            end
+            
+            if DoesExist("marker", id) then
+                Utility.Cache.Marker[id].rect = active
+            else
+                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
+            end
+            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
+        end
+
+        Set3dTextFont = function(id, font)
+            if type(font) ~= "number" then
+                developer("^1Error^0","Marker font can be only a number", "[Marker]")
+                return 
+            end
+            
+            if DoesExist("marker", id) then
+                Utility.Cache.Marker[id].font = font
+            else
+                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
+            end
+            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
+        end
+
     DeleteMarker = function(id)
         if not DoesExist("m", id) then
             Citizen.Wait(100)
@@ -1221,96 +1264,19 @@ _G["Utility"] = {
 --// Dialog //--
     StartDialogue = function(entity, distance, callback)
         local _dialog = Utility.Cache.Dialogue
-        local handle = RandomId()
 
-        _dialog[handle] = {
+        _dialog[entity] = {
             entity = entity,
             distance = distance,
             current_question = 1,
             callback = callback
         }
 
-        StopDialogue = function()
-            developer("^1Stopping^0", "dialogue", handle)
-            if Utility.Cache.Dialogue[handle].lastq ~= nil then
-                local a = 0
-                local lastq = Utility.Cache.Dialogue[handle].lastq
-                local __entity = Utility.Cache.Dialogue[handle].entity
-                local entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
-
-                CreateLoop(function()
-                    LoopThread(1, 1000, function()
-                        entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
-                        a = a + 1
-                    end)
-
-                    if a == 3 then
-                        _break()
-                    end
-                
-                    DrawText3Ds(entity_coords, lastq, nil, nil, true)
-                end)
-            end
-
-            Utility.Cache.Dialogue[handle] = nil
-            _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
-        end
-
-        EditDialogue = function()
-            return {
-                Question = function(...) 
-                    local questions = {...}
-                    _dialog[handle].questions = questions
-        
-                    return {
-                        Response = function(...)
-                            local formatted_text = {}
-                            local no_formatted = {}
-        
-                            for k1,v1 in pairs({...}) do
-                                no_formatted[k1] = {}
-        
-                                for k,v in pairs(v1) do
-                                    if formatted_text[k1] == nil then
-                                        formatted_text[k1] = ""
-                                    end
-        
-                                    formatted_text[k1] = formatted_text[k1]..k.."~w~ "..v.." | "
-        
-                                    k = string.multigsub(k, {"%[", "%]"}, {"", ""})
-                                    k = string.multigsub(k, {"~r~", "~b~", "~g~", "~y~", "~p~", "~o~", "~c~", "~m~", "~u~", "~n~", "~s~", "~w~"}, {"", "","", "","", "","", "","", "","", ""})
-        
-                                    --print("k = "..k)
-                                    no_formatted[k1][k] = v
-                                end
-        
-                                formatted_text[k1] = formatted_text[k1]:sub(1, -3)
-                            end
-        
-                            _dialog[handle].response = {
-                                no_formatted = no_formatted,
-                                formatted = formatted_text
-                            }
-        
-                            _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
-        
-                            return {
-                                LastQuestion = function(last)
-                                    _dialog[handle].lastq = last
-                                    _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
-                                end
-                            }
-                        end
-                    }
-                end
-            }
-        end
-
-        developer("^2Created^0", "dialogue", handle)
+        developer("^2Created^0", "dialogue with entity", entity)
         return {
             Question = function(...) 
                 local questions = {...}
-                _dialog[handle].questions = questions
+                _dialog[entity].questions = questions
 
                 return {
                     Response = function(...)
@@ -1337,7 +1303,7 @@ _G["Utility"] = {
                             formatted_text[k1] = formatted_text[k1]:sub(1, -3)
                         end
 
-                        _dialog[handle].response = {
+                        _dialog[entity].response = {
                             no_formatted = no_formatted,
                             formatted = formatted_text
                         }
@@ -1346,7 +1312,7 @@ _G["Utility"] = {
 
                         return {
                             LastQuestion = function(last)
-                                _dialog[handle].lastq = last
+                                _dialog[entity].lastq = last
                                 _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
                             end
                         }
@@ -1354,4 +1320,88 @@ _G["Utility"] = {
                 }
             end
         }
+    end
+
+    EditDialogue = function(entity)
+        if entity ~= nil and IsEntityOnDialogue(entity) then
+            return {
+                Question = function(...) 
+                    local questions = {...}
+                    _dialog[entity].questions = questions
+        
+                    return {
+                        Response = function(...)
+                            local formatted_text = {}
+                            local no_formatted = {}
+        
+                            for k1,v1 in pairs({...}) do
+                                no_formatted[k1] = {}
+        
+                                for k,v in pairs(v1) do
+                                    if formatted_text[k1] == nil then
+                                        formatted_text[k1] = ""
+                                    end
+        
+                                    formatted_text[k1] = formatted_text[k1]..k.."~w~ "..v.." | "
+        
+                                    k = string.multigsub(k, {"%[", "%]"}, {"", ""})
+                                    k = string.multigsub(k, {"~r~", "~b~", "~g~", "~y~", "~p~", "~o~", "~c~", "~m~", "~u~", "~n~", "~s~", "~w~"}, {"", "","", "","", "","", "","", "","", ""})
+        
+                                    --print("k = "..k)
+                                    no_formatted[k1][k] = v
+                                end
+        
+                                formatted_text[k1] = formatted_text[k1]:sub(1, -3)
+                            end
+        
+                            _dialog[entity].response = {
+                                no_formatted = no_formatted,
+                                formatted = formatted_text
+                            }
+        
+                            _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
+        
+                            return {
+                                LastQuestion = function(last)
+                                    _dialog[entity].lastq = last
+                                    _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
+                                end
+                            }
+                        end
+                    }
+                end
+            }
+        end
+    end
+
+    StopDialogue = function(entity)
+        if entity ~= nil and IsEntityOnDialogue(entity) then
+            developer("^1Stopping^0", "dialogue", entity)
+            if Utility.Cache.Dialogue[entity].lastq ~= nil then
+                local a = 0
+                local lastq = Utility.Cache.Dialogue[entity].lastq
+                local __entity = Utility.Cache.Dialogue[entity].entity
+                local entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
+
+                CreateLoop(function()
+                    LoopThread(1, 1000, function()
+                        entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
+                        a = a + 1
+                    end)
+
+                    if a == 3 then
+                        _break()
+                    end
+                
+                    DrawText3Ds(entity_coords, lastq, nil, nil, true)
+                end)
+            end
+
+            Utility.Cache.Dialogue[entity] = nil
+            _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
+        end
+    end
+
+    IsEntityOnDialogue = function(entity)
+        return Utility.Cache.Dialogue[entity]
     end
