@@ -15,7 +15,7 @@ local old_job = {}
 local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords, _DrawMarker, _GetEntityCoords, _pairs, _AddTextEntry, _BeginTextCommandDisplayHelp, _EndTextCommandDisplayHelp = TriggerServerEvent, GetPlayerName, PlayerId, GetDistanceBetweenCoords, DrawMarker, GetEntityCoords, pairs, AddTextEntry, BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp
 
 --// Job //--
-    RegisterNetEvent("esx:playerLoaded", function(xPlayer)
+    AddEventHandler("esx:playerLoaded", function(xPlayer)
         StartESX()
         Citizen.Wait(100)
 
@@ -127,7 +127,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
             -- k = handle
             if question_entity_coords == nil then question_entity_coords = _GetEntityCoords(v.entity) end
 
-            LoopThread("dialogue_thread", 100, function()
+            LoopThread("dialogue_thread", Config.UpdateDialogue, function()
                 question_entity_coords = _GetEntityCoords(v.entity) + vector3(0.0, 0.0, 1.0)
                 playerCoordsForDialogue = _GetEntityCoords(player) + vector3(0.0, 0.0, 1.0)
             end)
@@ -230,8 +230,31 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
     end
 
 --// Event //--
-    RegisterNetEvent("Utility:UpdateTable", function(name, table)
-        Utility.Cache[name] = table
+    RegisterNetEvent("Utility:Create", function(type, id, table, res)
+        if type == "Emitter" then
+            if Utility.Cache[type][id] == nil then
+                Utility.Cache[type][id] = {}
+            end
+
+            -- Delete the old callback (prevent a bug that when you restart the script the utility try to call the old callback)
+            for i=1, #Utility.Cache[type][id] do
+                if Utility.Cache[type][id][i].res == res then
+                    Utility.Cache[type][id][i] = nil
+                end
+            end
+
+            Utility.Cache[type][id][#Utility.Cache[type][id] + 1] = table 
+        else
+            Utility.Cache[type][id] = table 
+        end
+    end)
+
+    RegisterNetEvent("Utility:Edit", function(type, id, field, new_data)
+        Utility.Cache[type][id][field] = new_data 
+    end)
+
+    RegisterNetEvent("Utility:Remove", function(type, id)
+        Utility.Cache[type][id] = nil 
     end)
 
     RegisterNetEvent("Utility:FakeTrigger", function(type, id)
