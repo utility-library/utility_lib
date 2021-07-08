@@ -23,7 +23,7 @@ _G["Utility"] = {
         Dialogue = {},
         
         Emitter = {},
-        SetData = {},
+        SetData = {}
     }
 }
 
@@ -35,18 +35,13 @@ _G["Utility"] = {
             -- job_change1
         end
 
-        local _emitter = Utility.Cache.Emitter
-        
-        if _emitter[type] == nil then
-            _emitter[type] = {}
-        end
-
-        _emitter[type][#_emitter+1] = {
+        local _emitter = {
+            res = GetCurrentResourceName(),
             a = function_id,
             b = fake_triggerable
         }
 
-        _TriggerEvent("Utility:UpdateTable", "Emitter", Utility.Cache.Emitter)
+        _TriggerEvent("Utility:Create", "Emitter", type, _emitter, GetCurrentResourceName())
     end
 
 --// Custom/Improved Native //-- 
@@ -82,7 +77,6 @@ _G["Utility"] = {
 
     _G.old_IsControlJustPressed = IsControlJustPressed
     IsControlJustPressed = function(key, _function)
-        print(key)
         developer("^2Created^0", "key map", key)
         RegisterKeyMapping('utility '..key, '', "keyboard", key)
 
@@ -237,6 +231,10 @@ _G["Utility"] = {
         if not isnetwork then
             NetworkRequestControlOfEntity(entity)
             -- entity = entityHandler
+            while not NetworkRequestControlOfEntity(entity) do
+                Citizen.Wait(1)
+            end
+
             if not IsEntityAMissionEntity(entity) then
                 SetEntityAsMissionEntity(entity)
             end
@@ -247,6 +245,11 @@ _G["Utility"] = {
             NetworkRequestControlOfNetworkId(entity)
             
             local new_entity = NetworkGetEntityFromNetworkId(entity)
+
+            while not NetworkRequestControlOfEntity(new_entity) do
+                Citizen.Wait(1)
+            end
+
             SetEntityAsMissionEntity(new_entity)
             old_DeleteEntity(new_entity)
         end
@@ -388,6 +391,21 @@ _G["Utility"] = {
         return materialHash, hitted
     end
 
+    GetLoadoutOfPed = function(ped)
+        local list = ESX.GetWeaponList()
+        local loadout = {}
+
+        for i=1, #list, 1 do
+            local hash = GetHashKey(list.name)
+
+            if HasPedGotWeapon(ped, hash, false) then
+                table.insert(loadout, {name = list.name, hash = hash, ammo = GetAmmoInPedWeapon(ped, hash)})
+            end
+        end
+
+        return loadout
+    end
+
 --// Synced Trigger //--
     TriggerSyncedEvent = function(event, whitelist, ...)
         if type(whitelist) == "number" or type(whitelist) == "table" then
@@ -445,42 +463,6 @@ _G["Utility"] = {
             return #job_info, job_info
         end
 
-    -- Item + Money
-        AddItem = function(item, amount)
-            developer("^2Adding^0", "item", item)
-            _TriggerServerEvent("Utility:AddItem", item, amount)
-        end
-
-        GetItem = function(item)
-            developer("^3Getting^0", "info", item)
-            local item_data = nil
-        
-            ESX.TriggerServerCallback("Utility:GetItem", function(a)
-                item_data = a
-            end, item)
-        
-            while item_data == nil do
-                Citizen.Wait(1)
-            end
-        
-            return item_data
-        end
-
-        RemoveItem = function(item, amount)
-            developer("^1Removing^0","item", item)
-            _TriggerServerEvent("Utility:RemoveItem", item, amount)
-        end
-
-        AddMoney = function(type, amount)
-            developer("^2Adding^0", "money "..type, amount)
-            _TriggerServerEvent("Utility:AddMoney", type, amount)
-        end
-
-        RemoveMoney = function(type, amount)
-            developer("^1Removing^0","money "..type, amount)
-            _TriggerServerEvent("Utility:RemoveMoney", type, amount)
-        end
-
 --// Advanced script creation //--
     local _GetOnHandObject = 0
 
@@ -528,191 +510,6 @@ _G["Utility"] = {
         ClearPedTasks(PlayerPedId())
         _GetOnHandObject = 0
     end
-
-    -- Database Utility
-        GetDataFromDb = function(settings)
-            -- Sanitizer
-            settings = settings:gsub('[%c]', '')
-            settings = settings:gsub('"', '')
-            settings = settings:gsub('\'', '')
-            settings = settings:gsub('OR', '')
-            settings = settings:gsub('or', '')
-
-
-            local data = nil
-            if not string.find(settings, "WHERE") then
-                local _settings = {
-                    select = string.match(settings, "SELECT (.*)"),
-                    all = true,
-                }
-
-                local start = GetGameTimer()
-                developer("^3MySQL^0 ^3REQUESTING^0","search filter^5", "SELECT ".._settings.select.." FROM utility_db_integration")
-                ESX.TriggerServerCallback("Utility:GetDataFromDatabase", function(_data)
-                    data = _data
-                end, _settings)
-
-                while data == nil do Citizen.Wait(5) end
-
-                developer("^3MySQL^0 ^2RESULT^0 (executed in "..((GetGameTimer() - start)/1000).."s)","search result^5", json.encode(data))
-                return data
-            else
-                local where = {
-                    match = string.match(settings, "WHERE (.*) =") or string.match(settings, "WHERE (.*)="),
-                    equal = string.match(settings, "= (.*)") or string.match(settings, "=(.*)")
-                }
-
-                local result = {
-                    string = "",
-                    where = {},
-                    equal = {}
-                }
-
-                for _ in (where_match..","):gmatch("([^,]*),") do 
-                    result.string = result.string..(_.."=@".._..",")
-                    table.insert(result.where, _) 
-                end
-
-                for _ in (equal_match..","):gmatch("([^,]*),") do 
-                    table.insert(result.equal, _) 
-                end
-
-                local _settings = {
-                    select = string.match(settings, "SELECT (.*) WHERE"),
-                    where = result.where,
-                    string = result.string,
-                    equal = result.equal
-                }
-                
-                local start = GetGameTimer()
-                developer("^3MySQL^0 ^3REQUESTING^0","search filter^5", "SELECT ".._settings.select.." FROM utility_db_integration WHERE ".._settings.string:sub(1, -2))
-                ESX.TriggerServerCallback("Utility:GetDataFromDatabase", function(_data)
-                    data = _data
-                end, _settings)
-
-                while data == nil do Citizen.Wait(5) end
-
-                developer("^3MySQL^0 ^2RESULT^0 (executed in "..((GetGameTimer() - start)/1000).."s)","search result^5", json.encode(data))
-                return data
-            end
-        end
-
-        SaveDataToDb = function(settings)
-            local data = nil
-            local set = {
-                match = string.match(settings, "INSERT (.*) =") or string.match(settings, "INSERT (.*)="),
-                equal = string.match(settings, "= (.*)") or string.match(settings, "=(.*)")
-            }
-            local result = {
-                string = "",
-                set = {},
-                equal = {}
-            }
-
-            for _ in (set.match..","):gmatch("([^,]*),") do 
-                result.string = result.string..(_.."=@".._..",")
-                table.insert(result.set, _) 
-            end
-
-            for _ in (set.equal..","):gmatch("([^,]*),") do 
-                table.insert(result.equal, _) 
-            end
-
-            local _settings = {
-                set = result.set,
-                string = result.string,
-                equal = result.equal
-            }
-
-            local start = GetGameTimer()
-            developer("^3MySQL^0 ^3REQUESTING^0","insert^5", "INSERT INTO utility_db_integration SET ".._settings.string:sub(1, -2))
-            ESX.TriggerServerCallback("Utility:SaveDataToDb", function(_data)
-                data = _data
-            end, _settings)
-
-            while data == nil do Citizen.Wait(5) end
-
-            developer("^3MySQL^0 ^2RESULT^0 (executed in "..((GetGameTimer() - start)/1000).."s)","inserted^5", json.encode(data))
-            return data
-        end
-
-        UpdateDataToDb = function(settings)
-            -- Sanitizer
-            settings = settings:gsub('[%c]', '')
-            settings = settings:gsub('"', '')
-            settings = settings:gsub('\'', '')
-            settings = settings:gsub('OR', '')
-            settings = settings:gsub('or', '')
-
-            -- Get SET + WHERE
-            local set = {
-                data = string.match(settings, "UPDATE (.*) WHERE"),
-            }
-
-            set.equal = string.match(set.data, "= (.*)") or string.match(set.data, "=(.*)")
-            set.match = string.match(set.data, "(.*) =") or string.match(set.data, "(.*)=")
-
-            local where = {
-                data = string.match(settings, "WHERE (.*)"),
-            }
-
-            where.equal = string.match(where.data, "= (.*)") or string.match(where.data, "=(.*)")
-            where.match = string.match(where.data, "(.*) =") or string.match(where.data, "(.*)=")
-
-            local result = {
-                set = {
-                    string = "",
-                    equal_table = {},
-                    set_table = {}
-                },
-                where = {
-                    string = "",
-                    equal_table = {},
-                    where_table = {}
-                }
-            }
-
-            -- Set
-            for _ in (set.match..","):gmatch("([^,]*),") do 
-                result.set.string = result.set.string..(_.."=@".._..",")
-                table.insert(result.set.set_table, _) 
-            end
-
-            for _ in (set.equal..","):gmatch("([^,]*),") do 
-                table.insert(result.set.equal_table, _) 
-            end
-
-            -- Where
-            for _ in (where.match..","):gmatch("([^,]*),") do 
-                result.where.string = result.where.string..(_.."=@".._..",")
-                table.insert(result.where.where_table, _) 
-            end
-
-            for _ in (where.equal..","):gmatch("([^,]*),") do 
-                table.insert(result.where.equal_table, _) 
-            end
-
-            -- Result
-            local _settings = {
-                set = result.set,
-                where = result.where,
-            }
-            
-            local start = GetGameTimer()
-            local data = nil
-
-            developer("^3MySQL^0 ^3REQUESTING^0","update^5", "UPDATE utility_db_integration SET ".._settings.set.string:sub(1, -2).." WHERE ".._settings.where.string:sub(1, -2))
-            ESX.TriggerServerCallback("Utility:UpdateDataToDb", function(_data)
-                data = _data
-            end, _settings)
-
-            while data == nil do
-                Citizen.Wait(5)
-            end
-
-            developer("^3MySQL^0 ^2RESULT^0 (executed in "..((GetGameTimer() - start)/1000).."s)","updated^5", json.encode(data))
-            return data
-        end
 
 --// Managing data (like table, but more easy to use) //--
 
@@ -782,9 +579,7 @@ _G["Utility"] = {
 
             developer("^2Created^0","Marker",id)
 
-            local _marker = Utility.Cache.Marker
-        
-            _marker[id] = {
+            local _marker = {
                 render_distance = render_distance,
                 interaction_distance = interaction_distance,
                 coords = coords
@@ -794,35 +589,38 @@ _G["Utility"] = {
 
             if type(options) == "table" then
                 if options.rgb ~= nil then -- Marker
-                    _marker[id].type = 1
-                    _marker[id].rgb = options.rgb
+                    _marker.type = 1
+                    _marker.rgb = options.rgb
                 elseif options.text ~= nil then -- 3d Text
-                    _marker[id].type = 0
-                    _marker[id].text = options.text
+                    _marker.type = 0
+                    _marker.text = options.text
+                    _TriggerEvent("Utility:Create", "Marker", id, _marker)
+                    return
                 else
-                    _marker[id].type = 1
-                    _marker[id].rgb = {options[1], options[2], options[3]}
-                    _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
+                    _marker.type = 1
+                    _marker.rgb = {options[1], options[2], options[3]}
+                    _TriggerEvent("Utility:Create", "Marker", id, _marker)
                     return
                 end
                 
-                if options.type ~= nil and type(options.type) == "number" then _marker[id]._type = options.type end
-                if options.direction ~= nil and type(options.direction) == "vector3" then _marker[id]._direction = options.direction end
-                if options.rotation ~= nil and type(options.rotation) == "vector3" then _marker[id]._rot = options.rotation end
-                if options.scale ~= nil and type(options.scale) == "vector3" then _marker[id]._scale = options.scale end
-                if options.alpha ~= nil and type(options.alpha) == "number" then _marker[id].alpha = options.alpha end
-                if options.animation ~= nil and type(options.animation) == "boolean" then _marker[id].anim = options.animation end
+                if options.type ~= nil and type(options.type) == "number" then _marker._type = options.type end
+                if options.direction ~= nil and type(options.direction) == "vector3" then _marker._direction = options.direction end
+                if options.rotation ~= nil and type(options.rotation) == "vector3" then _marker._rot = options.rotation end
+                if options.scale ~= nil and type(options.scale) == "vector3" then _marker._scale = options.scale end
+                if options.alpha ~= nil and type(options.alpha) == "number" then _marker.alpha = options.alpha end
+                if options.animation ~= nil and type(options.animation) == "boolean" then _marker.anim = options.animation end
 
                 if options.notify ~= nil then
                     local notify = string.multigsub(options.notify, {"{A}","{B}", "{C}", "{D}", "{E}", "{F}", "{G}", "{H}", "{L}", "{M}", "{N}", "{O}", "{P}", "{Q}", "{R}", "{S}", "{T}", "{U}", "{V}", "{W}", "{X}", "{Y}", "{Z}"}, {"~INPUT_VEH_FLY_YAW_LEFT~", "~INPUT_SPECIAL_ABILITY_SECONDARY~", "~INPUT_LOOK_BEHIND~", "~INPUT_MOVE_LR~", "~INPUT_CONTEXT~", "~INPUT_ARREST~", "~INPUT_DETONATE~", "~INPUT_VEH_ROOF~", "~INPUT_CELLPHONE_CAMERA_FOCUS_LOCK~", "~INPUT_INTERACTION_MENU~", "~INPUT_REPLAY_ENDPOINT~" , "~INPUT_FRONTEND_PAUSE~", "~INPUT_FRONTEND_LB~", "~INPUT_RELOAD~", "~INPUT_MOVE_DOWN_ONLY~", "~INPUT_MP_TEXT_CHAT_ALL~", "~INPUT_REPLAY_SCREENSHOT~", "~INPUT_NEXT_CAMERA~", "~INPUT_MOVE_UP_ONLY~", "~INPUT_VEH_HOTWIRE_LEFT~", "~INPUT_VEH_DUCK~", "~INPUT_MP_TEXT_CHAT_TEAM~", "~INPUT_HUD_SPECIAL~"})
-                    _marker[id].notify = notify
+                    _marker.notify = notify
                 end
             elseif type(options) == "string" then
-                _marker[id].type = 0
-                _marker[id].text = options
+                _marker.type = 0
+                _marker.text = options
             end
-        
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
+            
+            Utility.Cache.Marker[id] = _marker -- Sync the local table
+            _TriggerEvent("Utility:Create", "Marker", id, _marker) -- Sync the table in the utility_lib
         end
     end
 
@@ -834,10 +632,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id]._type = _type
+                _TriggerEvent("Utility:Edit", "Marker", id, "_type", _type)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         SetMarkerDirection = function(id, direction)
@@ -848,10 +646,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id]._direction = direction
+                _TriggerEvent("Utility:Edit", "Marker", id, "_direction", direction)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         SetMarkerRotation = function(id, rot)
@@ -862,10 +660,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id]._rot = rot
+                _TriggerEvent("Utility:Edit", "Marker", id, "_rot", rot)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         SetMarkerScale = function(id, scale)
@@ -876,10 +674,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id]._scale = scale
+                _TriggerEvent("Utility:Edit", "Marker", id, "_scale", scale)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         SetMarkerColor = function(id, rgb)
@@ -890,10 +688,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id].rgb = rgb
+                _TriggerEvent("Utility:Edit", "Marker", id, "rgb", rgb)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         SetMarkerAlpha = function(id, alpha)
@@ -904,10 +702,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id].alpha = alpha
+                _TriggerEvent("Utility:Edit", "Marker", id, "alpha", alpha)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         SetMarkerAnimation = function(id, active)
@@ -918,10 +716,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id].anim = active
+                _TriggerEvent("Utility:Edit", "Marker", id, "anim", active)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         SetMarkerDrawOnEntity = function(id, active)
@@ -932,10 +730,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id].draw_entity = active
+                _TriggerEvent("Utility:Edit", "Marker", id, "draw_entity", active)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         -- 3dText
@@ -947,10 +745,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id]._scale = scale
+                _TriggerEvent("Utility:Edit", "Marker", id, "_scale", scale)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         Set3dTextDrawRect = function(id, active)
@@ -961,10 +759,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id].rect = active
+                _TriggerEvent("Utility:Edit", "Marker", id, "rect", active)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
         Set3dTextFont = function(id, font)
@@ -975,10 +773,10 @@ _G["Utility"] = {
             
             if DoesExist("marker", id) then
                 Utility.Cache.Marker[id].font = font
+                _TriggerEvent("Utility:Edit", "Marker", id, "font", font)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
         end
 
     DeleteMarker = function(id)
@@ -988,8 +786,7 @@ _G["Utility"] = {
         else
             developer("^1Deleted^0","Marker",id)
             Utility.Cache.Marker[id] = nil
-
-            _TriggerEvent("Utility:UpdateTable", "Marker", Utility.Cache.Marker)
+            _TriggerEvent("Utility:Remove", "Marker", id)
         end
     end
 
@@ -1003,25 +800,26 @@ _G["Utility"] = {
         FreezeEntityPosition(obj, true)
         SetModelAsNoLongerNeeded(hash)
 
-        Utility.Cache.Object[id] = {
+        _object = {
             obj = obj,
             coords = pos,
             interaction_distance = interaction_distance or 3.0
         }
 
-        _TriggerEvent("Utility:UpdateTable", "Object", Utility.Cache.Object)
+        Utility.Cache.Object[id] = _object -- Sync the local table
+        _TriggerEvent("Utility:Create", "Object", id, _object) -- Sync the table in the utility_lib
         return obj, _GetEntityCoords(obj)
     end
 
     DeleteiObject = function(id, delete)
         developer("^1Deleted^0","Object",id)
-        table.remove(Utility.Cache.Object, id)
 
         if delete then
             DeleteEntity(Utility.Cache.Object[id].obj)
         end
 
-        _TriggerEvent("Utility:UpdateTable", "Object", Utility.Cache.Object)
+        Utility.Cache.Object[id] = nil
+        _TriggerEvent("Utility:Remove", "Object", id)
     end
 
     -- Blip
@@ -1052,14 +850,17 @@ _G["Utility"] = {
         
         if DoesExist(type, id) then
             Utility.Cache[type][new_id] = Utility.Cache[type][id]
+
+            Utility.Cache[type][id] = nil
         else
             developer("^1Error^0", "Unable to set id of the "..type.." as it does not exist", id)
             return
         end
 
         developer("^3Change^0", "Setted id to "..new_id.." of the id", id)
-        table.remove(Utility.Cache[type], id)
-        _TriggerEvent("Utility:UpdateTable", type, Utility.Cache[type])
+
+        _TriggerEvent("Utility:Remove", type, id)
+        _TriggerEvent("Utility:Create", type, new_id, Utility.Cache[type][new_id]) -- Sync the table in the utility_lib
     end
 
     SetTextOf = function(type, id, new_text)
@@ -1073,13 +874,13 @@ _G["Utility"] = {
         
         if DoesExist(type, id) then
             Utility.Cache[type][id].text = new_text
+            _TriggerEvent("Utility:Edit", type, id, "text", new_text)
         else
             developer("^1Error^0", "Unable to change text of the "..type.." as it does not exist", id)
             return
         end
 
         developer("^3Change^0", "Setted text to "..new_text.." of the id", id)
-        _TriggerEvent("Utility:UpdateTable", type, Utility.Cache[type])
     end
 
     GetDistanceFrom = function(type, id)
@@ -1199,7 +1000,7 @@ _G["Utility"] = {
 
     printd = function(_table)
         if type(_table) == "table" then
-            print(json.encode(_table, {indent = true}))
+            print(json.encode(_table))
         else
             developer("^1Error", "error dumping table ".._table.." why isnt a table", "")
         end
@@ -1263,9 +1064,9 @@ _G["Utility"] = {
 
 --// Dialog //--
     StartDialogue = function(entity, distance, callback)
-        local _dialog = Utility.Cache.Dialogue
+        local _dialog = {}
 
-        _dialog[entity] = {
+        _dialog = {
             entity = entity,
             distance = distance,
             current_question = 1,
@@ -1276,7 +1077,7 @@ _G["Utility"] = {
         return {
             Question = function(...) 
                 local questions = {...}
-                _dialog[entity].questions = questions
+                _dialog.questions = questions
 
                 return {
                     Response = function(...)
@@ -1303,17 +1104,18 @@ _G["Utility"] = {
                             formatted_text[k1] = formatted_text[k1]:sub(1, -3)
                         end
 
-                        _dialog[entity].response = {
+                        _dialog.response = {
                             no_formatted = no_formatted,
                             formatted = formatted_text
                         }
 
-                        _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
+                        _TriggerEvent("Utility:Create", "Dialogue", entity, _dialog)
+                        Utility.Cache.Dialogue[entity] = _dialog
 
                         return {
                             LastQuestion = function(last)
-                                _dialog[entity].lastq = last
-                                _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
+                                Utility.Cache.Dialogue[entity].lastq = last
+                                _TriggerEvent("Utility:Edit", "Dialogue", entity, "lastq", last)
                             end
                         }
                     end
@@ -1327,7 +1129,7 @@ _G["Utility"] = {
             return {
                 Question = function(...) 
                     local questions = {...}
-                    _dialog[entity].questions = questions
+                    _dialog.questions = questions
         
                     return {
                         Response = function(...)
@@ -1354,17 +1156,19 @@ _G["Utility"] = {
                                 formatted_text[k1] = formatted_text[k1]:sub(1, -3)
                             end
         
-                            _dialog[entity].response = {
+                            _dialog.response = {
                                 no_formatted = no_formatted,
                                 formatted = formatted_text
                             }
         
-                            _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
-        
+                            _TriggerEvent("Utility:Remove", "Dialogue", entity)
+                            _TriggerEvent("Utility:Create", "Dialogue", entity, _dialog)
+                            Utility.Cache.Dialogue[entity] = _dialog
+    
                             return {
                                 LastQuestion = function(last)
-                                    _dialog[entity].lastq = last
-                                    _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
+                                    Utility.Cache.Dialogue[entity].lastq = last
+                                    _TriggerEvent("Utility:Edit", "Dialogue", entity, "lastq", last)
                                 end
                             }
                         end
@@ -1398,7 +1202,7 @@ _G["Utility"] = {
             end
 
             Utility.Cache.Dialogue[entity] = nil
-            _TriggerEvent("Utility:UpdateTable", "Dialogue", Utility.Cache.Dialogue)
+            _TriggerEvent("Utility:Remove", "Dialogue", entity)
         end
     end
 
