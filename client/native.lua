@@ -23,7 +23,8 @@ _G["Utility"] = {
         Dialogue = {},
         
         Emitter = {},
-        SetData = {}
+        SetData = {},
+	Frozen  = {}
     }
 }
 
@@ -404,6 +405,16 @@ _G["Utility"] = {
         end
 
         return loadout
+    end
+
+    local old_FreezeEntityPosition = FreezeEntityPosition
+    FreezeEntityPosition = function(entity, active)
+        Utility.Cache.Frozen[entity] = active
+        old_FreezeEntityPosition(entity, active)
+    end
+
+    IsEntityFrozen = function(entity)
+        return Utility.Cache.Frozen[entity] == true
     end
 
 --// Synced Trigger //--
