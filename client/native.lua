@@ -24,7 +24,7 @@ _G["Utility"] = {
         
         Emitter = {},
         SetData = {},
-	Frozen  = {}
+        Frozen = {}
     }
 }
 
@@ -417,6 +417,23 @@ _G["Utility"] = {
         return Utility.Cache.Frozen[entity] == true
     end
 
+    GetNearestValue = function(v, all_v)
+        local diff = 100 * 100000000000
+        local _i = 0
+    
+        for i=1, #all_v do
+            local c_diff = math.abs(all_v[i] - v)
+    
+            if (c_diff < diff) then
+                diff = c_diff
+                n = all_v[i]
+                _i = i
+            end
+        end
+    
+        return n, diff, _i
+    end
+
 --// Synced Trigger //--
     TriggerSyncedEvent = function(event, whitelist, ...)
         if type(whitelist) == "number" or type(whitelist) == "table" then
@@ -432,32 +449,65 @@ _G["Utility"] = {
 
 --// ESX integration //--
     -- Init
-        StartESX = function(eventName, second_job)
-            -- I did it this way because the thread is interpreted after the script is loaded (after the main thread)
-            -- to avoid weird bugs where esx does not load (remains nil)
-            -- and not being able to use "while ESX == nil do" since i don't want to make it work only in one thread (so being able to use esx only in that thread) 
-            -- I go around the problem by calling it 100 times if it's zero (i know is a bad solution but is the only one)
+        StartESX = function(inathread, eventName, second_job)
+            if not inathread then
+                -- I did it this way because the thread is interpreted after the script is loaded (after the main thread)
+                -- to avoid weird bugs where esx does not load (remains nil)
+                -- and not being able to use "while ESX == nil do" since i don't want to make it work only in one thread (so being able to use esx only in that thread) 
+                -- I go around the problem by calling it 100 times if it's zero (i know is a bad solution but is the only one)
 
-            TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
+                TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
 
-            for i=1, 100 do
-                if ESX == nil then
+                for i=1, 100 do
+                    if ESX == nil then
+                        TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
+                    end
+                end
+            
+                if second_job ~= nil then
+                    RegisterNetEvent('esx:set'..string.upper(second_job:sub(1,1))..second_job:sub(2), function(job)        
+                        xPlayer[second_job] = job
+                    end)
+                end
+            
+                RegisterNetEvent('esx:setJob', function(job)        
+                    xPlayer.job = job
+                end)
+            
+                xPlayer = ESX.GetPlayerData()
+            else
+                TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
+
+                while ESX == nil do
                     TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
+                    Citizen.Wait(5)
+                end
+            
+                if second_job ~= nil then
+                    RegisterNetEvent('esx:set'..string.upper(second_job:sub(1,1))..second_job:sub(2), function(job)        
+                        xPlayer[second_job] = job
+                    end)
+                end
+            
+                RegisterNetEvent('esx:setJob', function(job)        
+                    xPlayer.job = job
+                end)
+            
+                xPlayer = ESX.GetPlayerData()
+
+                while xPlayer.job == nil do
+                    xPlayer = ESX.GetPlayerData()
+                    Citizen.Wait(5)
+                end
+
+                if second_job ~= nil then
+                    while xPlayer[second_job] == nil do
+                        xPlayer = ESX.GetPlayerData()
+                        Citizen.Wait(5)
+                    end
                 end
             end
-        
-            if second_job ~= nil then
-                RegisterNetEvent('esx:set'..string.upper(second_job:sub(1,1))..second_job:sub(2), function(job)        
-                    xPlayer[second_job] = job
-                end)
-            end
-        
-            RegisterNetEvent('esx:setJob', function(job)        
-                xPlayer.job = job
-            end)
-        
-            xPlayer = ESX.GetPlayerData()
-        end
+        end    
 
     -- Job
         GetDataForJob = function(job)
@@ -586,6 +636,11 @@ _G["Utility"] = {
             Citizen.Wait(100)
             return
         else
+            if type(coords) ~= "vector3" then
+                developer("^1Error^0","You can use only vector3 for coords!",id)
+                return
+            end
+
             id = string.gsub(id, "{r}", RandomId())
 
             developer("^2Created^0","Marker",id)
