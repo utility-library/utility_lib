@@ -15,10 +15,10 @@ local old_job = {}
 local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords, _DrawMarker, _GetEntityCoords, _pairs, _AddTextEntry, _BeginTextCommandDisplayHelp, _EndTextCommandDisplayHelp = TriggerServerEvent, GetPlayerName, PlayerId, GetDistanceBetweenCoords, DrawMarker, GetEntityCoords, pairs, AddTextEntry, BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp
 
 --// Job //--
-    AddEventHandler("esx:playerLoaded", function(xPlayer)
-        StartESX()
-        Citizen.Wait(100)
+    StartESX()
+    old_job.job = xPlayer.job
 
+    AddEventHandler("esx:playerLoaded", function(xPlayer)
         old_job.job = xPlayer.job
 
         _TriggerServerEvent("Utility:AddWorker", xPlayer.job.name)
