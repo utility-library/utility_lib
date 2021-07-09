@@ -1011,7 +1011,7 @@ _G["Utility"] = {
 
     printd = function(_table)
         if type(_table) == "table" then
-            print(json.encode(_table))
+            print(json.encode(_table, {indent = true}))
         else
             developer("^1Error", "error dumping table ".._table.." why isnt a table", "")
         end
