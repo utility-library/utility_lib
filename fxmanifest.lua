@@ -14,3 +14,8 @@ server_scripts {
     "server/native.lua",
     "server/main.lua",
 }
+
+files {
+    "client/native_min.lua",
+    "server/native_min.lua"
+}
