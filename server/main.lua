@@ -1,29 +1,62 @@
 ESX = nil
 local UtilityServer = {
     Cache = {
-        SavedJobs = {}
+        SavedJobs = {},
+        SavedxPlayer = {}
     }
 }
 
-Citizen.CreateThread(function()
-    TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+local function RemoveFromJob(pId, oldJob)
+    --print("Removing "..pId.." to the job "..oldJob)
 
-    while ESX == nil do
-        TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-        Citizen.Wait(10)
-    end
-
-    ESX.RegisterServerCallback('Utility:GetJobData', function(src, cb, job)
-        if UtilityServer.Cache.SavedJobs[job] == nil then
-            cb({})
-        else
-            cb(UtilityServer.Cache.SavedJobs[job])
+    if UtilityServer.Cache.SavedJobs[oldJob] ~= nil then
+        for i=1, #UtilityServer.Cache.SavedJobs[oldJob] do
+            if UtilityServer.Cache.SavedJobs[oldJob][i] == pId then
+                table.remove(UtilityServer.Cache.SavedJobs[oldJob], i)
+            end
         end
-    end)
-    
-    ESX.RegisterServerCallback('Utility:GetConfig', function(src, cb, job)
-        cb(Config)
-    end)
+    end
+end
+
+local function AddToJob(pId, job)
+    --print("Adding "..pId.." to the job "..job)
+
+    if not table.fexist(UtilityServer.Cache.SavedJobs, job) then
+        UtilityServer.Cache.SavedJobs[job] = {pId}
+    else
+        table.insert(UtilityServer.Cache.SavedJobs[job], pId)
+    end
+end
+
+local resName = GetCurrentResourceName()
+AddEventHandler("onResourceStart", function(resource)
+    if resName == resource then
+        while ESX == nil do
+            TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+            Citizen.Wait(10)
+        end
+
+        ESX.RegisterServerCallback('Utility:GetJobData', function(src, cb, job)
+            if not table.fexist(UtilityServer.Cache.SavedJobs, job) then
+                cb({})
+            else
+                cb(UtilityServer.Cache.SavedJobs[job])
+            end
+        end)
+        
+        ESX.RegisterServerCallback('Utility:GetConfig', function(src, cb, job)
+            cb(Config)
+        end)
+
+        -- Jobs
+        local players = ESX.GetPlayers()
+
+        for i=1, #players do
+            --print("On start check")
+            local xPlayer = ESX.GetPlayerFromId(players[i])
+            AddToJob(players[i], xPlayer.job.name)
+        end
+    end
 end)
 
 RegisterServerEvent("Utility:SyncEvent", function(event, whitelist, ...)
@@ -38,56 +71,22 @@ RegisterServerEvent("Utility:SyncEvent", function(event, whitelist, ...)
     end
 end)
 
-RegisterServerEvent("Utility:AddWorker", function(job)
-    local _source = source
-    local savedJobs = UtilityServer.Cache.SavedJobs 
+-- Job
+    -- On quit
+    AddEventHandler('esx:playerDropped', function(pId)
+        local xPlayer = ESX.GetPlayerFromId(pId)
+        RemoveFromJob(pId, xPlayer)
+    end)
 
-    if savedJobs[job] == nil then 
-        savedJobs[job] = {}
-    end
+    -- On join
+    AddEventHandler('esx:playerLoaded', function(pId, xPlayer)
+        --print("Player loaded")
+        AddToJob(pId, xPlayer.job.name)
+    end)
 
-    savedJobs[job][#savedJobs[job] + 1] = _source
-    --print("Added worker "..source.." for job "..job)
-    --print(json.encode(savedJobs))
-end)
-
-RegisterServerEvent("Utility:RefreshWorker", function(old_job, job)
-    local _source = source
-    local savedJobs = UtilityServer.Cache.SavedJobs 
-
-    if savedJobs[job] == nil then 
-        savedJobs[job] = {}
-    end
-
-    --print(json.encode(savedJobs[old_job]))
-    if savedJobs[old_job] ~= nil then
-        for k,v in pairs(savedJobs[old_job]) do
-            --print(v, _source)
-            if v == _source  then
-                --print(k)
-                table.remove(savedJobs[old_job], k)
-                break
-            end
-        end
-    end
-
-    savedJobs[job][#savedJobs[job] + 1] = _source
-    --print("Refreshed worker "..source.." for job "..job.." old job "..old_job)
-    --print(json.encode(savedJobs))
-end)
-
-AddEventHandler('playerDropped', function()
-    local _source = source
-    local xPlayer = (ESX.GetPlayerFromId(_source)).job.name
-
-    local savedJobs = UtilityServer.Cache.SavedJobs 
-
-    if savedJobs[xPlayer] ~= nil then
-        for k,v in pairs(savedJobs[xPlayer]) do
-            if v == _source then
-                table.remove(savedJobs[xPlayer], k)
-                break
-            end
-        end
-    end
-end)
+    -- On job change
+    AddEventHandler('esx:setJob', function(pId, job, oldJob)
+        --print("Job changed")
+        RemoveFromJob(pId, oldJob.name)
+        AddToJob(pId, job.name)
+    end)
