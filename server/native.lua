@@ -5,15 +5,15 @@ _G["ESX"] = nil
     RegisterServerEvent = function(eventName, eventRoutine, no_auto_prepare)
         old_RegisterServerEvent(eventName)
 
-        if no_auto_prepare == nil then
+        if no_auto_prepare then
+            AddEventHandler(eventName, eventRoutine)
+        else
             AddEventHandler(eventName, function(...)
                 _source = source
                 xPlayer = ESX.GetPlayerFromId(_source)
 
                 eventRoutine(...)
             end)
-        elseif no_auto_prepare then
-            AddEventHandler(eventName, eventRoutine)
         end
     end
 
@@ -410,11 +410,46 @@ _G["ESX"] = nil
         end
 
 --// Misc //--
-    printd = function(_table)
-        if type(_table) == "table" then
-            print(json.encode(_table, {indent = true}))
+    printd = function(_table, advanced)
+        if advanced then
+            local printTable_cache = {}
+
+            local function sub_printTable(t, indent)
+                if (printTable_cache[tostring(t)]) then
+                    print(indent.."*"..tostring(t))
+                else
+                    printTable_cache[tostring(t)] = true
+                    if (type(t) == "table") then
+                        for pos,val in pairs(t) do
+                            if (type(val) == "table") then
+                                print(indent.."["..pos.."] => "..tostring(t).. " {" )
+                                    sub_printTable(val, indent..string.rep(" ", string.len(pos)+8))
+                                print(indent..string.rep(" ", string.len(pos)+6 ).."}")
+                            elseif (type(val) == "string") then
+                                print(indent.."["..pos.."] => \"" .. val .. "\"")
+                            else
+                                print(indent.."["..pos.."] => "..tostring(val))
+                            end
+                        end
+                    else
+                        print(indent..tostring(t))
+                    end
+                end
+            end
+        
+            if (type(_table) == "table") then
+                print(tostring(_table).." {")
+                sub_printTable(_table, "  ")
+                print("}")
+            else
+                developer("^1Error^0", "error dumping table ".._table.." why isnt a table", "")
+            end
         else
-            developer("^1Error", "error dumping table ".._table.." why isnt a table", "")
+            if type(_table) == "table" then
+                print(json.encode(_table, {indent = true}))
+            else
+                developer("^1Error^0", "error dumping table ".._table.." why isnt a table", "")
+            end
         end
     end
 
