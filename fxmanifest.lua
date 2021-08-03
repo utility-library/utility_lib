@@ -13,6 +13,7 @@ server_scripts {
     "@mysql-async/lib/MySQL.lua",
     "server/native.lua",
     "server/main.lua",
+    "version_checker.lua"
 }
 
 files {
