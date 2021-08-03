@@ -9,47 +9,9 @@ local Keys = {
 	["LEFT"] = 174, ["RIGHT"] = 175, ["TOP"] = 27, ["DOWN"] = 173,
 	["NENTER"] = 201, ["N4"] = 108, ["N5"] = 60, ["N6"] = 107, ["N+"] = 96, ["N-"] = 97, ["N7"] = 117, ["N8"] = 61, ["N9"] = 118
 }
-local old_job = {}
 
 -- Why?, see that https://www.lua.org/gems/sample.pdf#page=3
 local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords, _DrawMarker, _GetEntityCoords, _pairs, _AddTextEntry, _BeginTextCommandDisplayHelp, _EndTextCommandDisplayHelp = TriggerServerEvent, GetPlayerName, PlayerId, GetDistanceBetweenCoords, DrawMarker, GetEntityCoords, pairs, AddTextEntry, BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp
-
---// Job //--
-    StartESX()
-    old_job.job = xPlayer.job
-
-    AddEventHandler("esx:playerLoaded", function(xPlayer)
-        old_job.job = xPlayer.job
-
-        _TriggerServerEvent("Utility:AddWorker", xPlayer.job.name)
-        if Config.SecondJob ~= "" then
-            old_job[Config.SecondJob] = xPlayer[Config.SecondJob]
-            _TriggerServerEvent("Utility:AddWorker", xPlayer[Config.SecondJob].name)
-        end
-    end)
-
-    RegisterNetEvent('esx:setJob', function(job)
-        local _s = source
-        local old_work = old_job.job
-        xPlayer.job = job
-        old_job.job = job
-
-        _TriggerServerEvent("Utility:RefreshWorker", old_work.name, job.name)
-        Emit("job_change".._s, false, job.name)
-    end)
-
-    if Config.SecondJob ~= "" then
-        RegisterNetEvent('esx:set'..Config.SecondJob:sub(1,1):upper()..Config.SecondJob:sub(2), function(data)
-            local _s = source
-            local old_work = old_job[Config.SecondJob]
-            xPlayer[Config.SecondJob] = data
-            old_job[Config.SecondJob] = data
-
-            _TriggerServerEvent("Utility:RefreshWorker", old_work.name, data.name)
-            Emit(Config.SecondJob.."_change_".._s, false, data.name)
-        end)
-    end
-
 
 --// Marker and Object handler //--
     ButtonNotificationInternal = function(msg)
@@ -60,17 +22,17 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
     local player, playerCoords, playerCoordsForDialogue, distance, distance2, question_entity_coords = PlayerPedId(), _GetEntityCoords(PlayerPedId()), _GetEntityCoords(PlayerPedId()), {}, {}, nil
 
-    CreateLoop(function()
-        LoopThread("utility_mainthread",Config.UpdateCooldown, function()
+    CreateLoop(function(loopId)
+        LoopThread(loopId, "utility_mainthread", Config.UpdateCooldown, function()
             player = PlayerPedId()
             playerCoords = _GetEntityCoords(player)
 
             for k,v in pairs(Utility.Cache.Marker) do
-                distance[k] = _GetDistanceBetweenCoords(playerCoords, v.coords, true)
+                distance[k] = #(playerCoords - v.coords)
             end
 
             for k,v in pairs(Utility.Cache.Object) do
-                distance2[k] = _GetDistanceBetweenCoords(playerCoords, v.coords, true)
+                distance2[k] = #(playerCoords - v.coords)
             end
         end)
 
@@ -127,7 +89,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
             -- k = handle
             if question_entity_coords == nil then question_entity_coords = _GetEntityCoords(v.entity) end
 
-            LoopThread("dialogue_thread", Config.UpdateDialogue, function()
+            LoopThread(loopId, "dialogue_thread", Config.UpdateDialogue, function()
                 question_entity_coords = _GetEntityCoords(v.entity) + vector3(0.0, 0.0, 1.0)
                 playerCoordsForDialogue = _GetEntityCoords(player) + vector3(0.0, 0.0, 1.0)
             end)
@@ -144,6 +106,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                             v.callback(v.current_question, v2) -- Doing last callback
                             
                             -- Removing dialogue and resetting to default the question entity coords
+                            TriggerEvent("Utility_Native:ResyncDialogue", k)
                             Utility.Cache.Dialogue[k] = nil                            
                             --developer("^3Switching^0 [Last]", "question number", "from "..(v.current_question-1).." to "..v.current_question)
 
@@ -181,8 +144,48 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                 end
             end
         end
-    end)
 
+        for k,v in pairs(Utility.Cache.N3d) do
+            if v.show then
+                local scaleformCoords
+                local scaleformScale
+                local rotation = vector3(0.0, 0.0, 0.0)
+
+                if v.advanced_scale then
+                    scaleformScale = v.advanced_scale
+                else
+                    scaleformScale = vector3(v.scale*1, v.scale*(9/16), 1)
+                end
+
+                if v.attach ~= nil then
+                    local rot = v.rotation.rotation or 0.0
+
+                    if v.rotation.syncedwithplayer then
+                        rotation = vector3(0.0, 0.0, -GetEntityHeading(v.attach.entity) + rot)
+                    end
+                    
+                    local coords = GetOffsetFromEntityInWorldCoords(v.attach.entity, v.attach.offset.x, v.attach.offset.y, v.attach.offset.z)
+                    
+                    scaleformCoords = vector3(coords.x, coords.y, coords.z)
+                else
+                    local rot = v.rotation.rotation or 0.0
+
+                    if v.rotation.syncedwithplayer then
+                        rotation = vector3(0.0, 0.0, -GetEntityHeading(PlayerPedId()) + rot)
+                    else
+                        rotation = vector3(0.0, 0.0, rot)
+                    end
+                    
+                    scaleformCoords = vector3(v.coords.x, v.coords.y, v.coords.z)
+                end
+                
+                if v.scaleform ~= nil and HasScaleformMovieLoaded(v.scaleform) then
+                    --                            handle           coords          rot      unk        scale      unk
+                    DrawScaleformMovie_3dNonAdditive(v.scaleform, scaleformCoords, rotation, 0, 0, 0, scaleformScale, 0)
+                end
+            end
+        end
+    end)
 --// IsControlJustPressed Handler //--
     IsControlJustPressed("E", function()
         local InteractedWithSomething = false
@@ -261,9 +264,15 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
         Emit(type, true, id)
     end)
 
+    if Config.EmitterTriggerForSyncedVariable then
+        RegisterNetEvent("Utility:SyncValue_emit", function(name, old_value, value)
+            Emit(name, false, value)
+        end)
+    end
+
     RegisterCommand('utility', function(_, args)
         TriggerEvent("Utility:Pressed_"..args[1])
-    end)
+    end, false)
 
 --// Test (dont unmark) //--
     --[[
