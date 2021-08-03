@@ -1,8 +1,9 @@
-_G["ESX"], _G["xPlayer"], _G["source"], _G["developer"] = nil, nil, GetPlayerServerId(PlayerId()), function() end
+_G["ESX"], _G["xPlayer"], _G["source"], _G["developer"] = nil, {}, GetPlayerServerId(PlayerId()), function() end
 
 -- Why?, see that https://www.lua.org/gems/sample.pdf#page=3
 local _AddTextEntry, _BeginTextCommandDisplayHelp, _EndTextCommandDisplayHelp, _SetNotificationTextEntry, _AddTextComponentSubstringPlayerName, _DrawNotification, _GetEntityCoords, _World3dToScreen2d, _SetTextScale, _SetTextFont, _SetTextEntry, _SetTextCentre, _AddTextComponentString, _DrawText, _DoesEntityExist, _GetDistanceBetweenCoords, _GetPlayerPed, _TriggerEvent, _TriggerServerEvent = AddTextEntry, BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp, SetNotificationTextEntry, AddTextComponentSubstringPlayerName, DrawNotification, GetEntityCoords, World3dToScreen2d, SetTextScale, SetTextFont, SetTextEntry, SetTextCentre, AddTextComponentString, DrawText, DoesEntityExist, GetDistanceBetweenCoords, GetPlayerPed, TriggerEvent, TriggerServerEvent
 
+local resName = GetCurrentResourceName()
 local Keys = {
 	["ESC"] = 322, ["F1"] = 288, ["F2"] = 289, ["F3"] = 170, ["F5"] = 166, ["F6"] = 167, ["F7"] = 168, ["F8"] = 169, ["F9"] = 56, ["F10"] = 57,
 	["~"] = 243, ["1"] = 157, ["2"] = 158, ["3"] = 160, ["4"] = 164, ["5"] = 165, ["6"] = 159, ["7"] = 161, ["8"] = 162, ["9"] = 163, ["-"] = 84, ["="] = 83, ["BACKSPACE"] = 177,
@@ -21,10 +22,14 @@ _G["Utility"] = {
         Marker = {},
         Object = {},
         Dialogue = {},
+        N3d = {},
         
         Emitter = {},
         SetData = {},
-        Frozen = {}
+        Frozen = {},
+        FlowDetector = {},
+        Constant = {},
+        Loop = {}
     }
 }
 
@@ -37,12 +42,12 @@ _G["Utility"] = {
         end
 
         local _emitter = {
-            res = GetCurrentResourceName(),
+            res = resName,
             a = function_id,
             b = fake_triggerable
         }
 
-        _TriggerEvent("Utility:Create", "Emitter", type, _emitter, GetCurrentResourceName())
+        _TriggerEvent("Utility:Create", "Emitter", type, _emitter, resName)
     end
 
 --// Custom/Improved Native //-- 
@@ -135,7 +140,10 @@ _G["Utility"] = {
 
             if rectangle then
                 local factor = (string.len(text))/370
-                DrawRect(_x, _y + 0.0125, 0.025+ factor, 0.025, 0, 0, 0, 90)
+                local _, count = string.gsub(factor, "\n", "\n") * 0.025
+                if count == nil then count = 0 end
+
+                DrawRect(_x, _y + 0.0125, 0.025 + factor, 0.025 + count, 0, 0, 0, 90)
             end
         end
     end
@@ -273,64 +281,76 @@ _G["Utility"] = {
         return Utility.Cache.PlayerPedId
     end
 
+ -- Loop
+        -- Thread
+        _break = function(id)
+            Utility.Cache.Loop[id] = nil
+        end
+
+        LoopThread = function(threadId, id, time, _function2)
+            if Utility.Cache.Loop[threadId] == nil then
+                developer("^1Error^0", "You dont have inserted the thread id or the thread id dont exist!")
+                return nil
+            end
+
+            if Utility.Cache.Loop[threadId].Thread[id] == nil then
+                Utility.Cache.Loop[threadId].Thread[id] = {a = true, b = false}
+            end
+
+            if Utility.Cache.Loop[threadId].Thread[id].a then
+                if not Utility.Cache.Loop[threadId].Thread[id].b then
+                    Utility.Cache.Loop[threadId].Thread[id].b = true
+                    Citizen.SetTimeout(time, function()
+                        _function2()
+                        Utility.Cache.Loop[threadId].Thread[id].b = false
+                    end)
+                end
+            end
+        end
+
+        StopLoopThread = function(threadId, id)
+            Utility.Cache.Loop[threadId].Thread[id].a = false
+        end
+
+        ResumeLoopThread = function(threadId, id)
+            Utility.Cache.Loop[threadId].Thread[id].a = true
+        end
+
+        -- Task
+        TaskBack = function(loopId, id, _function2)
+            LoopThread(loopId, id, 5000, function()
+                _function2()
+            end)
+        end
+
+        TaskSlow = function(loopId, id, _function2)
+            LoopThread(loopId, id, 1000, function()
+                _function2()
+            end)
+        end
+
+        TaskFast = function(loopId, id, _function2)
+            LoopThread(loopId, id, 500, function()
+                _function2()
+            end)
+        end
+
+        TaskExtrafast = function(loopId, id, _function2)
+            LoopThread(loopId, id, 5, function()
+                _function2()
+            end)
+        end
+
     CreateLoop = function(_function, tickTime)
+        local loopId = RandomId(5)
+
+        Utility.Cache.Loop[loopId] = {
+            Thread = {}
+        }
+
         Citizen.CreateThread(function()
-            local active = true
-            local NoAsync = {}
-            _break = function()
-                active = false
-            end
-
-            LoopThread = function(id, time, _function)
-                if NoAsync[id] == nil then
-                    NoAsync[id] = {a = true, b = false}
-                end
-
-                if NoAsync[id].a then
-                    if not NoAsync[id].b then
-                        NoAsync[id].b = true
-                        Citizen.SetTimeout(time, function()
-                            _function()
-                            NoAsync[id].b = false
-                        end)
-                    end
-                end
-            end
-
-            TaskBack = function(id, _function)
-                LoopThread(id, 5000, function()
-                    _function()
-                end)
-            end
-
-            TaskSlow = function(id, _function)
-                LoopThread(id, 1000, function()
-                    _function()
-                end)
-            end
-
-            TaskFast = function(id, _function)
-                LoopThread(id, 500, function()
-                    _function()
-                end)
-            end
-
-            TaskExtrafast = function(id, _function)
-                LoopThread(id, 5, function()
-                    _function()
-                end)
-            end
-
-            StopLoopThread = function(id)
-                NoAsync[id].a = false
-            end
-
-            ResumeLoopThread = function(id)
-                NoAsync[id].a = true
-            end
-
-            while active do
-                _function()
+            while Utility.Cache.Loop[loopId] ~= nil do
+                _function(loopId)
                 Citizen.Wait(tickTime or 5)
             end
         end)
@@ -443,46 +463,33 @@ _G["Utility"] = {
                 _TriggerServerEvent("Utility:SyncEvent", event, whitelist, ...) 
             end
         else
-            developer("^2Error", "you can use only number/table on whitelist of TriggerSyncedEvent", "")
+            developer("^1Error^0", "you can use only number/table on whitelist of TriggerSyncedEvent", "")
         end
     end
 
 --// ESX integration //--
     -- Init
-        StartESX = function(inathread, eventName, second_job)
-            if not inathread then
-                -- I did it this way because the thread is interpreted after the script is loaded (after the main thread)
-                -- to avoid weird bugs where esx does not load (remains nil)
-                -- and not being able to use "while ESX == nil do" since i don't want to make it work only in one thread (so being able to use esx only in that thread) 
-                -- I go around the problem by calling it 100 times if it's zero (i know is a bad solution but is the only one)
-
-                TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
-
-                for i=1, 100 do
-                    if ESX == nil then
-                        TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
-                    end
-                end
-            
-                if second_job ~= nil then
-                    RegisterNetEvent('esx:set'..string.upper(second_job:sub(1,1))..second_job:sub(2), function(job)        
-                        xPlayer[second_job] = job
-                    end)
-                end
-            
-                RegisterNetEvent('esx:setJob', function(job)        
-                    xPlayer.job = job
-                end)
-            
-                xPlayer = ESX.GetPlayerData()
-            else
-                TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
-
+        StartESX = function(eventName, second_job)
+            Citizen.CreateThreadNow(function()
                 while ESX == nil do
                     TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
-                    Citizen.Wait(5)
+                    Citizen.Wait(1)
                 end
-            
+                
+                while ESX.GetPlayerData().job == nil do
+                    Citizen.Wait(1)
+                end
+                
+                xPlayer = ESX.GetPlayerData()
+                
+                if second_job ~= nil then
+                    while ESX.GetPlayerData()[second_job] == nil do
+                        Citizen.Wait(1)
+                    end
+
+                    xPlayer = ESX.GetPlayerData()
+                end
+
                 if second_job ~= nil then
                     RegisterNetEvent('esx:set'..string.upper(second_job:sub(1,1))..second_job:sub(2), function(job)        
                         xPlayer[second_job] = job
@@ -492,25 +499,16 @@ _G["Utility"] = {
                 RegisterNetEvent('esx:setJob', function(job)        
                     xPlayer.job = job
                 end)
-            
-                xPlayer = ESX.GetPlayerData()
-
-                while xPlayer.job == nil do
-                    xPlayer = ESX.GetPlayerData()
-                    Citizen.Wait(5)
-                end
-
-                if second_job ~= nil then
-                    while xPlayer[second_job] == nil do
-                        xPlayer = ESX.GetPlayerData()
-                        Citizen.Wait(5)
-                    end
-                end
-            end
+            end)
         end    
 
     -- Job
         GetDataForJob = function(job)
+            if ESX == nil then
+                developer("^1Error^0", "ESX dont loaded, retry", "")
+                return
+            end
+            
             local job_info = nil
 
             ESX.TriggerServerCallback("Utility:GetJobData", function(worker)
@@ -572,6 +570,36 @@ _G["Utility"] = {
         _GetOnHandObject = 0
     end
 
+    IsInRadius = function(coords1, coords2, radius, debugSphere)
+        local distance = #(coords1-coords2)
+
+        if debugSphere then
+            DrawSphere(coords2, radius, 255, 0, 0, 0.5)
+        end
+        return distance < radius
+    end
+
+    IsNearCoords = function(coords, radius, debugSphere)
+        local distance = #(GetEntityCoords(PlayerPedId())-coords)
+
+        if debugSphere then
+            DrawSphere(coords, radius, 255, 0, 0, 0.5)
+        end
+        return distance < radius
+    end
+    
+    GenerateRandomCoords = function(coords, radius, heading)
+        local x = coords.x + math.random(-radius, radius)
+        local y = coords.y + math.random(-radius, radius)
+        local _, z = GetGroundZFor_3dCoord(x,y,200.0,0)
+
+        if heading then
+            return vector3(x,y,z), math.random(0.0, 360.0)
+        end
+
+        return vector3(x,y,z)
+    end
+
 --// Managing data (like table, but more easy to use) //--
 
     SetFor = function(id, property, value)
@@ -608,14 +636,6 @@ _G["Utility"] = {
             return nil
         end
     end
-
-    _g = function(name, value)
-        TriggerEvent("Utility:RegisterGlobal", name, value)
-    end
-
-    RegisterNetEvent("Utility:RegisterGlobal", function(name, value)
-        _G[name] = value
-    end)
 
 --// Marker/Object/Blip //--
     -- Marker
@@ -1064,11 +1084,46 @@ _G["Utility"] = {
         AddReplaceTexture(prop, textureName, 'duiTxd', 'duiTex')
     end
 
-    printd = function(_table)
-        if type(_table) == "table" then
-            print(json.encode(_table, {indent = true}))
+    printd = function(_table, advanced)
+        if advanced then
+            local printTable_cache = {}
+ 
+            local function sub_printTable(t, indent)
+                if (printTable_cache[tostring(t)]) then
+                    print(indent.."*"..tostring(t))
+                else
+                    printTable_cache[tostring(t)] = true
+                    if (type(t) == "table") then
+                        for pos,val in pairs(t) do
+                            if (type(val) == "table") then
+                                print(indent.."["..pos.."] => "..tostring(t).. " {" )
+                                    sub_printTable(val, indent..string.rep(" ", string.len(pos)+8))
+                                print(indent..string.rep(" ", string.len(pos)+6 ).."}")
+                            elseif (type(val) == "string") then
+                                print(indent.."["..pos.."] => \"" .. val .. "\"")
+                            else
+                                print(indent.."["..pos.."] => "..tostring(val))
+                            end
+                        end
+                    else
+                        print(indent..tostring(t))
+                    end
+                end
+            end
+         
+            if (type(_table) == "table") then
+                print(tostring(_table).." {")
+                sub_printTable(_table, "  ")
+                print("}")
+            else
+                developer("^1Error^0", "error dumping table ".._table.." why isnt a table", "")
+            end
         else
-            developer("^1Error", "error dumping table ".._table.." why isnt a table", "")
+            if type(_table) == "table" then
+                print(json.encode(_table, {indent = true}))
+            else
+                developer("^1Error^0", "error dumping table ".._table.." why isnt a table", "")
+            end
         end
     end
 
@@ -1127,19 +1182,8 @@ _G["Utility"] = {
         return _result
     end
 
-
 --// Dialog //--
-    StartDialogue = function(entity, distance, callback)
-        local _dialog = {}
-
-        _dialog = {
-            entity = entity,
-            distance = distance,
-            current_question = 1,
-            callback = callback
-        }
-
-        developer("^2Created^0", "dialogue with entity", entity)
+    local function DialogueTable(entity, _dialog, editing)
         return {
             Question = function(...) 
                 local questions = {...}
@@ -1175,7 +1219,12 @@ _G["Utility"] = {
                             formatted = formatted_text
                         }
 
-                        _TriggerEvent("Utility:Create", "Dialogue", entity, _dialog)
+                        if editing then
+                            _TriggerEvent("Utility:Remove", "Dialogue", entity)
+                            _TriggerEvent("Utility:Create", "Dialogue", entity, _dialog)
+                        else
+                            _TriggerEvent("Utility:Create", "Dialogue", entity, _dialog)
+                        end
                         Utility.Cache.Dialogue[entity] = _dialog
 
                         return {
@@ -1190,57 +1239,24 @@ _G["Utility"] = {
         }
     end
 
+    StartDialogue = function(entity, distance, callback)
+        local _dialog = {}
+
+        _dialog = {
+            entity = entity,
+            distance = distance,
+            current_question = 1,
+            callback = callback
+        }
+
+        developer("^2Created^0", "dialogue with entity", entity)
+
+        return DialogueTable(entity, _dialog)
+    end
+
     EditDialogue = function(entity)
         if entity ~= nil and IsEntityOnDialogue(entity) then
-            return {
-                Question = function(...) 
-                    local questions = {...}
-                    _dialog.questions = questions
-        
-                    return {
-                        Response = function(...)
-                            local formatted_text = {}
-                            local no_formatted = {}
-        
-                            for k1,v1 in pairs({...}) do
-                                no_formatted[k1] = {}
-        
-                                for k,v in pairs(v1) do
-                                    if formatted_text[k1] == nil then
-                                        formatted_text[k1] = ""
-                                    end
-        
-                                    formatted_text[k1] = formatted_text[k1]..k.."~w~ "..v.." | "
-        
-                                    k = string.multigsub(k, {"%[", "%]"}, {"", ""})
-                                    k = string.multigsub(k, {"~r~", "~b~", "~g~", "~y~", "~p~", "~o~", "~c~", "~m~", "~u~", "~n~", "~s~", "~w~"}, {"", "","", "","", "","", "","", "","", ""})
-        
-                                    --print("k = "..k)
-                                    no_formatted[k1][k] = v
-                                end
-        
-                                formatted_text[k1] = formatted_text[k1]:sub(1, -3)
-                            end
-        
-                            _dialog.response = {
-                                no_formatted = no_formatted,
-                                formatted = formatted_text
-                            }
-        
-                            _TriggerEvent("Utility:Remove", "Dialogue", entity)
-                            _TriggerEvent("Utility:Create", "Dialogue", entity, _dialog)
-                            Utility.Cache.Dialogue[entity] = _dialog
-    
-                            return {
-                                LastQuestion = function(last)
-                                    Utility.Cache.Dialogue[entity].lastq = last
-                                    _TriggerEvent("Utility:Edit", "Dialogue", entity, "lastq", last)
-                                end
-                            }
-                        end
-                    }
-                end
-            }
+            return DialogueTable(entity, _dialog, true)
         end
     end
 
@@ -1253,14 +1269,14 @@ _G["Utility"] = {
                 local __entity = Utility.Cache.Dialogue[entity].entity
                 local entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
 
-                CreateLoop(function()
-                    LoopThread(1, 1000, function()
+                CreateLoop(function(loopId)
+                    LoopThread(loopId, 1000, function()
                         entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
                         a = a + 1
                     end)
 
                     if a == 3 then
-                        _break()
+                        _break(loopId)
                     end
                 
                     DrawText3Ds(entity_coords, lastq, nil, nil, true)
@@ -1272,6 +1288,267 @@ _G["Utility"] = {
         end
     end
 
+    RegisterNetEvent("Utility_Native:ResyncDialogue", function(entity)
+        Utility.Cache.Dialogue[entity] = nil
+    end)
+
     IsEntityOnDialogue = function(entity)
         return Utility.Cache.Dialogue[entity]
     end
+
+--// Variable Modification //--
+
+    -- Synced local across client
+        -- FlowDetector for the Synced value (to finish testing properly)
+            local function CopyTable(table)
+                local final_table = {}
+
+                print("Copying table "..tostring(table))
+                for k, v in pairs(table) do 
+                    final_table[k] = v
+                end
+
+                return final_table
+            end
+
+            CreateLoop(function()
+                for name, old_value in pairs(Utility.Cache.FlowDetector) do
+                    local new_value = _G[name]
+                    if type(new_value) == 'table' or type(old_value) == 'table' then
+                        if json.encode(old_value) ~= json.encode(new_value) then
+                            print("\nDetected old_value change of syncedV \""..name.."\" from \""..json.encode(old_value).."\" to \""..json.encode(new_value).."\"")
+
+                            TriggerSyncedEvent("Utility:SyncValue_emit", -1, name, old_value, new_value) -- Send the emitter
+                            TriggerSyncedEvent("Utility:SyncValue["..resName.."]", -1, name, new_value) -- Refresh the value for the all client
+
+                            -- Refresh the stored value
+                            local final_table = CopyTable(new_value)
+                            Utility.Cache.FlowDetector[name] = final_table
+                        end
+                    else
+                        if new_value ~= old_value then
+                            --print("Detected old_value change of syncedV \""..name.."\" from \""..tostring(old_value).."\" to \""..tostring(new_value).."\"")
+
+                            TriggerSyncedEvent("Utility:SyncValue_emit", -1, name, old_value, new_value) -- Send the emitter
+                            TriggerSyncedEvent("Utility:SyncValue["..resName.."]", -1, name, new_value) -- Refresh the value for the all client
+
+                            -- Refresh the stored value
+                            Utility.Cache.FlowDetector[name] = new_value
+                        end
+                    end
+                end
+            end, 2000)
+
+        Synced = function(name, value)
+            print("Creating synceV "..name)
+
+            if type(value) == "table" then
+                local final_table = CopyTable(value)
+                Utility.Cache.FlowDetector[name] = final_table
+                _G[name] = value
+            else
+                Utility.Cache.FlowDetector[name] = value
+                _G[name] = value
+            end
+        end
+
+        RegisterNetEvent("Utility:SyncValue["..resName.."]", function(name, value)
+            --print("Resyncing syncedV \""..tostring(name).."\" to \""..tostring(value).."\"")
+            _G[name] = value
+        end)
+
+    -- Constant
+    -- Dont works why override global function of FiveM
+        --[[local checkconstant = {
+            __index = Utility.Cache.Constant,
+            __newindex = function(tbl, key, value)
+                if Utility.Cache.Constant[key] then
+                    print("attempting to overwrite constant \""..tostring(key).."\" to \""..tostring(value).."\"")
+                    key = Utility.Cache.Constant[key]
+                end
+                rawset(tbl, key, value)
+            end
+        }
+
+        const = function(name, value)
+            if _G[name] then
+                Utility.Cache.Constant[name] = _G[name]
+                _G[name] = nil
+            else
+                Utility.Cache.Constant[name] = value
+            end
+            setmetatable(_G, checkconstant)
+        end]]
+
+--// N3d //--
+
+    local function LoadScaleform(N3dHandle, scaleform)
+        local scaleformHandle = RequestScaleformMovie(scaleform) -- Request the scaleform
+
+        -- Wait till it has loaded
+        local a = 100
+
+        while not HasScaleformMovieLoaded(scaleformHandle) and a > 0 do
+            a = a - 1
+            scaleformHandle = RequestScaleformMovie(scaleform)
+            Citizen.Wait(5)
+        end
+
+        if a == 0 then
+            developer("^1Error^0", "After 100 attempts to load the scaleform the scaleform has not loaded yet, try again or check that it has started correctly!", "")
+            return
+        end
+
+        -- Save the handle in the table
+        Utility.Cache.N3d[N3dHandle].scaleform = scaleformHandle
+        _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "scaleform", scaleformHandle)
+    end
+
+    local function StartupDui(N3dHandle, url, width, height)
+        local txd = CreateRuntimeTxd('txd') -- Create texture dictionary
+
+        Utility.Cache.N3d[N3dHandle].dui = CreateDui(url, width, height) -- Create Dui with the url
+        _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "dui", Utility.Cache.N3d[N3dHandle].dui)
+
+        local dui = GetDuiHandle(Utility.Cache.N3d[N3dHandle].dui) -- Getting dui handle
+
+        CreateRuntimeTextureFromDuiHandle(txd, 'txn', dui) -- Applying the txd on the dui
+
+        if Utility.Cache.N3d[N3dHandle].scaleform ~= nil and not Utility.Cache.N3d[N3dHandle].txd then
+            PushScaleformMovieFunction(Utility.Cache.N3d[N3dHandle].scaleform, 'SET_TEXTURE')
+
+            PushScaleformMovieMethodParameterString('txd') -- txd
+            PushScaleformMovieMethodParameterString('txn') -- txn
+
+            PushScaleformMovieFunctionParameterInt(0) -- x
+            PushScaleformMovieFunctionParameterInt(0) -- y
+            PushScaleformMovieFunctionParameterInt(width)
+            PushScaleformMovieFunctionParameterInt(height)
+
+            PopScaleformMovieFunctionVoid()
+            Utility.Cache.N3d[N3dHandle].txd = true
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "txd", true)
+        end
+    end
+
+    -- Class and handle
+    function CreateNui3d(sfName, url)
+        local N3dHandle = tostring(math.random(0, 9999))
+
+        local _N3d = {
+            txd = false,
+            show = false,
+            rotation = {}
+        }
+
+        Utility.Cache.N3d[N3dHandle] = _N3d
+        _TriggerEvent("Utility:Create", "N3d", N3dHandle, _N3d) -- Sync the table in the utility_lib
+
+        -- Auto load the scaleform
+        LoadScaleform(N3dHandle, sfName)
+
+        if url ~= nil then
+            StartupDui(N3dHandle, "nui://"..GetCurrentResourceName().."/"..url, 1920, 1080)
+        end
+
+
+        -- Class to return
+        local N3d_Class = {}
+        N3d_Class.__index = N3d_Class
+
+        N3d_Class.init = function(self, url, width, height)
+            StartupDui(N3dHandle, "nui://"..GetCurrentResourceName().."/"..url, width or 1920, height or 1080)
+        end
+
+        N3d_Class.scale = function(self, scale)
+            Utility.Cache.N3d[N3dHandle].advanced_scale = scale
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "advanced_scale", scale)
+        end
+
+        N3d_Class.rotation = function(self, rotation, syncedwithplayer)
+            Utility.Cache.N3d[N3dHandle].rotation.rotation = rotation
+            Utility.Cache.N3d[N3dHandle].rotation.syncedwithplayer = syncedwithplayer
+
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "rotation", {
+                rotation = rotation,
+                syncedwithplayer = syncedwithplayer
+            })
+        end
+
+        N3d_Class.destroy = function(self)
+            if Utility.Cache.N3d[N3dHandle].dui ~= nil then
+                DestroyDui(Utility.Cache.N3d[N3dHandle].dui)
+                SetScaleformMovieAsNoLongerNeeded(sfName)
+                _TriggerEvent("Utility:Remove", "N3d", N3dHandle)
+
+            end
+        end
+
+        N3d_Class.started = function()
+            return Utility.Cache.N3d[N3dHandle].dui ~= nil
+        end
+
+        N3d_Class.show = function(self, coords, scale)
+            Utility.Cache.N3d[N3dHandle].coords = coords
+            Utility.Cache.N3d[N3dHandle].scale = scale or 0.1
+            Utility.Cache.N3d[N3dHandle].show = true
+
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "coords", coords)
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "scale", scale or 0.1)
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "show", true)
+        end
+
+        N3d_Class.visible = function()
+            return Utility.Cache.N3d[N3dHandle].show
+        end
+
+        N3d_Class.hide = function()
+            Utility.Cache.N3d[N3dHandle].show = false
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "show", false)
+        end
+
+        N3d_Class.attach = function(self, entity, offset)
+            Utility.Cache.N3d[N3dHandle].attach = {
+                entity = entity,
+                offset = offset or vector3(0.0, 0.0, 0.0)
+            }
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "attach", {
+                entity = entity,
+                offset = offset or vector3(0.0, 0.0, 0.0)
+            })
+        end
+
+        N3d_Class.detach = function(self, atcoords)
+            if atcoords then
+                Utility.Cache.N3d[N3dHandle].coords = GetEntityCoords(Utility.Cache.N3d[N3dHandle].attach.entity)
+                _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "coords", Utility.Cache.N3d[N3dHandle].coords)
+            end
+            Utility.Cache.N3d[N3dHandle].attach = nil
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "attach", nil)
+        end
+
+        N3d_Class.object = function()
+            return Utility.Cache.N3d[N3dHandle].dui
+        end
+
+        N3d_Class.msg = function(self, msg)
+            if self:started() then
+                SendDuiMessage(self:object(), json.encode(msg))
+            end
+        end
+
+        return setmetatable({}, N3d_Class)
+    end
+
+    AddEventHandler("onResourceStop", function(_resName)
+        if _resName == resName then
+            for handle,data in pairs(Utility.Cache.N3d) do
+                if data.dui ~= nil then
+                    if IsDuiAvailable(data.dui) then
+                        DestroyDui(data.dui)
+                        _TriggerEvent("Utility:Remove", "N3d", handle)
+                    end
+                end
+            end
+        end
+    end)
