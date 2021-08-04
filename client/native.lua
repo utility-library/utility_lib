@@ -1544,10 +1544,8 @@ _G["Utility"] = {
         if _resName == resName then
             for handle,data in pairs(Utility.Cache.N3d) do
                 if data.dui ~= nil then
-                    if IsDuiAvailable(data.dui) then
-                        DestroyDui(data.dui)
-                        _TriggerEvent("Utility:Remove", "N3d", handle)
-                    end
+                      DestroyDui(data.dui)
+                      _TriggerEvent("Utility:Remove", "N3d", handle)
                 end
             end
         end
