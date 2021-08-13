@@ -272,7 +272,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
     RegisterCommand('utility', function(_, args)
         TriggerEvent("Utility:Pressed_"..args[1])
-    end, false)
+    end, true)
 
 --// Test (dont unmark) //--
     --[[
