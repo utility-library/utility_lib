@@ -10,7 +10,12 @@ _G["ESX"] = nil
         else
             AddEventHandler(eventName, function(...)
                 _source = source
-                xPlayer = ESX.GetPlayerFromId(_source)
+
+                if GetResourceState("qb-core") == "started" then
+                    Player = QBCore.Functions.GetPlayer(_source)
+                elseif GetResourceState("es_extended") == "started" then
+                    xPlayer = ESX.GetPlayerFromId(_source)    
+                end
 
                 eventRoutine(...)
             end)
@@ -20,9 +25,16 @@ _G["ESX"] = nil
     StartESX = function(triggerName)
         TriggerEvent(triggerName or 'esx:getSharedObject', function(obj) ESX = obj end)
     end
+    StartQB = function(triggerName)
+        QBCore = exports['qb-core']:GetCoreObject()
+    end
 
-    ShowNotification = function(source, msg)
-        TriggerClientEvent('esx:showNotification', source, msg)
+    ShowNotification = function(source, msg, type)
+        if GetResourceState("qb-core") == "started" then
+            TriggerClientEvent('QBCore:Notify', source, msg, type)
+        elseif GetResourceState("es_extended") == "started" then
+            TriggerClientEvent('esx:showNotification', source, msg)
+        end
     end
 
     CreateLoop = function(_function, tickTime)
