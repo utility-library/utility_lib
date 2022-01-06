@@ -29,7 +29,8 @@ _G["Utility"] = {
         Frozen = {},
         FlowDetector = {},
         Constant = {},
-        Loop = {}
+        Loop = {},
+        SliceGroups = {}
     }
 }
 
@@ -282,77 +283,52 @@ _G["Utility"] = {
     end
 
  -- Loop
-        -- Thread
-        _break = function(id)
-            Utility.Cache.Loop[id] = nil
-        end
+    -- Before _break
+    StopLoop = function(id)
+        Utility.Cache.Loop[id].status = false
+    end
 
-        LoopThread = function(threadId, id, time, _function2)
-            if Utility.Cache.Loop[threadId] == nil then
-                developer("^1Error^0", "You dont have inserted the thread id or the thread id dont exist!")
-                return nil
-            end
 
-            if Utility.Cache.Loop[threadId].Thread[id] == nil then
-                Utility.Cache.Loop[threadId].Thread[id] = {a = true, b = false}
-            end
-
-            if Utility.Cache.Loop[threadId].Thread[id].a then
-                if not Utility.Cache.Loop[threadId].Thread[id].b then
-                    Utility.Cache.Loop[threadId].Thread[id].b = true
-                    Citizen.SetTimeout(time, function()
-                        _function2()
-                        Utility.Cache.Loop[threadId].Thread[id].b = false
-                    end)
-                end
-            end
-        end
-
-        StopLoopThread = function(threadId, id)
-            Utility.Cache.Loop[threadId].Thread[id].a = false
-        end
-
-        ResumeLoopThread = function(threadId, id)
-            Utility.Cache.Loop[threadId].Thread[id].a = true
-        end
-
-        -- Task
-        TaskBack = function(loopId, id, _function2)
-            LoopThread(loopId, id, 5000, function()
-                _function2()
-            end)
-        end
-
-        TaskSlow = function(loopId, id, _function2)
-            LoopThread(loopId, id, 1000, function()
-                _function2()
-            end)
-        end
-
-        TaskFast = function(loopId, id, _function2)
-            LoopThread(loopId, id, 500, function()
-                _function2()
-            end)
-        end
-
-        TaskExtrafast = function(loopId, id, _function2)
-            LoopThread(loopId, id, 5, function()
-                _function2()
-            end)
-        end
-
-    CreateLoop = function(_function, tickTime)
+    CreateLoop = function(_function, tickTime, dontstart)
         local loopId = RandomId(5)
 
         Utility.Cache.Loop[loopId] = {
-            Thread = {}
+            status = true,
+            func = _function,
+            tick = tickTime
         }
 
-        Citizen.CreateThread(function()
-            while Utility.Cache.Loop[loopId] ~= nil do
-                _function(loopId)
-                Citizen.Wait(tickTime or 5)
-            end
+        if dontstart ~= false then
+            Citizen.CreateThread(function()
+                while Utility.Cache.Loop[loopId] and Utility.Cache.Loop[loopId].status do
+                    _function(loopId)
+                    Citizen.Wait(tickTime or 1)
+                end
+            end)
+        end
+
+        return loopId
+    end
+
+    PauseLoop = function(loopId, delay)
+        Citizen.SetTimeout(delay or 0, function()
+            print("Pausing loop "..loopId)
+            Utility.Cache.Loop[loopId].status = false
+        end)
+    end
+
+    ResumeLoop = function(loopId, delay)
+        local current = Utility.Cache.Loop[loopId]
+        
+        Citizen.SetTimeout(delay or 0, function()
+            print("Resuming loop "..loopId)
+            current.status = true
+            Citizen.CreateThread(function()
+                while current and current.status do
+                    current.func(loopId)
+                    Citizen.Wait(current.tick or 1)
+                end
+            end)
         end)
     end
 
@@ -500,25 +476,26 @@ _G["Utility"] = {
                     xPlayer.job = job
                 end)
             end)
-        end    
+        end 
+        StartQB = function(triggerName)
+            QBCore = exports['qb-core']:GetCoreObject()
+        end
 
     -- Job
         GetDataForJob = function(job)
-            if ESX == nil then
-                developer("^1Error^0", "ESX dont loaded, retry", "")
-                return
-            end
-            
-            local job_info = nil
+            local job_info = promise:new()
 
-            ESX.TriggerServerCallback("Utility:GetJobData", function(worker)
-                job_info = worker
-            end, job)
-
-            while job_info == nil do
-                Citizen.Wait(1)
+            if GetResourceState("qb-core") == "started" then
+                ESX.TriggerServerCallback("Utility:GetJobData", function(worker)
+                    job_info:resolve(worker)
+                end, job)    
+            elseif GetResourceState("es_extended") == "started" then
+                QBCore.Functions.TriggerCallback("Utility:GetJobData", function(worker)
+                    job_info:resolve(worker)
+                end, job)    
             end
 
+            job_info = Citizen.Await(job_info)
             return #job_info, job_info
         end
 
@@ -637,6 +614,43 @@ _G["Utility"] = {
         end
     end
 
+--// Slices //--
+    function GetSliceCoordsFromCoords(coord)
+        --                       coord + max / sliceRadius
+        return vector2(math.floor((coord.x + 8192) / 100), math.floor((coord.y + 8192) / 100))
+    end
+
+    function GetSliceFromCoords(pos)
+        local slice = GetSliceCoordsFromCoords(pos)
+        --               (x * 2^2 + y) = id
+        local id = (slice.x * math.pow(2, 2)) + slice.y
+
+        return id
+    end
+
+    function GetEntitySlice(ped)
+        return GetSliceFromCoords(GetEntityCoords(ped))
+    end
+    function GetPlayerSlice(player)
+        local ped = GetPlayerPed(player)
+
+        return GetSliceFromCoords(GetEntityCoords(ped))
+    end
+    function GetSelfSlice()
+        local ped = PlayerPedId()
+
+        return GetSliceFromCoords(GetEntityCoords(ped))
+    end
+    function IsOnScreen(coords)
+        local onScreen, _x, _y = World3dToScreen2d(coords.x, coords.y, coords.z)
+                        
+        return onScreen
+    end
+    function SliceUsed(slice)
+        return Utility.Cache.SliceGroups[slice] or false
+    end
+
+
 --// Marker/Object/Blip //--
     -- Marker
     RandomId = function(length)
@@ -668,7 +682,8 @@ _G["Utility"] = {
             local _marker = {
                 render_distance = render_distance,
                 interaction_distance = interaction_distance,
-                coords = coords
+                coords = coords,
+                slice = tostring(GetSliceFromCoords(coords))
             }
 
             -- Options
@@ -880,7 +895,13 @@ _G["Utility"] = {
     CreateiObject = function(id, model, pos, heading, interaction_distance, network)
         developer("^2Created^0 Object "..id.." ("..model..")")
 
-        local obj = CreateObject(GetHashKey(model), pos.x,pos.y,pos.z, network or true, false, false) or nil
+        local obj
+        if network ~= nil then
+            obj = CreateObject(GetHashKey(model), pos.x,pos.y,pos.z, network, false, false) or nil
+        else
+            obj = CreateObject(GetHashKey(model), pos.x,pos.y,pos.z, true, false, false) or nil
+        end
+
         SetEntityHeading(obj, heading)
         SetEntityAsMissionEntity(obj, true, true)
         FreezeEntityPosition(obj, true)
@@ -889,7 +910,8 @@ _G["Utility"] = {
         _object = {
             obj = obj,
             coords = pos,
-            interaction_distance = interaction_distance or 3.0
+            interaction_distance = interaction_distance or 3.0,
+            slice = tostring(GetSliceFromCoords(pos))
         }
 
         Utility.Cache.Object[id] = _object -- Sync the local table
@@ -1246,7 +1268,8 @@ _G["Utility"] = {
             entity = entity,
             distance = distance,
             current_question = 1,
-            callback = callback
+            callback = callback,
+            slice = tostring(GetEntitySlice(entity))
         }
 
         developer("^2Created^0", "dialogue with entity", entity)
