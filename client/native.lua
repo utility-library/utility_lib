@@ -649,6 +649,9 @@ _G["Utility"] = {
     function SliceUsed(slice)
         return Utility.Cache.SliceGroups[slice] or false
     end
+    function SetSliceUsed(slice, value)
+        Utility.Cache.SliceGroups[slice] = value
+    end
 
 
 --// Marker/Object/Blip //--
