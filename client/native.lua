@@ -211,6 +211,12 @@ _G["Utility"] = {
         return ped, netId
     end
 
+    SetPedStatic = function(entity, active)
+        FreezeEntityPosition(entity, active)
+        SetEntityInvincible(entity, active)
+        SetBlockingOfNonTemporaryEvents(entity, active)
+    end
+
     _G.old_CreateVehicle = CreateVehicle
     CreateVehicle = function(modelHash, ...)
         if type(modelHash) == "string" then
