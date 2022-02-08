@@ -23,6 +23,7 @@ _G["Utility"] = {
         Object = {},
         Dialogue = {},
         N3d = {},
+        Events = {},
         
         Emitter = {},
         SetData = {},
@@ -85,9 +86,9 @@ _G["Utility"] = {
     _G.old_IsControlJustPressed = IsControlJustPressed
     IsControlJustPressed = function(key, _function)
         developer("^2Created^0", "key map", key)
-        RegisterKeyMapping('utility '..key, '', "keyboard", key)
+        RegisterKeyMapping('utility '..resName..' '..key, '', "keyboard", key)
 
-        AddEventHandler("Utility:Pressed_"..key, _function)
+        table.insert(Utility.Cache.Events, AddEventHandler("Utility:Pressed_"..resName.."_"..key, _function))
     end
 
     ShowNotification = function(msg)
@@ -104,6 +105,17 @@ _G["Utility"] = {
         _AddTextEntry('ButtonNotification', msg)
         _BeginTextCommandDisplayHelp('ButtonNotification')
         _EndTextCommandDisplayHelp(0, false, true, -1)
+    end
+
+    ButtonFor = function(msg, ms)
+        local timer = GetGameTimer()
+    
+        Citizen.CreateThread(function()
+            while (GetGameTimer() - timer) < (ms or 5000) do
+                ButtonNotification(msg)
+                Citizen.Wait(1)
+            end
+        end)
     end
 
     FloatingNotification = function(msg, coords)
@@ -160,6 +172,17 @@ _G["Utility"] = {
         RemoveAnimDict(animDictionary)
     end
 
+    TaskEasyPlayAnim = function(dict, anim, move, duration)
+        if move == nil then move = 51 end
+        if duration == nil then duration = -1 end
+
+        TaskPlayAnim(PlayerPedId(), dict, anim, 2.0, 2.0, duration, move, 0)
+
+        if duration > -1 or duration > 0 then
+            Citizen.Wait(duration)
+        end
+    end
+
     _G.old_CreateObject = CreateObject
     CreateObject = function(modelHash, ...)
         if type(modelHash) == "string" then
@@ -170,7 +193,7 @@ _G["Utility"] = {
             RequestModel(modelHash);
             while not HasModelLoaded(modelHash) do Citizen.Wait(1); end  
         end
-        
+
         local obj = old_CreateObject(modelHash, ...)
 
         SetModelAsNoLongerNeeded(modelHash) 
@@ -1067,15 +1090,15 @@ _G["Utility"] = {
         
         if active then
             SetCamActive(cam, true)
-            RenderScriptCams(1, 1, 1500, 1, 1)
+            RenderScriptCams(1, 1, 1500)
         end
 
         return cam
     end
 
-    SwitchBetweenCam = function(old_cam, cam)
-        SetCamActiveWithInterp(cam, old_cam, 1500, 1, 1)
-        Citizen.Wait(1600)
+    SwitchBetweenCam = function(old_cam, cam, duration)
+        SetCamActiveWithInterp(cam, old_cam, duration or 1500, 1, 1)
+        Citizen.Wait(duration or 1500)
         DestroyCam(old_cam)
     end 
 
@@ -1574,6 +1597,10 @@ _G["Utility"] = {
 
     AddEventHandler("onResourceStop", function(_resName)
         if _resName == resName then
+            for i=1, #Utility.Cache.Events do
+                RemoveEventHandler(Utility.Cache.Events[i])
+            end
+
             for handle,data in pairs(Utility.Cache.N3d) do
                 if data.dui ~= nil then
                       DestroyDui(data.dui)
@@ -1582,3 +1609,42 @@ _G["Utility"] = {
             end
         end
     end)
+
+    GetDirectionFromVectors = function(vec, vec2)
+        return vec - vec2
+    end
+
+    RotationToDirection = function(rotation)
+    
+        local adjustedRotation = 
+        { 
+            x = (math.pi / 180) * rotation.x, 
+            y = (math.pi / 180) * rotation.y, 
+            z = (math.pi / 180) * rotation.z 
+        }
+        local direction = 
+        {
+            x = -math.sin(adjustedRotation.z) * math.abs(math.cos(adjustedRotation.x)), 
+            y = math.cos(adjustedRotation.z) * math.abs(math.cos(adjustedRotation.x)), 
+            z = math.sin(adjustedRotation.x)
+        }
+        return direction
+    end
+
+    TranslateZAnimated = function(obj, z, stepduration)
+        local coords = GetEntityCoords(obj)
+        local isNegative = z < 0
+    
+        for i=1, math.abs(z)*100 do
+            local newZ = isNegative and (coords.z - i/100) or (coords.z + i/100)
+    
+            SetEntityCoords(obj, coords.x, coords.y, newZ)
+            Citizen.Wait(stepduration)
+        end
+    end
+
+    SetVehicleWheelsPowered = function(veh, active)
+        for i=0, GetVehicleNumberOfWheels(veh) - 1 do
+            SetVehicleWheelIsPowered(veh, i, active)
+        end
+    end
