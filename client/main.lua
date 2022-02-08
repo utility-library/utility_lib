@@ -306,7 +306,9 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
     end
 
     RegisterCommand('utility', function(_, args)
-        TriggerEvent("Utility:Pressed_"..args[1])
+        if args[2] and args[1] then
+            TriggerEvent("Utility:Pressed_"..args[1].."_"..args[2])
+        end
     end, true)
 
 --// Test (dont unmark) //--
