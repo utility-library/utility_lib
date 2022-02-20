@@ -97,7 +97,7 @@ end)
 
 -- Job
     -- On quit
-    if GetResourceState("qb-core") == "started" then
+    if GetResourceState("es_extended") == "started" then
         AddEventHandler('esx:playerDropped', function(pId)
             local xPlayer = ESX.GetPlayerFromId(pId)
             RemoveFromJob(pId, xPlayer)
@@ -115,7 +115,7 @@ end)
             RemoveFromJob(pId, oldJob.name)
             AddToJob(pId, job.name)
         end)
-    elseif GetResourceState("es_extended") == "started" then
+    elseif GetResourceState("qb-core") == "started" then
         AddEventHandler("playerDropped", function()
             local Player = QBCore.Functions.GetPlayer(source)
             RemoveFromJob(source, Player)
