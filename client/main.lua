@@ -135,12 +135,12 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                                             bbreak = true
                                         end)
 
-                                        CreateLoop(function()
+                                        CreateLoop(function(loopId)
                                             question_entity_coords = _GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
 												
                                             if bbreak then
                                                 question_entity_coords = nil
-                                                _break()
+                                                _break(loopId)
                                             end
 
                                             DrawText3Ds(question_entity_coords, v.lastq, nil, nil, true)
