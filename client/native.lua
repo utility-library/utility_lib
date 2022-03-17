@@ -757,159 +757,81 @@ _G["Utility"] = {
         end
     end
 
-        SetMarkerType = function(id, _type)
-            if type(_type) ~= "number" then
-                developer("^1Error^0","Type can be only a number", "[Marker]")
+        SetMarker = function(id, _type, key, value)
+            if type(value) ~= _type then
+                developer("^1Error^0", key.." can be only a ".._type, "[Marker]")
                 return 
             end
             
             if DoesExist("marker", id) then
-                Utility.Cache.Marker[id]._type = _type
-                _TriggerEvent("Utility:Edit", "Marker", id, "_type", _type)
+                Utility.Cache.Marker[id][key] = value
+                _TriggerEvent("Utility:Edit", "Marker", id, key, value)
             else
                 developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
             end
+        end
+
+        SetMarkerType = function(id, _type)
+            SetMarker(id, "number", "_type", _type)
         end
 
         SetMarkerDirection = function(id, direction)
-            if type(direction) ~= "vector3" then
-                developer("^1Error^0","Direction can be only a vector3", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id]._direction = direction
-                _TriggerEvent("Utility:Edit", "Marker", id, "_direction", direction)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "vector3", "_direction", direction)
         end
 
         SetMarkerRotation = function(id, rot)
-            if type(rot) ~= "vector3" then
-                developer("^1Error^0","Rotation can be only a vector3", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id]._rot = rot
-                _TriggerEvent("Utility:Edit", "Marker", id, "_rot", rot)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "vector3", "_rot", rot)
         end
 
         SetMarkerScale = function(id, scale)
-            if type(scale) ~= "vector3" then
-                developer("^1Error^0","Scale can be only a vector3", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id]._scale = scale
-                _TriggerEvent("Utility:Edit", "Marker", id, "_scale", scale)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "vector3", "_scale", scale)
         end
 
         SetMarkerColor = function(id, rgb)
-            if type(rgb) ~= "table" then
-                developer("^1Error^0","Color can be only a vector3", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id].rgb = rgb
-                _TriggerEvent("Utility:Edit", "Marker", id, "rgb", rgb)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "table", "rgb", rgb)
         end
 
+        ---
+        SetMarkerCoords = function(id, coords)
+            SetMarker(id, "vector3", "coords", coords)
+        end
+
+        SetMarkerRenderDistance = function(id, render_distance)
+            SetMarker(id, "number", "render_distance", render_distance)
+        end
+
+        SetMarkerInteractionDistance = function(id, interaction_distance)
+            SetMarker(id, "number", "interaction_distance", interaction_distance)
+        end
+        ---
+
         SetMarkerAlpha = function(id, alpha)
-            if type(alpha) ~= "number" then
-                developer("^1Error^0","Alpha can be only a number", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id].alpha = alpha
-                _TriggerEvent("Utility:Edit", "Marker", id, "alpha", alpha)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "number", "alpha", alpha)
         end
 
         SetMarkerAnimation = function(id, active)
-            if type(active) ~= "boolean" then
-                developer("^1Error  ^0","Animation can be only a boolean (true/false)", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id].anim = active
-                _TriggerEvent("Utility:Edit", "Marker", id, "anim", active)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "boolean", "anim", active)
         end
 
         SetMarkerDrawOnEntity = function(id, active)
-            if type(active) ~= "boolean" then
-                developer("^1Error^0","Draw on entity can be only a boolean (true/false)", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id].draw_entity = active
-                _TriggerEvent("Utility:Edit", "Marker", id, "draw_entity", active)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "boolean", "draw_entity", active)
         end
 
         -- 3dText
+        Set3dText = function(id, text)
+            SetMarker(id, "string", "text", text)
+        end
+
         Set3dTextScale = function(id, scale)
-            if type(scale) ~= "number" then
-                developer("^1Error^0","Marker scale can be only a number", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id]._scale = scale
-                _TriggerEvent("Utility:Edit", "Marker", id, "_scale", scale)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "number", "_scale", scale)
         end
 
         Set3dTextDrawRect = function(id, active)
-            if type(active) ~= "boolean" then
-                developer("^1Error^0","Marker rect can be only a boolean (true/false)", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id].rect = active
-                _TriggerEvent("Utility:Edit", "Marker", id, "rect", active)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "boolean", "rect", active)
         end
 
         Set3dTextFont = function(id, font)
-            if type(font) ~= "number" then
-                developer("^1Error^0","Marker font can be only a number", "[Marker]")
-                return 
-            end
-            
-            if DoesExist("marker", id) then
-                Utility.Cache.Marker[id].font = font
-                _TriggerEvent("Utility:Edit", "Marker", id, "font", font)
-            else
-                developer("^1Error^0", "Unable to edit the marker as it does not exist", id)
-            end
+            SetMarker(id, "number", "font", font)
         end
 
     DeleteMarker = function(id)
@@ -1001,26 +923,6 @@ _G["Utility"] = {
 
         _TriggerEvent("Utility:Remove", type, id)
         _TriggerEvent("Utility:Create", type, new_id, Utility.Cache[type][new_id]) -- Sync the table in the utility_lib
-    end
-
-    SetTextOf = function(type, id, new_text)
-        if type:lower() == "marker" or type:lower() == "m" then
-            type = "Marker"
-        elseif type:lower() == "object" or type:lower() == "o" then
-            type = "Object"
-        else
-            return nil
-        end
-        
-        if DoesExist(type, id) then
-            Utility.Cache[type][id].text = new_text
-            _TriggerEvent("Utility:Edit", type, id, "text", new_text)
-        else
-            developer("^1Error^0", "Unable to change text of the "..type.." as it does not exist", id)
-            return
-        end
-
-        developer("^3Change^0", "Setted text to "..new_text.." of the id", id)
     end
 
     GetDistanceFrom = function(type, id)
@@ -1324,23 +1226,18 @@ _G["Utility"] = {
                 local __entity = Utility.Cache.Dialogue[entity].entity
                 local entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
 
-		local bbreak = false
+                CreateLoop(function(loopId)
+                    LoopThread(loopId, 1000, function()
+                        entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
+                        a = a + 1
+                    end)
 
-		Citizen.SetTimeout(3000, function()
-		    question_entity_coords = nil
-		    bbreak = true
-		end)
-
-		CreateLoop(function(loopId)
-		    entity_coords = _GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
-
-		    if bbreak then
-			question_entity_coords = nil
-			_break(loopId)
-		    end
-
-		    DrawText3Ds(entity_coords, v.lastq, nil, nil, true)
-		end)
+                    if a == 3 then
+                        _break(loopId)
+                    end
+                
+                    DrawText3Ds(entity_coords, lastq, nil, nil, true)
+                end)
             end
 
             Utility.Cache.Dialogue[entity] = nil
@@ -1633,7 +1530,7 @@ _G["Utility"] = {
             y = math.cos(adjustedRotation.z) * math.abs(math.cos(adjustedRotation.x)), 
             z = math.sin(adjustedRotation.x)
         }
-        return direction
+        return vector3(direction.x, direction.y, direction.z)
     end
 
     TranslateZAnimated = function(obj, z, stepduration)
@@ -1652,4 +1549,87 @@ _G["Utility"] = {
         for i=0, GetVehicleNumberOfWheels(veh) - 1 do
             SetVehicleWheelIsPowered(veh, i, active)
         end
+    end
+
+    CreateInteraction = function(id, coords, label, render_distance, interaction_distance)
+        developer("^2Created^0","Interaction",id)
+
+        exports["utility_interaction"]:CreateInteraction(id, coords, label, render_distance, interaction_distance)
+    end
+    DeleteInteraction = function(id)
+        developer("^1Deleted^0","Interaction",id)
+
+        exports["utility_interaction"]:DeleteInteraction(id)
+    end
+
+    ShowUtilityNotification = function(color, title, header, icon, duration)
+        exports["utility_notify"]:show(color, title, header, icon, duration)
+    end
+    
+
+
+    -- NEW --
+    CreateMissionText = function(msg, duration)            
+        SetTextEntry_2("STRING")
+        AddTextComponentString(msg)
+        DrawSubtitleTimed(duration or 60000 * 240, 1) -- 4h
+
+        return {
+            delete = function()
+                ClearPrints()
+            end
+        }
+    end
+
+    WaitNear = function(coords)
+        local player = PlayerPedId()
+
+        while #(GetEntityCoords(player) - coords) > 10 do 
+            Citizen.Wait(100) 
+        end
+    end
+
+    apairs = function(t, f)
+        local a = {}
+        local i = 0
+    
+        for k in pairs(t) do table.insert(a, k) end
+        table.sort(a, f)
+        
+        local iter = function() -- iterator function
+            i = i + 1
+            if a[i] == nil then 
+                return nil
+            else 
+                return a[i], t[a[i]]
+            end
+        end
+    
+        return iter
+    end
+
+    FindInTable = function(table, text)
+        for i=1, #table do
+            if table[i] == text then
+                return i
+            end
+        end
+    
+        return nil
+    end
+    GetRandom = function(table)
+        local random = math.random(1, #table)
+        return table[random]
+    end
+
+    Probability = function(number) 
+        return math.random()*100 <= number
+    end
+    
+    AddPercentage = function(number, percentage)
+        return number + (number * percentage / 100)
+    end
+    
+    RemovePercentage = function(number, percentage)
+        return number + (number * percentage / 100)
     end
