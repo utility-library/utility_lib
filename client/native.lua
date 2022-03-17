@@ -1324,18 +1324,23 @@ _G["Utility"] = {
                 local __entity = Utility.Cache.Dialogue[entity].entity
                 local entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
 
-                CreateLoop(function(loopId)
-                    LoopThread(loopId, 1000, function()
-                        entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
-                        a = a + 1
-                    end)
+		local bbreak = false
 
-                    if a == 3 then
-                        _break(loopId)
-                    end
-                
-                    DrawText3Ds(entity_coords, lastq, nil, nil, true)
-                end)
+		Citizen.SetTimeout(3000, function()
+		    question_entity_coords = nil
+		    bbreak = true
+		end)
+
+		CreateLoop(function(loopId)
+		    entity_coords = _GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
+
+		    if bbreak then
+			question_entity_coords = nil
+			_break(loopId)
+		    end
+
+		    DrawText3Ds(entity_coords, v.lastq, nil, nil, true)
+		end)
             end
 
             Utility.Cache.Dialogue[entity] = nil
