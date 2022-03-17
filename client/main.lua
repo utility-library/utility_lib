@@ -128,19 +128,22 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
                                     if v.lastq ~= nil then
                                         local _entity = v.entity
-                                        local a = 0
-                                        CreateLoop(function()
-                                            LoopThread(1, 1000, function()
-                                                question_entity_coords = _GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
-                                                a = a + 1
-                                            end)
+                                        local bbreak = false
 
-                                            if a == 3 then
+                                        Citizen.SetTimeout(3000, function()
+                                            question_entity_coords = nil
+                                            bbreak = true
+                                        end)
+
+                                        CreateLoop(function()
+                                            question_entity_coords = _GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
+												
+                                            if bbreak then
                                                 question_entity_coords = nil
                                                 _break()
-                                            else
-                                                DrawText3Ds(question_entity_coords, v.lastq, nil, nil, true)
                                             end
+
+                                            DrawText3Ds(question_entity_coords, v.lastq, nil, nil, true)
                                         end)
                                     else
                                         question_entity_coords = nil
