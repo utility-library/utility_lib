@@ -140,25 +140,27 @@ _G["Utility"] = {
     end
 
     DrawText3Ds = function(coords, text, scale, font, rectangle)
-        local onScreen, _x, _y = _World3dToScreen2d(coords.x, coords.y, coords.z)
+	if coords then
+	    local onScreen, _x, _y = _World3dToScreen2d(coords.x, coords.y, coords.z)
 
-        if onScreen then
-            _SetTextScale(scale or 0.35, scale or 0.35)
-            _SetTextFont(font or 4)
-            _SetTextEntry("STRING")
-            _SetTextCentre(1)
+	    if onScreen then
+	        _SetTextScale(scale or 0.35, scale or 0.35)
+	        _SetTextFont(font or 4)
+	        _SetTextEntry("STRING")
+	        _SetTextCentre(1)
 
-            _AddTextComponentString(text)
-            _DrawText(_x, _y)
+	        _AddTextComponentString(text)
+	        _DrawText(_x, _y)
 
-            if rectangle then
-                local factor = (string.len(text))/370
-                local _, count = string.gsub(factor, "\n", "\n") * 0.025
-                if count == nil then count = 0 end
+	        if rectangle then
+		    local factor = (string.len(text))/370
+		    local _, count = string.gsub(factor, "\n", "\n") * 0.025
+		    if count == nil then count = 0 end
 
-                DrawRect(_x, _y + 0.0125, 0.025 + factor, 0.025 + count, 0, 0, 0, 90)
-            end
-        end
+		    DrawRect(_x, _y + 0.0125, 0.025 + factor, 0.025 + count, 0, 0, 0, 90)
+	        end
+	    end
+	end
     end
 
     _G.old_TaskPlayAnim = TaskPlayAnim
@@ -1226,18 +1228,24 @@ _G["Utility"] = {
                 local __entity = Utility.Cache.Dialogue[entity].entity
                 local entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
 
-                CreateLoop(function(loopId)
-                    LoopThread(loopId, 1000, function()
-                        entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
-                        a = a + 1
-                    end)
+			
+		local bbreak = false
 
-                    if a == 3 then
-                        _break(loopId)
-                    end
-                
-                    DrawText3Ds(entity_coords, lastq, nil, nil, true)
-                end)
+		Citizen.SetTimeout(3000, function()
+		    entity_coords = nil
+		    bbreak = true
+		end)
+
+		CreateLoop(function(loopId)
+		    entity_coords = GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
+
+		    if bbreak then
+			entity_coords = nil
+			StopLoop(loopId)
+		    end
+
+		    DrawText3Ds(entity_coords, lastq, nil, nil, true)
+		end)
             end
 
             Utility.Cache.Dialogue[entity] = nil
