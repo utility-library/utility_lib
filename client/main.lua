@@ -140,7 +140,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 												
                                             if bbreak then
                                                 question_entity_coords = nil
-                                                _break(loopId)
+                                                StopLoop(loopId)
                                             end
 
                                             DrawText3Ds(question_entity_coords, v.lastq, nil, nil, true)
