@@ -136,7 +136,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                                         end)
 
                                         CreateLoop(function(loopId)
-                                            question_entity_coords = _GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
+                                            question_entity_coords = GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
 												
                                             if bbreak then
                                                 question_entity_coords = nil
