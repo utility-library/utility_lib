@@ -1639,5 +1639,5 @@ _G["Utility"] = {
     end
     
     RemovePercentage = function(number, percentage)
-        return number + (number * percentage / 100)
+        return number - (number * percentage / 100)
     end
