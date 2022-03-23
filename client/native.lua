@@ -1631,7 +1631,7 @@ _G["Utility"] = {
     end
 
     Probability = function(number) 
-        return math.random(1, 100) <= number
+        return math.random() + math.random(1, 100) <= number
     end
     
     AddPercentage = function(number, percentage)
