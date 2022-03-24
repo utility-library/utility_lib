@@ -46,12 +46,13 @@ AddEventHandler("onResourceStart", function(resource)
             end)
 
             -- Jobs
-            local players = GetPlayers()
-
-            for i=1, #players do
+            for _, playerId in ipairs(GetPlayers()) do
                 --print("On start check")
-                local Player = QBCore.Functions.GetPlayer(players[i])
-                AddToJob(players[i], Player.job.name)
+                local Player = QBCore.Functions.GetPlayer(playerId)
+                    
+                if Player then
+                    AddToJob(playerId, Player.job.name)     
+                end
             end
         elseif GetResourceState("es_extended") == "started" then
             while ESX == nil do
@@ -72,12 +73,10 @@ AddEventHandler("onResourceStart", function(resource)
             end)
     
             -- Jobs
-            local players = GetPlayers()
-    
-            for i=1, #players do
+            for _, playerId in ipairs(GetPlayers()) do
                 --print("On start check")
-                local xPlayer = ESX.GetPlayerFromId(players[i])
-                AddToJob(players[i], xPlayer.job.name)
+                local xPlayer = ESX.GetPlayerFromId(playerId)
+                AddToJob(playerId, xPlayer.job.name)
             end
         end
     end
