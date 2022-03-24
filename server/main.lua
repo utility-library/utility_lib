@@ -31,7 +31,7 @@ local resName = GetCurrentResourceName()
 AddEventHandler("onResourceStart", function(resource)
     if resName == resource then
         if GetResourceState("qb-core") == "started" then
-            local QBCore = exports['qb-core']:GetCoreObject()
+            QBCore = exports['qb-core']:GetCoreObject()
 
             QBCore.Functions.CreateCallback('Utility:GetJobData', function(source, cb, job)
                 if not table.fexist(UtilityServer.Cache.SavedJobs, job) then
