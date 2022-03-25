@@ -12,7 +12,9 @@ _G["ESX"] = nil
                 _source = source
 
                 if GetResourceState("es_extended") == "started" then
-                    xPlayer = ESX.GetPlayerFromId(_source)    
+                    if ESX then
+                        xPlayer = ESX.GetPlayerFromId(_source)    
+                    end
                 end
 
                 eventRoutine(...)
