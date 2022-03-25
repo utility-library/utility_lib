@@ -11,9 +11,7 @@ _G["ESX"] = nil
             AddEventHandler(eventName, function(...)
                 _source = source
 
-                if GetResourceState("qb-core") == "started" then
-                    Player = QBCore.Functions.GetPlayer(_source)
-                elseif GetResourceState("es_extended") == "started" then
+                if GetResourceState("es_extended") == "started" then
                     xPlayer = ESX.GetPlayerFromId(_source)    
                 end
 
