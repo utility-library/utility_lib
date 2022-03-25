@@ -122,7 +122,10 @@ end)
 
         AddEventHandler("QBCore:Server:PlayerLoaded", function()
             local Player = QBCore.Functions.GetPlayer(source)
-            AddToJob(source, Player.job.name)
+            
+            if Player then
+                AddToJob(source, Player.job.name)
+            end
         end)
 
 
