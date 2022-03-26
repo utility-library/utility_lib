@@ -516,11 +516,11 @@ _G["Utility"] = {
         GetDataForJob = function(job)
             local job_info = promise:new()
 
-            if GetResourceState("qb-core") == "started" then
+            if GetResourceState("es_extended") == "started" then
                 ESX.TriggerServerCallback("Utility:GetJobData", function(worker)
                     job_info:resolve(worker)
                 end, job)    
-            elseif GetResourceState("es_extended") == "started" then
+            elseif GetResourceState("qb-core") == "started" then
                 QBCore.Functions.TriggerCallback("Utility:GetJobData", function(worker)
                     job_info:resolve(worker)
                 end, job)    
