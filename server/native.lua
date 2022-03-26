@@ -1,27 +1,6 @@
 _G["ESX"] = nil
 
 --// Improved/Custom Native //--
-    local old_RegisterServerEvent = RegisterServerEvent
-    RegisterServerEvent = function(eventName, eventRoutine, no_auto_prepare)
-        old_RegisterServerEvent(eventName)
-
-        if no_auto_prepare then
-            AddEventHandler(eventName, eventRoutine)
-        else
-            AddEventHandler(eventName, function(...)
-                _source = source
-
-                if GetResourceState("es_extended") == "started" then
-                    if ESX then
-                        xPlayer = ESX.GetPlayerFromId(_source)    
-                    end
-                end
-
-                eventRoutine(...)
-            end)
-        end
-    end
-
     StartESX = function(triggerName)
         TriggerEvent(triggerName or 'esx:getSharedObject', function(obj) ESX = obj end)
     end
