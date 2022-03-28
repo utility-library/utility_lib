@@ -36,31 +36,41 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                     local distance = #(GetEntityCoords(player) - v.coords)
     
                     if IsOnScreen(v.coords) then
-                        found = true
-                        if distance < v.render_distance then                        
-                            if v.type == 0 then
-                                if v.text ~= "" then
-                                    DrawText3Ds(v.coords, v.text, v._scale or 0.35, v.font or 4, v.rect or false)
-                                end
-                            elseif v.type == 1 then
-                                local dir = v._direction or {x = 0.0, y = 0.0, z = 0.0}
-                                local rot = v._rot or {x = 0.0, y = 0.0, z = 0.0}
-                                local scale = v._scale or {x = 1.5, y = 1.5, z = 0.5}
-        
-                                _DrawMarker(v._type or 1, v.coords, dir.x or 0.0, dir.y or 0.0, dir.z or 0.0, rot.x or 0.0, rot.y or 0.0, rot.z or 0.0, scale.x or 1.5, scale.y or 1.5, scale.z or 0.5, v.rgb[1], v.rgb[2], v.rgb[3], v.alpha or 100, v.anim or false, false, 2, false, nil, nil, v.draw_entity or false)
+                        local candraw = true
+                        
+                        if v.job then
+                            if v.job ~= uPlayer.job.name then
+                                candraw = false
                             end
                         end
-                        
-                        if distance < v.interaction_distance then        
-                            if v.notify ~= nil then ButtonNotificationInternal(v.notify) end
-                            if not v.near then
-                                Emit("entered", false, "marker", k)
-                                v.near = true
+
+                        if candraw then
+                            found = true
+                            if distance < v.render_distance then                        
+                                if v.type == 0 then
+                                    if v.text ~= "" then
+                                        DrawText3Ds(v.coords, v.text, v._scale or 0.35, v.font or 4, v.rect or false)
+                                    end
+                                elseif v.type == 1 then
+                                    local dir = v._direction or {x = 0.0, y = 0.0, z = 0.0}
+                                    local rot = v._rot or {x = 0.0, y = 0.0, z = 0.0}
+                                    local scale = v._scale or {x = 1.5, y = 1.5, z = 0.5}
+            
+                                    _DrawMarker(v._type or 1, v.coords, dir.x or 0.0, dir.y or 0.0, dir.z or 0.0, rot.x or 0.0, rot.y or 0.0, rot.z or 0.0, scale.x or 1.5, scale.y or 1.5, scale.z or 0.5, v.rgb[1], v.rgb[2], v.rgb[3], v.alpha or 100, v.anim or false, false, 2, false, nil, nil, v.draw_entity or false)
+                                end
                             end
-                        else
-                            if v.near then
-                                Emit("leaved", false, "marker", k)
-                                v.near = false
+                            
+                            if distance < v.interaction_distance then        
+                                if v.notify ~= nil then ButtonNotificationInternal(v.notify) end
+                                if not v.near then
+                                    Emit("entered", false, "marker", k)
+                                    v.near = true
+                                end
+                            else
+                                if v.near then
+                                    Emit("leaved", false, "marker", k)
+                                    v.near = false
+                                end
                             end
                         end
                     end
