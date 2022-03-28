@@ -729,13 +729,9 @@ _G["Utility"] = {
                 elseif options.text ~= nil then -- 3d Text
                     _marker.type = 0
                     _marker.text = options.text
-                    _TriggerEvent("Utility:Create", "Marker", id, _marker)
-                    return
                 else
                     _marker.type = 1
                     _marker.rgb = {options[1], options[2], options[3]}
-                    _TriggerEvent("Utility:Create", "Marker", id, _marker)
-                    return
                 end
                 
                 if options.type ~= nil and type(options.type) == "number" then _marker._type = options.type end
@@ -744,6 +740,7 @@ _G["Utility"] = {
                 if options.scale ~= nil and type(options.scale) == "vector3" then _marker._scale = options.scale end
                 if options.alpha ~= nil and type(options.alpha) == "number" then _marker.alpha = options.alpha end
                 if options.animation ~= nil and type(options.animation) == "boolean" then _marker.anim = options.animation end
+                if options.job ~= nil then _marker.job = options.job end
 
                 if options.notify ~= nil then
                     local notify = string.multigsub(options.notify, {"{A}","{B}", "{C}", "{D}", "{E}", "{F}", "{G}", "{H}", "{L}", "{M}", "{N}", "{O}", "{P}", "{Q}", "{R}", "{S}", "{T}", "{U}", "{V}", "{W}", "{X}", "{Y}", "{Z}"}, {"~INPUT_VEH_FLY_YAW_LEFT~", "~INPUT_SPECIAL_ABILITY_SECONDARY~", "~INPUT_LOOK_BEHIND~", "~INPUT_MOVE_LR~", "~INPUT_CONTEXT~", "~INPUT_ARREST~", "~INPUT_DETONATE~", "~INPUT_VEH_ROOF~", "~INPUT_CELLPHONE_CAMERA_FOCUS_LOCK~", "~INPUT_INTERACTION_MENU~", "~INPUT_REPLAY_ENDPOINT~" , "~INPUT_FRONTEND_PAUSE~", "~INPUT_FRONTEND_LB~", "~INPUT_RELOAD~", "~INPUT_MOVE_DOWN_ONLY~", "~INPUT_MP_TEXT_CHAT_ALL~", "~INPUT_REPLAY_SCREENSHOT~", "~INPUT_NEXT_CAMERA~", "~INPUT_MOVE_UP_ONLY~", "~INPUT_VEH_HOTWIRE_LEFT~", "~INPUT_VEH_DUCK~", "~INPUT_MP_TEXT_CHAT_TEAM~", "~INPUT_HUD_SPECIAL~"})
