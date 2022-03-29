@@ -25,7 +25,6 @@ _G["Utility"] = {
         N3d = {},
         Events = {},
         
-        Emitter = {},
         SetData = {},
         Frozen = {},
         FlowDetector = {},
@@ -38,18 +37,10 @@ _G["Utility"] = {
 
 --// Emitter //--
     On = function(type, function_id, fake_triggerable)
-        if string.find(type, "_change") then
-            type = type..source
-            -- job_change1
-        end
+        RegisterNetEvent("Utility:On:".. (fake_triggerable and "!" or "") ..type)
 
-        local _emitter = {
-            res = resName,
-            a = function_id,
-            b = fake_triggerable
-        }
-
-        _TriggerEvent("Utility:Create", "Emitter", type, _emitter, resName)
+        local event = AddEventHandler("Utility:On:".. (fake_triggerable and "!" or "") ..type, function_id)
+        table.insert(Utility.Cache.Events, event)
     end
 
 --// Custom/Improved Native //-- 
