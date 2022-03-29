@@ -121,16 +121,26 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                     local distance = #(GetEntityCoords(player) - v.coords)
                     
                     if IsOnScreen(v.coords) then
-                        if distance < v.interaction_distance then
-                            if not v.near then
-                                Emit("entered", false, "object", k)
-                                v.near = true
+                        local caninteract = true
+                        
+                        if v.job then
+                            if v.job ~= uPlayer.job.name then
+                                caninteract = false
                             end
-                            v.near = true
-                        else
-                            if v.near then
-                                Emit("leaved", false, "object", k)
-                                v.near = false
+                        end
+
+                        if caninteract then
+                            if distance < v.interaction_distance then
+                                if not v.near then
+                                    Emit("entered", false, "object", k)
+                                    v.near = true
+                                end
+                                v.near = true
+                            else
+                                if v.near then
+                                    Emit("leaved", false, "object", k)
+                                    v.near = false
+                                end
                             end
                         end
                     end
@@ -264,11 +274,8 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
     end)
 --// IsControlJustPressed Handler //--
     IsControlJustPressed("E", function()
-        local InteractedWithSomething = false
-
         for k,v in _pairs(Utility.Cache.Marker) do
             if v.near then
-                InteractedWithSomething = true
                 Emit("marker", false, k)
                 v.near = false
             end
@@ -276,15 +283,9 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
         for k,v in _pairs(Utility.Cache.Object) do
             if v.near then
-                InteractedWithSomething = true
                 Emit("object", false, k)
                 v.near = false
             end
-        end
-
-        if InteractedWithSomething then
-            DisableControlForSeconds("E", 1)
-            Citizen.Wait(500)
         end
     end)
 
