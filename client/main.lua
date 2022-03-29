@@ -274,15 +274,17 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
     end)
 --// IsControlJustPressed Handler //--
     IsControlJustPressed("E", function()
+        local distance = #(GetEntityCoords(PlayerPedId()) - v.coords)
+
         for k,v in _pairs(Utility.Cache.Marker) do
-            if v.near then
+            if v.near and distance < v.interaction_distance then
                 Emit("marker", false, k)
                 v.near = false
             end
         end
 
         for k,v in _pairs(Utility.Cache.Object) do
-            if v.near then
+            if v.near and distance < v.interaction_distance then
                 Emit("object", false, k)
                 v.near = false
             end
