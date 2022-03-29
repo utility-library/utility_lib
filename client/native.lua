@@ -845,7 +845,7 @@ _G["Utility"] = {
     end
 
     -- Object
-    CreateiObject = function(id, model, pos, heading, interaction_distance, network)
+    CreateiObject = function(id, model, pos, heading, interaction_distance, network, job)
         developer("^2Created^0 Object "..id.." ("..model..")")
 
         local obj
@@ -864,7 +864,8 @@ _G["Utility"] = {
             obj = obj,
             coords = pos,
             interaction_distance = interaction_distance or 3.0,
-            slice = tostring(GetSliceFromCoords(pos))
+            slice = tostring(GetSliceFromCoords(pos)),
+            job = job
         }
 
         Utility.Cache.Object[id] = _object -- Sync the local table
