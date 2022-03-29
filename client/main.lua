@@ -77,7 +77,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
                         if candraw then
                             found = true
-                            if distance < v.render_distance then                        
+                            if distance < v.render_distance then                                   
                                 if v.type == 0 then
                                     if v.text ~= "" then
                                         DrawText3Ds(v.coords, v.text, v._scale or 0.35, v.font or 4, v.rect or false)
@@ -291,45 +291,16 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
 --// Emit Handler //--
     function Emit(type, manual, ...)
-        local _emitter = Utility.Cache.Emitter
-        if _emitter[type] == nil then
-            return
-        end
-
-        if manual then 
-            for i=1, #_emitter[type] do
-                if _emitter[type][i].b then
-                    _emitter[type][i].a(...)
-                end
-            end
-        else
-            for i=1, #_emitter[type] do
-                _emitter[type][i].a(...)
-            end
-        end
+        TriggerEvent("Utility:On:".. (fake_triggerable and "!" or "") ..type, ...)
     end
 
 --// Event //--
     RegisterNetEvent("Utility:Create", function(type, id, table, res)
-        if type == "Emitter" then
-            if Utility.Cache[type][id] == nil then
-                Utility.Cache[type][id] = {}
-            end
-
-            -- Delete the old callback (prevent a bug that when you restart the script the utility try to call the old callback)
-            for i=1, #Utility.Cache[type][id] do
-                if Utility.Cache[type][id][i].res == res then
-                    Utility.Cache[type][id][i] = nil
-                end
-            end
-            Utility.Cache[type][id][#Utility.Cache[type][id] + 1] = table 
-        else
-            if table.slice then
-                Utility.Cache.SliceGroups[tostring(table.slice)] = true
-            end
-
-            Utility.Cache[type][id] = table 
+        if table.slice then
+            Utility.Cache.SliceGroups[tostring(table.slice)] = true
         end
+
+        Utility.Cache[type][id] = table 
     end)
 
     RegisterNetEvent("Utility:Edit", function(type, id, field, new_data)
