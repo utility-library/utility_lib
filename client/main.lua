@@ -22,6 +22,37 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
     local player, playerCoordsForDialogue, distance, distance2, question_entity_coords = PlayerPedId(), _GetEntityCoords(PlayerPedId()), {}, {}, nil
 
+    Citizen.CreateThread(function()
+        Citizen.Wait(500)
+        
+        if GetResourceState("es_extended") == "started" then
+            while FW == nil do
+                TriggerEvent(eventName or 'esx:getSharedObject', function(obj) FW = obj end)
+                Citizen.Wait(1)
+            end
+            
+            while FW.GetPlayerData().job == nil do
+                Citizen.Wait(1)
+            end
+            
+            uPlayer = FW.GetPlayerData()
+
+            RegisterNetEvent('esx:setJob', function(job)        
+                uPlayer.job = job
+            end)
+        elseif GetResourceState("qb-core") == "started" then
+            QBCore = exports['qb-core']:GetCoreObject()
+
+            RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
+                uPlayer = QBCore.Functions.GetPlayerData()
+            end)
+
+            RegisterNetEvent('QBCore:Client:OnJobUpdate', function(job)
+                uPlayer.job = job
+            end)
+        end
+    end)
+
     CreateLoop(function(loopId)
         currentSlice = tostring(GetSelfSlice())
         player = PlayerPedId()
