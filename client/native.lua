@@ -1632,7 +1632,14 @@ _G["Utility"] = {
     end
 
     InTimeRange = function(min, max)
-        local _, _, _, hour, minute, _ = GetUtcTime()
+        local hour = nil
+
+        if utc then
+            local _, _, _, _hour = GetUtcTime()
+            hour = _hour
+        else
+            hour = GetClockHours()
+        end
         
         if b > a then
             if hour >= a and hour <= b then
