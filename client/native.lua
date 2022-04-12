@@ -1630,3 +1630,18 @@ _G["Utility"] = {
     RemovePercentage = function(number, percentage)
         return number - (number * percentage / 100)
     end
+
+    InTimeRange = function(min, max)
+        local _, _, _, hour, minute, _ = GetUtcTime()
+        
+        if b > a then
+            if hour >= a and hour <= b then
+                return true
+            end 
+        else
+            -- to fix the times from one day to another, for example from 22 to 3
+            if hour <= b or hour >= a then
+                return false
+            end
+        end
+    end
