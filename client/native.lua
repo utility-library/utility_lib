@@ -1641,13 +1641,13 @@ _G["Utility"] = {
             hour = GetClockHours()
         end
         
-        if b > a then
-            if hour >= a and hour <= b then
+        if max > min then
+            if hour >= min and hour <= max then
                 return true
             end 
         else
             -- to fix the times from one day to another, for example from 22 to 3
-            if hour <= b or hour >= a then
+            if hour <= max or hour >= min then
                 return false
             end
         end
