@@ -20,6 +20,20 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
         _EndTextCommandDisplayHelp(0, false, true, -1)
     end
 
+    local function CheckIfCanView(jobs)
+        if type(jobs) == "table" then
+            for i=1, #jobs do
+                if jobs[i] == uPlayer.job.name then
+                    return true
+                end
+            end
+        else
+            if jobs == uPlayer.job.name then
+                return true
+            end 
+        end
+    end
+
     local player, playerCoordsForDialogue, distance, distance2, question_entity_coords = PlayerPedId(), _GetEntityCoords(PlayerPedId()), {}, {}, nil
 
     Citizen.CreateThread(function()
@@ -36,7 +50,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
             end
             
             uPlayer = FW.GetPlayerData()
-
+        
             RegisterNetEvent('esx:setJob', function(job)        
                 uPlayer.job = job
             end)
@@ -70,9 +84,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                         local candraw = true
                         
                         if v.job then
-                            if v.job ~= uPlayer.job.name then
-                                candraw = false
-                            end
+                            candraw = CheckIfCanView(v.jobs)
                         end
 
                         if candraw then
@@ -124,9 +136,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                         local caninteract = true
                         
                         if v.job then
-                            if v.job ~= uPlayer.job.name then
-                                caninteract = false
-                            end
+                            caninteract = CheckIfCanView(v.jobs)
                         end
 
                         if caninteract then
