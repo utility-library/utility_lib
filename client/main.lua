@@ -20,6 +20,20 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
         _EndTextCommandDisplayHelp(0, false, true, -1)
     end
 
+    CreateBlip = function(name, coords, sprite, colour, scale)
+        local blip = AddBlipForCoord(coords)
+
+        SetBlipSprite (blip, sprite)
+        SetBlipScale  (blip, scale or 1.0)
+        SetBlipColour (blip, colour)
+        SetBlipAsShortRange(blip, true)
+
+        BeginTextCommandSetBlipName('STRING')
+        AddTextComponentSubstringPlayerName(name)
+        EndTextCommandSetBlipName(blip)
+        return blip
+    end
+
     local function CheckIfCanView(jobs)
         if type(jobs) == "table" then
             for i=1, #jobs do
@@ -31,6 +45,21 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
             if jobs == uPlayer.job.name then
                 return true
             end 
+        end
+    end
+
+    function JobChange()
+        for id,data in pairs(Utility.Cache.Blips) do
+            if CheckIfCanView(data.job) then
+                if not data.blip then
+                    data.blip = CreateBlip(data.name, data.coords, data.sprite, data.colour, data.scale)
+                end
+            else
+                if data.blip then
+                    RemoveBlip(data.blip)
+                    data.blip = nil
+                end
+            end
         end
     end
 
@@ -50,19 +79,23 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
             end
             
             uPlayer = FW.GetPlayerData()
+            JobChange()
         
             RegisterNetEvent('esx:setJob', function(job)        
                 uPlayer.job = job
+                JobChange()
             end)
         elseif GetResourceState("qb-core") == "started" then
             QBCore = exports['qb-core']:GetCoreObject()
 
             RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
                 uPlayer = QBCore.Functions.GetPlayerData()
+                JobChange()
             end)
 
             RegisterNetEvent('QBCore:Client:OnJobUpdate', function(job)
                 uPlayer.job = job
+                JobChange()
             end)
         end
     end)
@@ -315,6 +348,10 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
         end
 
         Utility.Cache[type][id] = table 
+
+        if type == "Blips" then
+            JobChange()
+        end
     end)
 
     RegisterNetEvent("Utility:Edit", function(type, id, field, new_data)

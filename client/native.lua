@@ -22,6 +22,7 @@ _G["Utility"] = {
         Marker = {},
         Object = {},
         Dialogue = {},
+        Blips = {},
         N3d = {},
         Events = {},
         
@@ -878,6 +879,7 @@ _G["Utility"] = {
     -- Blip
     CreateBlip = function(name, coords, sprite, colour, scale)
         developer("^2Created^0","Blip",name)
+
         local blip = AddBlipForCoord(coords)
 
         SetBlipSprite (blip, sprite)
@@ -889,6 +891,17 @@ _G["Utility"] = {
         _AddTextComponentSubstringPlayerName(name)
         EndTextCommandSetBlipName(blip)
         return blip
+    end
+
+    CreateJobBlip = function(name, coords, job, sprite, colour, scale)
+        _TriggerEvent("Utility:Create", "Blips", math.random(10000, 99999), {
+            name = name,
+            coords = coords,
+            job = job,
+            sprite = sprite,
+            colour = colour,
+            scale = scale or 1.0
+        })
     end
 
     -- Get/Edit
@@ -1569,7 +1582,7 @@ _G["Utility"] = {
     CreateMissionText = function(msg, duration)            
         SetTextEntry_2("STRING")
         AddTextComponentString(msg)
-        DrawSubtitleTimed(duration or 60000 * 240, 1) -- 4h
+        DrawSubtitleTimed(duration and math.floor(duration) or 60000 * 240, 1) -- 4h
 
         return {
             delete = function()
@@ -1640,7 +1653,7 @@ _G["Utility"] = {
         else
             hour = GetClockHours()
         end
-        
+
         if max > min then
             if hour >= min and hour <= max then
                 return true
