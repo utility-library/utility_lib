@@ -1,5 +1,5 @@
 # Documentation
-https://utility-library.github.io
+https://utility-library.github.io/documentation/
 
 ---
 
