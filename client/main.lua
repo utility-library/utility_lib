@@ -117,7 +117,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                         local candraw = true
                         
                         if v.job then
-                            candraw = CheckIfCanView(v.jobs)
+                            candraw = CheckIfCanView(v.job)
                         end
 
                         if candraw then
@@ -169,7 +169,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                         local caninteract = true
                         
                         if v.job then
-                            caninteract = CheckIfCanView(v.jobs)
+                            caninteract = CheckIfCanView(v.job)
                         end
 
                         if caninteract then
