@@ -35,16 +35,18 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
     end
 
     local function CheckIfCanView(jobs)
-        if type(jobs) == "table" then
-            for i=1, #jobs do
-                if jobs[i] == uPlayer.job.name then
-                    return true
+        if uPlayer then
+            if type(jobs) == "table" then
+                for i=1, #jobs do
+                    if jobs[i] == uPlayer.job.name then
+                        return true
+                    end
                 end
+            else
+                if jobs == uPlayer.job.name then
+                    return true
+                end 
             end
-        else
-            if jobs == uPlayer.job.name then
-                return true
-            end 
         end
     end
 
