@@ -27,6 +27,11 @@ local function AddToJob(pId, job)
     end
 end
 
+function GetDataForJob(job)
+    return UtilityServer.Cache.SavedJobs[job]
+end
+exports("GetDataForJob", GetDataForJob)
+
 local resName = GetCurrentResourceName()
 AddEventHandler("onResourceStart", function(resource)
     if resName == resource then
