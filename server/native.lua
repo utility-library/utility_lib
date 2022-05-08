@@ -498,3 +498,7 @@ _G["ESX"] = nil
 
         return _result
     end
+
+    GetDataForJob = function(job)
+        return exports["utility_lib"]:GetDataForJob(job)
+    end
