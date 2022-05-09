@@ -30,10 +30,16 @@ _G["Utility"] = {
         Frozen = {},
         FlowDetector = {},
         Constant = {},
+	Settings = {},
+        EntityStack = {},
         Loop = {},
         SliceGroups = {}
     }
 }
+
+    UseDelete = function(boolean)
+        Utility.Cache.Settings.UseDelete = boolean
+    end
 
 
 --// Emitter //--
@@ -189,6 +195,10 @@ _G["Utility"] = {
         end
 
         local obj = old_CreateObject(modelHash, ...)
+
+	if Utility.Cache.Settings.UseDelete then
+            table.insert(Utility.Cache.EntityStack, obj)
+        end	
 
         SetModelAsNoLongerNeeded(modelHash) 
 
@@ -1517,6 +1527,16 @@ _G["Utility"] = {
                 if data.dui ~= nil then
                       DestroyDui(data.dui)
                       _TriggerEvent("Utility:Remove", "N3d", handle)
+                end
+            end
+
+	    if Utility.Cache.Settings.UseDelete then
+                for i=1, #Utility.Cache.EntityStack do
+                    local ent = Utility.Cache.EntityStack[i]
+                    NetworkRequestControlOfEntity(ent)
+                    if DoesEntityExist(ent) then
+                        DeleteEntity(ent)
+                    end
                 end
             end
         end
