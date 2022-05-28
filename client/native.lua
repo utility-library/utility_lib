@@ -100,8 +100,8 @@ _G["Utility"] = {
             msg = string.multigsub(msg, {"{A}","{B}", "{C}", "{D}", "{E}", "{F}", "{G}", "{H}", "{L}", "{M}", "{N}", "{O}", "{P}", "{Q}", "{R}", "{S}", "{T}", "{U}", "{V}", "{W}", "{X}", "{Y}", "{Z}"}, {"~INPUT_VEH_FLY_YAW_LEFT~", "~INPUT_SPECIAL_ABILITY_SECONDARY~", "~INPUT_LOOK_BEHIND~", "~INPUT_MOVE_LR~", "~INPUT_CONTEXT~", "~INPUT_ARREST~", "~INPUT_DETONATE~", "~INPUT_VEH_ROOF~", "~INPUT_CELLPHONE_CAMERA_FOCUS_LOCK~", "~INPUT_INTERACTION_MENU~", "~INPUT_REPLAY_ENDPOINT~" , "~INPUT_FRONTEND_PAUSE~", "~INPUT_FRONTEND_LB~", "~INPUT_RELOAD~", "~INPUT_MOVE_DOWN_ONLY~", "~INPUT_MP_TEXT_CHAT_ALL~", "~INPUT_REPLAY_SCREENSHOT~", "~INPUT_NEXT_CAMERA~", "~INPUT_MOVE_UP_ONLY~", "~INPUT_VEH_HOTWIRE_LEFT~", "~INPUT_VEH_DUCK~", "~INPUT_MP_TEXT_CHAT_TEAM~", "~INPUT_HUD_SPECIAL~"})
         end
             
-        _AddTextEntry('ButtonNotification', msg)
-        _BeginTextCommandDisplayHelp('ButtonNotification')
+        _AddTextEntry('ButtonNotification'..msg:length(), msg)
+        _BeginTextCommandDisplayHelp('ButtonNotification'..msg:length())
         _EndTextCommandDisplayHelp(0, false, true, -1)
     end
 
@@ -1382,20 +1382,20 @@ _G["Utility"] = {
     end
 
     local function StartupDui(N3dHandle, url, width, height)
-        local txd = CreateRuntimeTxd('txd') -- Create texture dictionary
+        local txd = CreateRuntimeTxd('txd'..N3dHandle) -- Create texture dictionary
 
         Utility.Cache.N3d[N3dHandle].dui = CreateDui(url, width, height) -- Create Dui with the url
         _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "dui", Utility.Cache.N3d[N3dHandle].dui)
 
         local dui = GetDuiHandle(Utility.Cache.N3d[N3dHandle].dui) -- Getting dui handle
 
-        CreateRuntimeTextureFromDuiHandle(txd, 'txn', dui) -- Applying the txd on the dui
+        CreateRuntimeTextureFromDuiHandle(txd, 'txn'..N3dHandle, dui) -- Applying the txd on the dui
 
         if Utility.Cache.N3d[N3dHandle].scaleform ~= nil and not Utility.Cache.N3d[N3dHandle].txd then
             PushScaleformMovieFunction(Utility.Cache.N3d[N3dHandle].scaleform, 'SET_TEXTURE')
 
-            PushScaleformMovieMethodParameterString('txd') -- txd
-            PushScaleformMovieMethodParameterString('txn') -- txn
+            PushScaleformMovieMethodParameterString('txd'..N3dHandle) -- txd
+            PushScaleformMovieMethodParameterString('txn'..N3dHandle) -- txn
 
             PushScaleformMovieFunctionParameterInt(0) -- x
             PushScaleformMovieFunctionParameterInt(0) -- y
