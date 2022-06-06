@@ -87,15 +87,11 @@ AddEventHandler("onResourceStart", function(resource)
     end
 end)
 
-RegisterServerEvent("Utility:SyncEvent", function(event, whitelist, ...)
-    if type(whitelist) == "table" then
-        for i=1,#whitelist do
-            TriggerClientEvent(event, whitelist[i], ...)
-        end
-    elseif type(whitelist) == "number" then
-        TriggerClientEvent(event, whitelist, ...)
-    else
-        TriggerClientEvent(event, -1, ...)
+RegisterServerEvent("Utility:CreateStateBag", function(netid, k, v)
+    local entity = NetworkGetEntityFromNetworkId(netid)
+
+    if entity and NetworkGetEntityOwner(entity) == source then
+        Entity(entity).state:set(k, v, true)
     end
 end)
 
