@@ -1,5 +1,3 @@
-_G["ESX"] = nil
-
 --// Improved/Custom Native //--
     StartESX = function(triggerName)
         TriggerEvent(triggerName or 'esx:getSharedObject', function(obj) ESX = obj end)
@@ -19,57 +17,8 @@ _G["ESX"] = nil
     CreateLoop = function(_function, tickTime)
         Citizen.CreateThread(function()
             local active = true
-            local NoAsync = {}
             _break = function()
                 active = false
-            end
-
-            LoopThread = function(id, time, _function)
-                if NoAsync[id] == nil then
-                    NoAsync[id] = {a = true, b = false}
-                end
-
-                if NoAsync[id].a then
-                    if not NoAsync[id].b then
-                        NoAsync[id].b = true
-                        Citizen.SetTimeout(time, function()
-                            _function()
-                            NoAsync[id].b = false
-                        end)
-                    end
-                end
-            end
-
-            TaskBack = function(id, _function)
-                LoopThread(id, 5000, function()
-                    _function()
-                end)
-            end
-
-            TaskSlow = function(id, _function)
-                LoopThread(id, 1000, function()
-                    _function()
-                end)
-            end
-
-            TaskFast = function(id, _function)
-                LoopThread(id, 500, function()
-                    _function()
-                end)
-            end
-
-            TaskExtrafast = function(id, _function)
-                LoopThread(id, 5, function()
-                    _function()
-                end)
-            end
-
-            StopLoopThread = function(id)
-                NoAsync[id].a = false
-            end
-
-            ResumeLoopThread = function(id)
-                NoAsync[id].a = true
             end
 
             while active do
@@ -81,48 +30,93 @@ _G["ESX"] = nil
 
 --// Player //--
     -- Item
-        AddItem = function(item, amount)
-            xPlayer.addInventoryItem(item, amount)
+        AddItem = function(source, ...)
+            if ESX then
+                xPlayer = ESX.GetPlayerFromId(source)
+                xPlayer.addInventoryItem(...)
+            else
+                xPlayer = QBCore.Functions.GetPlayer(source)
+                xPlayer.Functions.AddItem(...)
+            end
         end
 
-        RemoveItem = function(item, amount)
-            xPlayer.removeInventoryItem(item, amount)
+        RemoveItem = function(source, ...)
+            if ESX then
+                xPlayer = ESX.GetPlayerFromId(source)
+                xPlayer.removeInventoryItem(...)
+            else
+                xPlayer = QBCore.Functions.GetPlayer(source)
+                xPlayer.Functions.RemoveItem(...)
+            end
         end
 
-        GetItem = function(item)
-            return xPlayer.getInventoryItem(item)
+        GetItem = function(source, ...)
+            if ESX then
+                xPlayer = ESX.GetPlayerFromId(source)
+                return xPlayer.getInventoryItem(...)
+            else
+                xPlayer = QBCore.Functions.GetPlayer(source)
+                return xPlayer.Functions.GetItemByName(...)
+            end
         end
 
-        HaveItem = function(item)
-            return xPlayer.getInventoryItem(item).count > 0
+        HaveItem = function(source, ...)
+            if ESX then
+                return GetItem(source, ...).count > 0
+            else
+                return GetItem(source, ...).amount > 0
+            end
         end
 
-        HaveItemQuantity = function(item, quantity)
-            return xPlayer.getInventoryItem(item).count > quantity
+        HaveItemQuantity = function(source, item, quantity)
+            if ESX then
+                return GetItem(source, item).count > quantity 
+            else
+                return GetItem(source, item).amount > quantity 
+            end
         end
 
     -- Money
-        AddMoney = function(type, amount)
-            if type == "cash" then
-                xPlayer.addMoney(amount)
+        AddMoney = function(source, type, ...)
+            if ESX then
+                xPlayer = ESX.GetPlayerFromId(source)
+                if type == "cash" then
+                    xPlayer.addMoney(...)
+                else
+                    xPlayer.addAccountMoney(type, ...)
+                end
             else
-                xPlayer.addAccountMoney(type, amount)
+                xPlayer = QBCore.Functions.GetPlayer(source)
+                xPlayer.Functions.AddMoney(type, ...)
             end
         end
 
-        RemoveMoney = function(type, amount)
-            if type == "cash" then
-                xPlayer.removeMoney(amount)
+        RemoveMoney = function(type, ...)
+            if ESX then
+                xPlayer = ESX.GetPlayerFromId(source)
+                if type == "cash" then
+                    xPlayer.removeMoney(...)
+                else
+                    xPlayer.removeAccountMoney(type, ...)
+                end
             else
-                xPlayer.removeAccountMoney(type, amount)
+                xPlayer = QBCore.Functions.GetPlayer(source)
+                xPlayer.Functions.RemoveMoney(type, ...)
             end
         end
 
-        HaveMoney = function(type, amount)
-            if type == "cash" then
-                return xPlayer.getMoney() >= amount
+        HaveMoney = function(type, ...)
+            if ESX then
+                xPlayer = ESX.GetPlayerFromId(source)
+                if type == "cash" then
+                    return xPlayer.getMoney(...)
+                else
+                    return xPlayer.getAccountMoney(type, ...)
+                end
             else
-                return xPlayer.getAccount(type).money >= amount
+                xPlayer = QBCore.Functions.GetPlayer(source)
+                
+                return xPlayer.Functions.GetItem(type, ...)
             end
         end
 
