@@ -91,7 +91,7 @@
             end
         end
 
-        RemoveMoney = function(type, ...)
+        RemoveMoney = function(source, type, ...)
             if ESX then
                 xPlayer = ESX.GetPlayerFromId(source)
                 if type == "cash" then
@@ -105,7 +105,7 @@
             end
         end
 
-        HaveMoney = function(type, ...)
+        HaveMoney = function(source, type, ...)
             if ESX then
                 xPlayer = ESX.GetPlayerFromId(source)
                 if type == "cash" then
