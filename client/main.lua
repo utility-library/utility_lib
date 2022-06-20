@@ -120,7 +120,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
         if ThereIsSomeInfinite() or SliceUsed(currentSlice) then
             for k,v in pairs(Utility.Cache.Marker) do
-                if currentSlice == v.slice or v.slice == -1 then
+                if currentSlice == v.slice or v.slice == -1 and  then
                     local distance = #(GetEntityCoords(player) - v.coords)
                     local candraw = true
                     
@@ -130,7 +130,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
                     if candraw then
                         found = true
-                        if distance < v.render_distance then                                   
+                        if v.render_distance > 0.0 and distance < v.render_distance then                                   
                             if v.type == 0 then
                                 if v.text ~= "" then
                                     DrawText3Ds(v.coords, v.text, v._scale or 0.35, v.font or 4, v.rect or false)
