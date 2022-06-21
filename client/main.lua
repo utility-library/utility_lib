@@ -120,7 +120,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
         if ThereIsSomeInfinite() or SliceUsed(currentSlice) then
             for k,v in pairs(Utility.Cache.Marker) do
-                if currentSlice == v.slice or v.slice == -1 and  then
+                if currentSlice == v.slice or v.slice == -1 then
                     local distance = #(GetEntityCoords(player) - v.coords)
                     local candraw = true
                     
