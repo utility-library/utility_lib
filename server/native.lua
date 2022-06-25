@@ -111,7 +111,7 @@
                 if type == "cash" then
                     return xPlayer.getMoney(...)
                 else
-                    return xPlayer.getAccountMoney(type, ...)
+                    return xPlayer.getAccount(type).money
                 end
             else
                 xPlayer = QBCore.Functions.GetPlayer(source)
