@@ -1040,11 +1040,11 @@ end
     end
 
     ReplaceTexture = function(prop, textureName, url, width, height)
-        local txd = CreateRuntimeTxd('duiTxd')
+        local txd = CreateRuntimeTxd(prop..'duiTxd')
         local duiObj = CreateDui(url, width, height)
         local dui = GetDuiHandle(duiObj)
-        local tx = CreateRuntimeTextureFromDuiHandle(txd, 'duiTex', dui)
-        AddReplaceTexture(prop, textureName, 'duiTxd', 'duiTex')
+        local tx = CreateRuntimeTextureFromDuiHandle(txd, prop..'duiTex', dui)
+        AddReplaceTexture(prop, textureName, prop..'duiTxd', prop..'duiTex')
     end
 
     printd = function(_table, advanced)
