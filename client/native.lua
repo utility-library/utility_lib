@@ -535,7 +535,7 @@ end
                 StartQB()
 
                 return true
-            else GetResourceState("es_extended") ~= "missing" then
+            elseif GetResourceState("es_extended") ~= "missing" then
                 StartESX()
 
                 return true
