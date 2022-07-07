@@ -482,24 +482,28 @@ end
                     Citizen.Wait(1)
                 end
                 
-                xPlayer = ESX.GetPlayerData()
+                uPlayer = ESX.GetPlayerData()
+                xPlayer = uPlayer
                 
                 if second_job ~= nil then
                     while ESX.GetPlayerData()[second_job] == nil do
                         Citizen.Wait(1)
                     end
 
-                    xPlayer = ESX.GetPlayerData()
+                    uPlayer = ESX.GetPlayerData()
+                    xPlayer = uPlayer
                 end
 
                 if second_job ~= nil then
                     RegisterNetEvent('esx:set'..string.upper(second_job:sub(1,1))..second_job:sub(2), function(job)        
-                        xPlayer[second_job] = job
+                        uPlayer[second_job] = job
+                        xPlayer = uPlayer
                     end)
                 end
             
                 RegisterNetEvent('esx:setJob', function(job)        
-                    xPlayer.job = job
+                    uPlayer.job = job
+                    xPlayer = uPlayer
                 
                     if OnJobUpdate then
                         OnJobUpdate()
@@ -509,14 +513,17 @@ end
         end 
         StartQB = function()
             QBCore = exports['qb-core']:GetCoreObject()
-            xPlayer = QBCore.Functions.GetPlayerData()
+            uPlayer = QBCore.Functions.GetPlayerData()
+            Player = uPlayer
 
             RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-                xPlayer = QBCore.Functions.GetPlayerData()
+                uPlayer = QBCore.Functions.GetPlayerData()
+                Player = uPlayer
             end)
 
             RegisterNetEvent('QBCore:Client:OnJobUpdate', function(JobInfo)
-                xPlayer.job = JobInfo
+                uPlayer.job = JobInfo
+                Player = uPlayer
 
                 if OnJobUpdate then
                     OnJobUpdate()
@@ -526,8 +533,12 @@ end
         StartFramework = function()
             if GetResourceState("qb-core") ~= "missing" then
                 StartQB()
+
+                return true
             else GetResourceState("es_extended") ~= "missing" then
                 StartESX()
+
+                return true
             end
         end
 
