@@ -500,11 +500,35 @@ end
             
                 RegisterNetEvent('esx:setJob', function(job)        
                     xPlayer.job = job
+                
+                    if OnJobUpdate then
+                        OnJobUpdate()
+                    end
                 end)
             end)
         end 
-        StartQB = function(triggerName)
+        StartQB = function()
             QBCore = exports['qb-core']:GetCoreObject()
+            xPlayer = QBCore.Functions.GetPlayerData()
+
+            RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
+                xPlayer = QBCore.Functions.GetPlayerData()
+            end)
+
+            RegisterNetEvent('QBCore:Client:OnJobUpdate', function(JobInfo)
+                xPlayer.job = JobInfo
+
+                if OnJobUpdate then
+                    OnJobUpdate()
+                end
+            end)
+        end
+        StartFramework = function()
+            if GetResourceState("qb-core") ~= "missing" then
+                StartQB()
+            else GetResourceState("es_extended") ~= "missing" then
+                StartESX()
+            end
         end
 
     -- Job
