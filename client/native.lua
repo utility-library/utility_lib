@@ -88,10 +88,18 @@ end
     end
 
     _G.old_IsControlJustPressed = IsControlJustPressed
-    IsControlJustPressed = function(key, _function)
+    IsControlJustPressed = function(key, _function, description)
         developer("^2Created^0", "key map", key)
-        RegisterKeyMapping('utility '..resName..' '..key, '', "keyboard", key)
+        local input = "keyboard"
+        key = key:lower()
 
+        if key:find("mouse_") or key:find("iom_wheel") then
+            input = "mouse_button"
+        elseif key:find("_index") then
+            input = "pad_digitalbutton"
+        end
+
+        RegisterKeyMapping('utility '..resName..' '..key, (description or ''), input, key)
         table.insert(Utility.Cache.Events, AddEventHandler("Utility:Pressed_"..resName.."_"..key, _function))
     end
 
