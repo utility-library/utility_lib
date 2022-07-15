@@ -755,7 +755,7 @@ end
                 render_distance = render_distance,
                 interaction_distance = interaction_distance,
                 coords = coords,
-                slice = options.slice == "ignore" and -1 or tostring(GetSliceFromCoords(coords))
+                slice = (options and options.slice == "ignore") and -1 or tostring(GetSliceFromCoords(coords))
             }
 
             -- Options
