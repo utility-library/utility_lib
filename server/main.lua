@@ -6,6 +6,7 @@ local UtilityServer = {
 }
 
 local function RemoveFromJob(pId, oldJob)
+    pId = tonumber(pId)
     --print("Removing "..pId.." to the job "..oldJob)
 
     if UtilityServer.Cache.SavedJobs[oldJob] ~= nil then
@@ -18,6 +19,7 @@ local function RemoveFromJob(pId, oldJob)
 end
 
 local function AddToJob(pId, job)
+    pId = tonumber(pId)
     --print("Adding "..pId.." to the job "..job)
 
     if not table.fexist(UtilityServer.Cache.SavedJobs, job) then
