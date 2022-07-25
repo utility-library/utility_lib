@@ -1690,7 +1690,7 @@ end
     end
 
     Probability = function(number) 
-        return math.random() + math.random(0, 99) <= number
+        return math.random(1, 100) <= number
     end
     
     AddPercentage = function(number, percentage)
