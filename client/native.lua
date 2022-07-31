@@ -854,6 +854,10 @@ end
             SetMarker(id, "boolean", "draw_entity", active)
         end
 
+        SetMarkerNotify = function(id, text)
+            SetMarker(id, "string", "notify", text)
+        end
+
         -- 3dText
         Set3dText = function(id, text)
             SetMarker(id, "string", "text", text)
