@@ -1473,6 +1473,10 @@ end
         N3d_Class.init = function(self, url, width, height)
             StartupDui(N3dHandle, "nui://"..GetCurrentResourceName().."/"..url, width or 1920, height or 1080)
         end
+	
+	N3d_Class.datas = function(self)
+	    return Utility.Cache.N3d[N3dHandle]
+	end
 
         N3d_Class.scale = function(self, scale)
             Utility.Cache.N3d[N3dHandle].advanced_scale = scale
@@ -1551,7 +1555,7 @@ end
             end
         end
 
-        return setmetatable({}, N3d_Class)
+        return setmetatable({}, N3d_Class), N3dHandle
     end
 
     AddEventHandler("onResourceStop", function(_resName)
