@@ -1762,3 +1762,48 @@ end
             state = setmetatable({entity = entity, state = ent.state, replicate = replicate}, syncedStateBag)
         }
     end
+
+    -- Physics [Test]
+    CalculateNewAxisPosition = function(coords, space, axis, time)
+        local speed = space * time
+
+        return coords[axis] + speed
+    end
+
+    TranslateUniformRectilinearMotion = function(obj, destination, duration)
+        local coords = GetEntityCoords(obj)
+        local timer = GetNetworkTimeAccurate()
+        local space = {
+            x = destination.x - coords.x,
+            y = destination.y - coords.y,
+            z = destination.z - coords.z,
+        }
+
+        print(json.encode(space))
+
+        while #(coords - destination) > 0.05 do -- while not at destination
+            print("Distance: "..#(coords - destination))
+
+            Citizen.Wait(0) -- wait 1 tick
+            coords = GetEntityCoords(obj)
+            local timeAccurate = GetNetworkTimeAccurate()
+
+            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
+                local elapsedLastCall = (timeAccurate - timer)
+                local time = elapsedLastCall / duration
+                local newCoords = {x = 0.0, y = 0.0, z = 0.0}
+
+                for i=1, 3 do
+                    local axis = (i==1 and "x") or (i==2 and "y") or (i==3 and "z")
+                    local newAxis = CalculateNewAxisPosition(coords, space, axis, time)
+
+                    newCoords[axis] = newAxis
+                end
+
+                print("Set coords: ", json.encode(newCoords))
+                SetEntityCoords(obj, newCoords.x, newCoords.y, newCoords.z)
+            end
+
+            timer = timeAccurate
+        end
+    end
