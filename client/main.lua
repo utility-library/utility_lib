@@ -38,14 +38,30 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
         if uPlayer then
             if type(jobs) == "table" then
                 for i=1, #jobs do
-                    if jobs[i] == uPlayer.job.name then
-                        return true
+                    if CurrentFramework == "Utility" then
+                        for j=1, #uPlayer.jobs do
+                            if jobs[i] == uPlayer.jobs[j].name then
+                                return true
+                            end
+                        end
+                    else
+                        if jobs[i] == uPlayer.job.name then
+                            return true
+                        end
                     end
                 end
             else
-                if jobs == uPlayer.job.name then
-                    return true
-                end 
+                if CurrentFramework == "Utility" then
+                    for i=1, #uPlayer.jobs do
+                        if jobs == uPlayer.jobs[i].name then
+                            return true
+                        end
+                    end
+                else
+                    if jobs == uPlayer.job.name then
+                        return true
+                    end 
+                end
             end
         end
     end
@@ -79,6 +95,8 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
         Citizen.Wait(500)
         
         if GetResourceState("es_extended") == "started" then
+            CurrentFramework = "ESX"
+
             while FW == nil do
                 TriggerEvent(eventName or 'esx:getSharedObject', function(obj) FW = obj end)
                 Citizen.Wait(1)
@@ -96,6 +114,8 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                 JobChange()
             end)
         elseif GetResourceState("qb-core") == "started" then
+            CurrentFramework = "QB"
+
             QBCore = exports['qb-core']:GetCoreObject()
 
             RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
@@ -107,6 +127,8 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                 uPlayer.job = job
                 JobChange()
             end)
+        elseif GetResourceState("utility_framework") == "started" then
+            CurrentFramework = "Utility"
         end
     end)
 
