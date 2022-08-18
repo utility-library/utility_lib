@@ -1165,14 +1165,14 @@ end
     local table_remove = table.remove
     table.remove = function(_table, index, onlyfirst)
         if type(index) == "number" then
-            table_remove(_table, index)
+            return table_remove(_table, index)
         elseif type(index) == "string" then
             for k, v in pairs(_table) do
                 if k == index then
                     _table[k] = nil -- Can be bugged, probably in future update will be changed with a empty table => {}
 
                     if onlyfirst then
-                        break
+                        return k
                     end
                 end
             end
