@@ -1627,22 +1627,6 @@ end
         end
     end
 
-    CreateInteraction = function(id, coords, label, render_distance, interaction_distance)
-        developer("^2Created^0","Interaction",id)
-
-        exports["utility_interaction"]:CreateInteraction(id, coords, label, render_distance, interaction_distance)
-    end
-    DeleteInteraction = function(id)
-        developer("^1Deleted^0","Interaction",id)
-
-        exports["utility_interaction"]:DeleteInteraction(id)
-    end
-
-    ShowUtilityNotification = function(color, title, header, icon, duration)
-        exports["utility_notify"]:show(color, title, header, icon, duration)
-    end
-    
-
 
     -- NEW --
     CreateMissionText = function(msg, duration)            
