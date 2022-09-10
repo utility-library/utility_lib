@@ -579,6 +579,10 @@ end
         developer("^2Taking^0", "object", entityToGrab.." ("..GetEntityModel(entityToGrab)..")")
 
         if type(entityToGrab) == "number" then -- Send an entity ID (Use already exist entity)
+	    NetworkRequestControlOfEntity(entityToGrab)
+            while not NetworkHasControlOfEntity(entityToGrab) do Citizen.Wait(1) end
+
+		
             TaskPlayAnim(ped, "anim@heists@box_carry@", "idle", 3.0, 3.0, -1, 63, 0, 0, 0, 0)
             Citizen.Wait(100)
             AttachEntityToEntity(entityToGrab, ped, GetPedBoneIndex(ped, 60309), xPos or 0.2, yPos or 0.08, zPos or 0.2, xRot or -45.0, yRot or 290.0, zRot or 0.0, true, true, false, true, 1, true)
