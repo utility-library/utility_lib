@@ -429,11 +429,6 @@ local EntitySliceInfinite = {
         end
 
         CreateModelSwap(coords, 1.0, model, newmodel)
-
-        Citizen.Wait(10000)
-
-        RemoveModelSwap(coords, 1.0, model, newmodel)
-        SetModelAsNoLongerNeeded(newmodel)
     end)
 
     RegisterNetEvent("Utility:StartParticleFxOnNetworkEntity", function(ptxAsset, name, obj, ...)

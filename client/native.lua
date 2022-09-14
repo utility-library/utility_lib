@@ -912,6 +912,7 @@ end
             developer("^1Deleted^0","Marker",id)
             Utility.Cache.Marker[id] = nil
             _TriggerEvent("Utility:Remove", "Marker", id)
+            ClearAllHelpMessages()
         end
     end
 
@@ -1496,7 +1497,7 @@ end
         LoadScaleform(N3dHandle, sfName)
 
         if url ~= nil then
-            print("Starting "..N3dHandle.." with url ".."nui://"..GetCurrentResourceName().."/"..url.." sf "..sfName)
+            developer("^2Starting^0", N3dHandle.." with url ".."nui://"..GetCurrentResourceName().."/"..url.." sf "..sfName, "")
             StartupDui(N3dHandle, "nui://"..GetCurrentResourceName().."/"..url, 1920, 1080)
         end
 
@@ -1681,7 +1682,8 @@ end
         AddEntityToScene = function(entity, scene, dict, name, speed, speedMultiplier, flag)
             if not DoesEntityExist(entity) then
                 local model = entity
-                entity = CreateObject(entity, uPlayer.coords + vector3(0,0, -4.0), true)
+                local coords = GetEntityCoords(PlayerPedId())
+                entity = CreateObject(entity, coords + vector3(0,0, -4.0), true)
                 SetEntityCollision(entity, false, true)
 
                 Utility.Cache.Scenes[scene].entities[model] = entity -- if the entity was created by the scene then it will have automatic handling, otherwise you will have to delete it yourself manually
@@ -1692,7 +1694,7 @@ end
                 Citizen.Wait(1)
             end
 
-            print("Adding object", entity, "to scene", scene, "[", dict, name, "]")
+            developer("^3Scenes^0", "Adding object", entity, "to scene", scene, "[", dict, name, "]", "")
             NetworkAddEntityToSynchronisedScene(entity, scene, dict, name, speed or 4.0, speedMultiplier or -8.0, flag or 1)
             table.insert(Utility.Cache.Scenes[scene].dicts, dict)
         end
@@ -1720,7 +1722,7 @@ end
                 Citizen.Wait(1)
             end
 
-            print("Adding ped", ped, "to scene", scene, "[", dict, name, "]")
+            developer("^3Scenes^0", "Adding ped", ped, "to scene", scene, "[", dict, name, "]", "")
             NetworkAddPedToSynchronisedScene(ped, scene, dict, name, blendIn or 1.5, blendOut or -4.0, duration or 1, flag or 16, 0, 0)
             table.insert(Utility.Cache.Scenes[scene].dicts, dict)
         end
@@ -1737,27 +1739,21 @@ end
                 Citizen.Wait(1)
             end
 
-            print(player, heading, json.encode(rot))
-
             local pos = GetAnimInitialOffsetPosition(dict, name, coords, 0.0, 0.0, heading, 0.0, 2)
             local rot = GetAnimInitialOffsetRotation(dict, name, coords, 0.0, 0.0, heading, 0.0, 2)
             
-            print(player, coords, pos)
-            print(rot, heading)
             RemoveAnimDict(dict)
 
-            TaskGoStraightToCoord(ped, pos, 0.6, -1, rot.z, 0.2)
+            TaskGoStraightToCoord(ped, pos, 0.6, -1, rot.z, 0.4)
             --TaskFollowNavMeshToCoord(ped, pos, 0.6, -1, 0.1, true)
 
             -- Wait until it is close to the start zone
             local startCheckingDistance = GetGameTimer()
 
-            print(pos, rot, HasAnimDictLoaded(dict))
             --DebugCoords(coords)
             --DebugCoords(pos)
 
             while (#(GetEntityCoords(ped) - pos) > 0.3) do
-                print(2, #(GetEntityCoords(ped) - pos))
                 Citizen.Wait(1)
             end
 
@@ -1786,14 +1782,14 @@ end
         end
 
         StopScene = function(scene)
-            print("Stop scene", scene)
+            developer("^3Scenes^0", "Stop scene", scene)
             NetworkStopSynchronisedScene(scene)
 
             local curScene = Utility.Cache.Scenes[scene]
 
             -- Delete create entities
             for model, entity in pairs(curScene.entities) do
-                print("Deleting ",entity)
+                developer("^3Scenes^0", "Deleting entity", entity)
                 DeleteEntity(entity)
             end
 
@@ -1832,10 +1828,10 @@ end
 
             if doorHash == `hei_v_ilev_bk_safegate_pris` then
                 --                                                                 SafePedCoords
-                return GetOffsetFromEntityInWorldCoords(door, -(doorSize.x - 0.1), -0.05, 0.0)
+                return GetOffsetFromEntityInWorldCoords(door, -(size.x - 0.1), -0.05, 0.0)
             else
                 --                                                                SafePedCoords
-                return GetOffsetFromEntityInWorldCoords(door, (doorSize.x - 0.1), -0.05, 0.0)
+                return GetOffsetFromEntityInWorldCoords(door, (size.x - 0.1), -0.05, 0.0)
             end
         end
 
@@ -1911,10 +1907,12 @@ end
             StopScene(scene)
             SetPedComponentVariation(ped, 5, bagComponent or 45, 0, 0) -- Reset real bag to player
 
+            developer("^3Scenes^0", "Cover eyes", "")
             --print("cover eyes")
             CoverEyesFromThermalCharge(ped)
             Citizen.Wait(1000)
             ChangeDoorModel(door)
+            developer("^3Scenes^0", "Wait "..(duration or 3000), "")
             Citizen.Wait(duration or 3000)
             StopThermalChargeEffect(ped, thermal)
         end
@@ -2070,25 +2068,24 @@ end
             end
 
             Citizen.CreateThread(function()
-                while IsSynchronizedSceneRunning(lscene) do
-                    ButtonNotification("Repeatedly press ~INPUT_SCRIPT_RDOWN~ to grab faster")
-                    Citizen.Wait(1)
-                end
+                AddTextEntry('PersistentButtonNotification', "Repeatedly press ~INPUT_SCRIPT_RDOWN~ to grab faster")
+                BeginTextCommandDisplayHelp('PersistentButtonNotification')
+                EndTextCommandDisplayHelp(0, true, true, -1)
             end)
         
             -- If the scene is still running, remove 0.1 every 300ms
-            while IsSynchronizedSceneRunning(lscene) do
+            while GetSynchronizedScenePhase(lscene) < 0.99 do
                 lscene = NetworkGetLocalSceneFromNetworkId(grabScene)
         
                 if speed > min then
                     speed = speed - 0.1
                 end
                 
-                --print("Grabbing speed: "..speed, GetSynchronizedScenePhase(lscene))
                 SetSynchronizedSceneRate(lscene, speed)
                 Citizen.Wait(300)
             end
         
+            ClearAllHelpMessages()
             finished = true
             --print("Finished grabbing money")
         end
@@ -2140,18 +2137,18 @@ end
         
             -- Intro
                 local introScene = StartLootIntroScene(bagObj, trolly)
-                print("Started Intro scene")
+                developer("^3Scenes^0", "Started Intro scene", "")
         
                 SetPedComponentVariation(ped, 5, 0, 0, 0)
                 Citizen.Wait(1500)
         
-                print("Create cash prop")
+                developer("^3Scenes^0", "Create cash prop", "")
                 CreateCashProp(id, cashPropModel, options.giveCash)
-                print("Starting grabbing scene")
+                developer("^3Scenes^0", "Starting grabbing scene", "")
         
             -- Grab Scene
                 local grabScene = StartLootGrabScene(bagObj, trolly)
-                print("Started grab scene")
+                developer("^3Scenes^0", "Started grab scene", "")
                 StartPlayerInteractionGrabLoop(grabScene, options.minSpeed or 1.0, options.maxSpeed or 1.6)
         
                 CollectCashProp(id, options.giveCash) -- last cash prop isnt in the animation events
@@ -2162,7 +2159,7 @@ end
                 UtilityLibrary.Cache.LootingTrolly = false
         
                 local exitScene = StartLootExitScene(bagObj, trolly)
-                print("Started exit scene", trolly)
+                developer("^3Scenes^0", "Started exit scene", trolly)
                 Citizen.Wait(1800)
         
                 DeleteEntity(bagObj)
@@ -2170,7 +2167,7 @@ end
                 StopScene(introScene)
                 StopScene(grabScene)
                 StopScene(exitScene)
-                print("Stopped all scenes", trolly)
+                developer("^3Scenes^0", "Stopped all scenes", trolly)
         
                 SetPedComponentVariation(ped, 5, 45, 0, 0)
         end
@@ -2181,7 +2178,7 @@ end
 
         Citizen.CreateThread(function()
             AddRelationshipGroup("GUARDS")
-            SetPedRelationshipGroupHash(uPlayer.ped, `PLAYER`)
+            SetPedRelationshipGroupHash(PlayerPedId(), `PLAYER`)
         end)
 
         local CheckIfCanAttack = function(player, v)
@@ -2230,7 +2227,7 @@ end
                                     if #(coords - guardCoords) < distance then -- if is in the possible cone
                                         local guardMaxCoords = GetOffsetFromEntityInWorldCoords(v, 0.0, distance, 0.0)
                         
-                                        if IsEntityInAngledArea(uPlayer.ped, guardCoords, guardMaxCoords, 50.0) then
+                                        if IsEntityInAngledArea(PlayerPedId(), guardCoords, guardMaxCoords, 50.0) then
                                             CheckIfCanAttack(player, v)
                                         end
                                     end
