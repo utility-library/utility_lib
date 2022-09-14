@@ -1753,8 +1753,8 @@ end
             local startCheckingDistance = GetGameTimer()
 
             print(pos, rot, HasAnimDictLoaded(dict))
-            DebugCoords(coords)
-            DebugCoords(pos)
+            --DebugCoords(coords)
+            --DebugCoords(pos)
 
             while (#(GetEntityCoords(ped) - pos) > 0.3) do
                 print(2, #(GetEntityCoords(ped) - pos))
@@ -2545,9 +2545,6 @@ end
         return {
             state = setmetatable({entity = entity, state = ent.state, replicate = replicate}, syncedStateBag)
         }
-<<<<<<< HEAD
-    end
-=======
     end
 
     -- Physics [Test]
@@ -2594,4 +2591,3 @@ end
             timer = timeAccurate
         end
     end
->>>>>>> be6bbaa822c4f96bcd708171efba0a471a9f16fa

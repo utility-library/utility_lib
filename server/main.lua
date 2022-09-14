@@ -97,6 +97,17 @@ RegisterServerEvent("Utility:CreateStateBag", function(netid, k, v)
     end
 end)
 
+RegisterServerEvent("Utility:SwapModel", function(coords, model, newmodel)
+    TriggerClientEvent("Utility:SwapModel", -1, coords, model, newmodel)
+end)
+RegisterServerEvent("Utility:StartParticleFxOnNetworkEntity", function(...)
+    TriggerClientEvent("Utility:StartParticleFxOnNetworkEntity", -1, ...)
+end)
+
+RegisterServerEvent("Utility:FreezeNoNetworkedEntity", function(...)
+    TriggerClientEvent("Utility:FreezeNoNetworkedEntity", -1, ...)
+end)
+
 -- Job
     -- On quit
     if GetResourceState("es_extended") == "started" then

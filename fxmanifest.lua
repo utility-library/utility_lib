@@ -19,5 +19,6 @@ server_scripts {
 }
 
 files {
-    "client/native_min.lua"
+    "client/native_min.lua",
+    "client/managers/*.lua"
 }

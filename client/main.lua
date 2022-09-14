@@ -55,12 +55,12 @@ local EntitySliceInfinite = {
             end
         end
 
-        EnteredMarker = function(marker, v)
+        EnteredMarker = function(k, v)
             Emit("entered", false, "marker", k)
             v.near = true
         end
 
-        LeavedMarker = function(marker, v)
+        LeavedMarker = function(k, v)
             Emit("leaved", false, "marker", k)
             v.near = false
         end
@@ -76,7 +76,7 @@ local EntitySliceInfinite = {
                 end
                 
                 if distance < v.interaction_distance then
-                    if v.notify ~= nil then 
+                    if v.notify ~= nil then
                         ButtonNotificationInternal(v.notify, not v.near)
                     end
 
@@ -467,6 +467,8 @@ local EntitySliceInfinite = {
 
         if table.job then
             table.candraw = CheckIfCanView(table.job)
+        else
+            table.candraw = true
         end
 
         Utility.Cache[type][id] = table 
