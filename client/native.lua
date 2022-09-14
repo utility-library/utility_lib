@@ -16,6 +16,7 @@ local Keys = {
 	["NENTER"] = 201, ["N4"] = 108, ["N5"] = 60, ["N6"] = 107, ["N+"] = 96, ["N-"] = 97, ["N7"] = 117, ["N8"] = 61, ["N9"] = 118
 }
 
+DevModeStatus = false
 UtilityLibLoaded = true
 
 local Utility = {
@@ -27,11 +28,14 @@ local Utility = {
         Blips = {},
         N3d = {},
         Events = {},
+
+        Guards = {},
+        Scenes = {},
         
         SetData = {},
         Frozen = {},
         FlowDetector = {},
-        Constant = {},
+        --Constant = {},
 	Settings = {},
         EntityStack = {},
         Loop = {},
@@ -39,13 +43,21 @@ local Utility = {
     }
 }
 
-if resName == "utility_lib" then
-    _G["Utility"] = Utility
-end
-
-    UseDelete = function(boolean)
-        Utility.Cache.Settings.UseDelete = boolean
+Citizen.CreateThreadNow(function() -- Load Classes
+    if UFAPI then -- if the utility framework API is loaded
+        if resName == "utility_lib" then
+            _G["Utility"] = Utility
+        else
+            _G["UtilityLibrary"] = Utility
+        end
+    else -- the utility framework API is not loaded :(
+        _G["Utility"] = Utility
     end
+end)
+
+UseDelete = function(boolean)
+    Utility.Cache.Settings.UseDelete = boolean
+end
 
 
 --// Emitter //--
@@ -54,6 +66,8 @@ end
 
         local event = AddEventHandler("Utility:On:".. (fake_triggerable and "!" or "") ..type, function_id)
         table.insert(Utility.Cache.Events, event)
+
+        return event
     end
 
 --// Custom/Improved Native //-- 
@@ -210,7 +224,7 @@ end
 
         local obj = old_CreateObject(modelHash, ...)
 
-	if Utility.Cache.Settings.UseDelete then
+	    if Utility.Cache.Settings.UseDelete then
             table.insert(Utility.Cache.EntityStack, obj)
         end	
 
@@ -579,9 +593,8 @@ end
         developer("^2Taking^0", "object", entityToGrab.." ("..GetEntityModel(entityToGrab)..")")
 
         if type(entityToGrab) == "number" then -- Send an entity ID (Use already exist entity)
-	    NetworkRequestControlOfEntity(entityToGrab)
+	        NetworkRequestControlOfEntity(entityToGrab)
             while not NetworkHasControlOfEntity(entityToGrab) do Citizen.Wait(1) end
-
 		
             TaskPlayAnim(ped, "anim@heists@box_carry@", "idle", 3.0, 3.0, -1, 63, 0, 0, 0, 0)
             Citizen.Wait(100)
@@ -660,11 +673,19 @@ end
 
         if type(property) == "table" then -- Table
             for k,v in pairs(property) do
-                developer("^2Setting^0", "data", "("..id..") ["..k.." = "..json.encode(v).."] {table}")
+                if type(v) == "function" then
+                    developer("^2Setting^0", "data", "("..id..") ["..k.." = "..tostring(v).."] {table}")
+                else
+                    developer("^2Setting^0", "data", "("..id..") ["..k.." = "..json.encode(v).."] {table}")
+                end
                 Utility.Cache["SetData"][id][k] = v
             end
         else -- Single
-            developer("^2Setting^0", "data", "("..id..") ["..property.." = "..json.encode(value).."] {single}")
+            if type(value) == "function" then
+                developer("^2Setting^0", "data", "("..id..") ["..property.." = "..tostring(value).."] {single}")
+            else
+                developer("^2Setting^0", "data", "("..id..") ["..property.." = "..json.encode(value).."] {single}")
+            end
             Utility.Cache["SetData"][id][property] = value
         end
     end
@@ -799,7 +820,7 @@ end
     end
 
         SetMarker = function(id, _type, key, value)
-            if type(value) ~= _type then
+            if (type(value) ~= _type) and (value ~= nil) then
                 developer("^1Error^0", key.." can be only a ".._type, "[Marker]")
                 return 
             end
@@ -859,7 +880,10 @@ end
         end
 
         SetMarkerNotify = function(id, text)
-            local notify = string.multigsub(text, {"{A}","{B}", "{C}", "{D}", "{E}", "{F}", "{G}", "{H}", "{L}", "{M}", "{N}", "{O}", "{P}", "{Q}", "{R}", "{S}", "{T}", "{U}", "{V}", "{W}", "{X}", "{Y}", "{Z}"}, {"~INPUT_VEH_FLY_YAW_LEFT~", "~INPUT_SPECIAL_ABILITY_SECONDARY~", "~INPUT_LOOK_BEHIND~", "~INPUT_MOVE_LR~", "~INPUT_CONTEXT~", "~INPUT_ARREST~", "~INPUT_DETONATE~", "~INPUT_VEH_ROOF~", "~INPUT_CELLPHONE_CAMERA_FOCUS_LOCK~", "~INPUT_INTERACTION_MENU~", "~INPUT_REPLAY_ENDPOINT~" , "~INPUT_FRONTEND_PAUSE~", "~INPUT_FRONTEND_LB~", "~INPUT_RELOAD~", "~INPUT_MOVE_DOWN_ONLY~", "~INPUT_MP_TEXT_CHAT_ALL~", "~INPUT_REPLAY_SCREENSHOT~", "~INPUT_NEXT_CAMERA~", "~INPUT_MOVE_UP_ONLY~", "~INPUT_VEH_HOTWIRE_LEFT~", "~INPUT_VEH_DUCK~", "~INPUT_MP_TEXT_CHAT_TEAM~", "~INPUT_HUD_SPECIAL~"})
+            if type(text) == "string" then
+                text = string.multigsub(text, {"{A}","{B}", "{C}", "{D}", "{E}", "{F}", "{G}", "{H}", "{L}", "{M}", "{N}", "{O}", "{P}", "{Q}", "{R}", "{S}", "{T}", "{U}", "{V}", "{W}", "{X}", "{Y}", "{Z}"}, {"~INPUT_VEH_FLY_YAW_LEFT~", "~INPUT_SPECIAL_ABILITY_SECONDARY~", "~INPUT_LOOK_BEHIND~", "~INPUT_MOVE_LR~", "~INPUT_CONTEXT~", "~INPUT_ARREST~", "~INPUT_DETONATE~", "~INPUT_VEH_ROOF~", "~INPUT_CELLPHONE_CAMERA_FOCUS_LOCK~", "~INPUT_INTERACTION_MENU~", "~INPUT_REPLAY_ENDPOINT~" , "~INPUT_FRONTEND_PAUSE~", "~INPUT_FRONTEND_LB~", "~INPUT_RELOAD~", "~INPUT_MOVE_DOWN_ONLY~", "~INPUT_MP_TEXT_CHAT_ALL~", "~INPUT_REPLAY_SCREENSHOT~", "~INPUT_NEXT_CAMERA~", "~INPUT_MOVE_UP_ONLY~", "~INPUT_VEH_HOTWIRE_LEFT~", "~INPUT_VEH_DUCK~", "~INPUT_MP_TEXT_CHAT_TEAM~", "~INPUT_HUD_SPECIAL~"})
+            end
+
             SetMarker(id, "string", "notify", notify)
         end
 
@@ -1065,6 +1089,8 @@ end
 
 --// Other // --
     DevMode = function(state, time, format)
+        DevModeStatus = true
+
         if time == nil then time = true end
         format = format or "%s %s %s"
         
@@ -1592,6 +1618,776 @@ end
         end
     end)
 
+--// Physics [Test] //--
+    CalculateNewAxisPosition = function(coords, space, axis, time)
+        local speed = space * time
+
+        return coords[axis] + speed
+    end
+
+    TranslateUniformRectilinearMotion = function(obj, destination, duration)
+        local coords = GetEntityCoords(obj)
+        local timer = GetNetworkTimeAccurate()
+        local space = {
+            x = destination.x - coords.x,
+            y = destination.y - coords.y,
+            z = destination.z - coords.z,
+        }
+
+        --print(json.encode(space))
+
+        while #(coords - destination) > 0.05 do -- while not at destination
+            --print("Distance: "..#(coords - destination))
+
+            Citizen.Wait(0) -- wait 1 tick
+            coords = GetEntityCoords(obj)
+            local timeAccurate = GetNetworkTimeAccurate()
+
+            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
+                local deltaTime = (timeAccurate - timer)
+                local time = deltaTime / duration
+                local newCoords = {x = 0.0, y = 0.0, z = 0.0}
+
+                for i=1, 3 do
+                    local axis = (i==1 and "x") or (i==2 and "y") or (i==3 and "z")
+                    local newAxis = CalculateNewAxisPosition(coords, space, axis, time)
+
+                    newCoords[axis] = newAxis
+                end
+
+                --print("Set coords: ", json.encode(newCoords))
+                SetEntityCoords(obj, newCoords.x, newCoords.y, newCoords.z)
+            end
+
+            timer = timeAccurate
+        end
+    end
+
+--// Heists //--
+    -- Scene
+        CreateScene = function(coords, rot, holdLastFrame, looped, animSpeed)
+            local scene = NetworkCreateSynchronisedScene(coords, rot, 2, holdLastFrame or false, looped or false, 1065353216, 0, animSpeed or 1.3)
+            Utility.Cache.Scenes[scene] = {
+                coords = coords,
+                rotation = rot,
+                players = {},
+                entities = {},
+                dicts = {},
+            }
+            
+            return scene
+        end
+
+        AddEntityToScene = function(entity, scene, dict, name, speed, speedMultiplier, flag)
+            if not DoesEntityExist(entity) then
+                local model = entity
+                entity = CreateObject(entity, uPlayer.coords + vector3(0,0, -4.0), true)
+                SetEntityCollision(entity, false, true)
+
+                Utility.Cache.Scenes[scene].entities[model] = entity -- if the entity was created by the scene then it will have automatic handling, otherwise you will have to delete it yourself manually
+            end
+
+            RequestAnimDict(dict)
+            while not HasAnimDictLoaded(dict) do
+                Citizen.Wait(1)
+            end
+
+            print("Adding object", entity, "to scene", scene, "[", dict, name, "]")
+            NetworkAddEntityToSynchronisedScene(entity, scene, dict, name, speed or 4.0, speedMultiplier or -8.0, flag or 1)
+            table.insert(Utility.Cache.Scenes[scene].dicts, dict)
+        end
+
+        AddPlayerToScene = function(player, scene, dict, name, ...)
+            local ped = DoesEntityExist(player) and player or GetPlayerPed(player) -- (player id) or (player ped id) are accepted
+            AddPedToScene(ped, scene, dict, name, ...)
+
+            Utility.Cache.Scenes[scene].players[ped] = {
+                dict = dict,
+                name = name
+            }
+        end
+
+        AddPedToScene = function(ped, scene, dict, name, blendIn, blendOut, duration, flag)
+            if not DoesEntityExist(ped) then
+                local model = ped
+                ped = CreatePed(ped, vector3(0,0,0), 0.0, true)
+                
+                Utility.Cache.Scenes[scene].entities[model] = ped -- if the entity was created by the scene then it will have automatic handling, otherwise you will have to delete it yourself manually
+            end
+
+            RequestAnimDict(dict)
+            while not HasAnimDictLoaded(dict) do
+                Citizen.Wait(1)
+            end
+
+            print("Adding ped", ped, "to scene", scene, "[", dict, name, "]")
+            NetworkAddPedToSynchronisedScene(ped, scene, dict, name, blendIn or 1.5, blendOut or -4.0, duration or 1, flag or 16, 0, 0)
+            table.insert(Utility.Cache.Scenes[scene].dicts, dict)
+        end
+
+        GoNearInitialOffset = function(player, coords, rot, dict, name)
+            -- Taken from https://github.com/root-cause/v-decompiled-scripts/blob/master/fm_mission_controller.c line 752898
+            local ped = DoesEntityExist(player) and player or GetPlayerPed(player) -- (player id) or (player ped id) are accepted
+            local heading = rot and rot.z or GetEntityHeading(ped)
+            
+            --Citizen.Wait(5000)
+
+            RequestAnimDict(dict)
+            while not HasAnimDictLoaded(dict) do
+                Citizen.Wait(1)
+            end
+
+            print(player, heading, json.encode(rot))
+
+            local pos = GetAnimInitialOffsetPosition(dict, name, coords, 0.0, 0.0, heading, 0.0, 2)
+            local rot = GetAnimInitialOffsetRotation(dict, name, coords, 0.0, 0.0, heading, 0.0, 2)
+            
+            print(player, coords, pos)
+            print(rot, heading)
+            RemoveAnimDict(dict)
+
+            TaskGoStraightToCoord(ped, pos, 0.6, -1, rot.z, 0.2)
+            --TaskFollowNavMeshToCoord(ped, pos, 0.6, -1, 0.1, true)
+
+            -- Wait until it is close to the start zone
+            local startCheckingDistance = GetGameTimer()
+
+            print(pos, rot, HasAnimDictLoaded(dict))
+            DebugCoords(coords)
+            DebugCoords(pos)
+
+            while (#(GetEntityCoords(ped) - pos) > 0.3) do
+                print(2, #(GetEntityCoords(ped) - pos))
+                Citizen.Wait(1)
+            end
+
+            --TaskAchieveHeading(ped, rot.z, 1000)
+            --Citizen.Wait(1000)
+
+            -- Wait until he has stopped
+            while GetEntitySpeed(ped) > 0.2 do
+                Citizen.Wait(50)
+            end
+
+            -- Let's add a break just in case (weird bugs can happen without it)
+            --Citizen.Wait(1000)
+        end
+
+        StartScene = function(scene, goNearInitialOffset)
+            local curScene = Utility.Cache.Scenes[scene]
+
+            if goNearInitialOffset then
+                for ped, v in pairs(curScene.players) do
+                    GoNearInitialOffset(ped, curScene.coords, curScene.rotation, v.dict, v.name)
+                end
+            end
+
+            NetworkStartSynchronisedScene(scene)
+        end
+
+        StopScene = function(scene)
+            print("Stop scene", scene)
+            NetworkStopSynchronisedScene(scene)
+
+            local curScene = Utility.Cache.Scenes[scene]
+
+            -- Delete create entities
+            for model, entity in pairs(curScene.entities) do
+                print("Deleting ",entity)
+                DeleteEntity(entity)
+            end
+
+            -- Unload anim dicts
+            for i=1, #curScene.dicts do
+                RemoveAnimDict(curScene.dicts[i])
+            end
+        end
+
+        GetSceneEntity = function(scene, model)
+            if model then
+                return Utility.Cache.Scenes[scene].entities[model]
+            else
+                return Utility.Cache.Scenes[scene].entities
+            end
+        end
+
+    -- Thermal Charge
+        local StartPlantThermalChargeScene = function(door, coords)
+            local ped = PlayerPedId()
+            local rot = GetEntityRotation(door)
+            
+            --DebugCoords(coords)
+            --GoNearInitialOffset(ped, coords, "anim@heists@ornate_bank@thermal_charge", "thermal_charge")
+
+            local scene = CreateScene(coords, rot)
+            AddPlayerToScene(ped, scene, "anim@heists@ornate_bank@thermal_charge", "thermal_charge")
+            AddEntityToScene("hei_p_m_bag_var22_arm_s", scene, "anim@heists@ornate_bank@thermal_charge", "bag_thermal_charge")
+            StartScene(scene, true)
+
+            return scene
+        end
+
+        local FindDoorLockCoords = function(door)
+            local size = GetEntitySize(door)
+
+            if doorHash == `hei_v_ilev_bk_safegate_pris` then
+                --                                                                 SafePedCoords
+                return GetOffsetFromEntityInWorldCoords(door, -(doorSize.x - 0.1), -0.05, 0.0)
+            else
+                --                                                                SafePedCoords
+                return GetOffsetFromEntityInWorldCoords(door, (doorSize.x - 0.1), -0.05, 0.0)
+            end
+        end
+
+        local PullOutThermalCharge = function(ped, coords)
+            local thermal = CreateObject("hei_prop_heist_thermite", coords - vector3(0, 0, 5), true)
+
+            SetEntityCollision(thermal, false, false)
+            AttachEntityToEntity(thermal, ped, GetPedBoneIndex(ped, 28422), 0, 0, 0, 0, 0, 200.0, true, true, false, true, 1, true)
+
+            return thermal
+        end
+
+        local PlantThermalCharge = function(thermal)
+            DetachEntity(thermal, true, true)
+        end
+
+        local StartThermalChargeEffect = function(thermal)
+            return StartParticleFxOnNetworkEntity("scr_ornate_heist", "scr_heist_ornate_thermal_burn", thermal, vector3(0.0, 1.0, -0.1), vector3(0.0, 0.0, 0.0), 1.0)
+        end
+
+        local CoverEyesFromThermalCharge = function(ped)
+            TaskPlayAnim(ped, "anim@heists@ornate_bank@thermal_charge", "cover_eyes_loop", 1.5, 1.0, -1, 51, 1, 0, 0, 0)
+        end
+
+        local GetMoltenModel = function(door)
+            local model = GetEntityModel(door)
+
+            if model == `hei_v_ilev_bk_gate_pris` then
+                return "hei_v_ilev_bk_gate_molten"
+
+            elseif model == `hei_v_ilev_bk_gate2_pris` then
+                return "hei_v_ilev_bk_gate2_molten"
+                
+            elseif model == `hei_v_ilev_bk_safegate_pris` then
+                return "hei_v_ilev_bk_safegate_molten"
+            end
+        end
+
+        local ChangeDoorModel = function(door)
+            local moltenModel = GetMoltenModel(door)
+
+            if moltenModel then
+                SetEntityModel(door, moltenModel)
+            end
+        end
+
+        local StopThermalChargeEffect = function(ped, thermal)  
+            DeleteObject(thermal)
+            TaskPlayAnim(ped, "anim@heists@ornate_bank@thermal_charge", "cover_eyes_exit", 1.0, 8.0, 1000, 51, 1, 0, 0, 0)
+
+            Citizen.Wait(1000)
+            ClearPedTasks(ped)
+        end
+
+        BreakDoorWithThermalCharge = function(door, bagComponent, duration)
+            local ped = PlayerPedId()
+            local doorLock = FindDoorLockCoords(door)
+
+            local scene = StartPlantThermalChargeScene(door, doorLock)
+
+            SetPedComponentVariation(ped, 5, 0, 0, 0) -- Remove real bag from player
+            Citizen.Wait(1000)
+            local thermal = PullOutThermalCharge(ped, doorLock)
+
+            Citizen.Wait(3000)
+            PlantThermalCharge(thermal)
+
+            --print("start effect")
+            Citizen.Wait(1000)
+            local effect = StartThermalChargeEffect(thermal)
+            
+            --print("stop scene")
+            StopScene(scene)
+            SetPedComponentVariation(ped, 5, bagComponent or 45, 0, 0) -- Reset real bag to player
+
+            --print("cover eyes")
+            CoverEyesFromThermalCharge(ped)
+            Citizen.Wait(1000)
+            ChangeDoorModel(door)
+            Citizen.Wait(duration or 3000)
+            StopThermalChargeEffect(ped, thermal)
+        end
+
+    -- Trolly
+        -- Create
+        local GetTrollyModel = function(type)
+            if type == "cash" then
+                return "hei_prop_hei_cash_trolly_01"
+            elseif type == "gold" then
+                return "ch_prop_gold_trolly_01a"
+            elseif type == "diamond" then
+                return "ch_prop_diamond_trolly_01a"
+            end
+        end
+        
+        local GenerateTrollyId = function(type)
+            return "utility_heist:"..type.."_trolly:"..math.random(1, 10000) -- example: utility_heist:cash_trolly:3910
+        end
+        
+        CreateTrolly = function(type, coords, giveCash, notify, minSpeed, maxSpeed)
+            local obj = nil
+            local id = GenerateTrollyId(type) -- Pseudo random id
+        
+            -- Object creation
+            if type == "cash" then
+                obj = CreateObject("hei_prop_hei_cash_trolly_01", coords, true)
+            elseif type == "gold" then
+                obj = CreateObject("ch_prop_gold_trolly_01a", coords, true)
+            elseif type == "diamond" then
+                obj = CreateObject("ch_prop_diamond_trolly_01a", coords, true)
+            end
+            
+            PlaceObjectOnGroundProperly(obj)
+        
+            -- Marker and data creation
+            CreateMarker(id, coords, 0.0, 2.0, {notify = notify or "Press {E} to begin looting the trolly"})
+            SetFor(id, "minSpeed", minSpeed)
+            SetFor(id, "maxSpeed", maxSpeed)
+            SetFor(id, "giveCash", giveCash)
+
+            local eventHandler = nil
+            eventHandler = On("marker", function(_id)
+                if _id == id then
+                    local type = id:match("utility_heist:(%w+)_trolly")
+        
+                    local coords = GetEntityCoords(PlayerPedId())
+                    local model = GetTrollyModel(type)
+                    local trollyObj = GetClosestObjectOfType(coords, 3.0, GetHashKey(model))
+                        
+                    DeleteMarker(id)
+        
+                    if trollyObj > 0 then
+                        LootTrolly(id, type, trollyObj)
+                        RemoveEventHandler(eventHandler)
+                    end
+                end
+            end)
+
+            return id, obj
+        end
+
+        -- Loot
+        local GetEmptyTrollyModel = function(type)
+            if type == "cash" then
+                return "hei_prop_hei_cash_trolly_03"
+            else
+                return "hei_prop_hei_cash_trolly_03"
+                --return "ch_prop_gold_trolly_empty"
+            end
+        end
+        
+        local GetTrollyCashProp = function(type)
+            if type == "cash" then
+                return "hei_prop_heist_cash_pile"
+            elseif type == "gold" then
+                return "ch_prop_gold_bar_01a"
+            elseif type == "diamond" then
+                return "ch_prop_vault_dimaondbox_01a"
+            end
+        end
+        
+        local CollectCashProp = function(id, giveCash)
+            PlaySoundFrontend(-1, "LOCAL_PLYR_CASH_COUNTER_INCREASE", "DLC_HEISTS_GENERAL_FRONTEND_SOUNDS", true)
+            giveCash() -- Give cash function
+        end
+        
+        local CreateCashProp = function(id, model, giveCash)
+            local ped = PlayerPedId()
+            local coords = GetEntityCoords(ped)
+            local cashProp = CreateObject(model, coords, true)
+        
+            FreezeEntityPosition(cashProp, true)
+            SetEntityInvincible(cashProp, true)
+            SetEntityNoCollisionEntity(cashProp, ped)
+            SetEntityVisible(cashProp, false, false)
+            AttachEntityToEntity(cashProp, ped, GetPedBoneIndex(ped, 60309), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, false, false, 0, true)
+            DisableCamCollisionForEntity(cashProp)
+        
+            UtilityLibrary.Cache.LootingTrolly = true
+        
+            Citizen.CreateThread(function()
+                local eventCashAppear = `CASH_APPEAR`
+                local eventReleaseCashDestroy = `RELEASE_CASH_DESTROY`
+        
+                while UtilityLibrary.Cache.LootingTrolly do            
+                    if HasAnimEventFired(ped, eventCashAppear) then
+                        SetEntityVisible(cashProp, true, false) -- Set entity visible
+                    end
+                    if HasAnimEventFired(ped, eventReleaseCashDestroy) then
+                        if IsEntityVisible(cashProp) then -- Set Entity invisible
+                            SetEntityVisible(cashProp, false, false)
+        
+                            CollectCashProp(id, giveCash)
+                        end
+                    end
+        
+                    Citizen.Wait(1)
+                end
+                DeleteObject(cashProp)
+            end)
+        end
+        
+        local StartLootIntroScene = function(bag, trolly)
+            local ped = PlayerPedId()
+            local coords = GetEntityCoords(trolly)
+            local rot = GetEntityRotation(trolly)
+        
+            local scene = CreateScene(coords, rot)
+            AddPlayerToScene(ped, scene, "anim@heists@ornate_bank@grab_cash", "intro")
+            AddEntityToScene(bag, scene, "anim@heists@ornate_bank@grab_cash", "bag_intro")
+            StartScene(scene, true)
+        
+            return scene
+        end
+        
+        local StartPlayerInteractionGrabLoop = function(grabScene, min, max)
+            local lscene = NetworkGetLocalSceneFromNetworkId(grabScene)
+            local speed = min
+            local finished = false
+        
+            -- Every mouse click add 0.1 to the speed
+            IsControlJustPressed("MOUSE_LEFT", function()
+                if speed <= max then
+                    speed = speed + 0.1
+                end
+            end)
+        
+            -- Wait that the scene start
+            while not IsSynchronizedSceneRunning(lscene) do
+                lscene = NetworkGetLocalSceneFromNetworkId(grabScene)
+                Citizen.Wait(1)
+            end
+
+            Citizen.CreateThread(function()
+                while IsSynchronizedSceneRunning(lscene) do
+                    ButtonNotification("Repeatedly press ~INPUT_SCRIPT_RDOWN~ to grab faster")
+                    Citizen.Wait(1)
+                end
+            end)
+        
+            -- If the scene is still running, remove 0.1 every 300ms
+            while IsSynchronizedSceneRunning(lscene) do
+                lscene = NetworkGetLocalSceneFromNetworkId(grabScene)
+        
+                if speed > min then
+                    speed = speed - 0.1
+                end
+                
+                --print("Grabbing speed: "..speed, GetSynchronizedScenePhase(lscene))
+                SetSynchronizedSceneRate(lscene, speed)
+                Citizen.Wait(300)
+            end
+        
+            finished = true
+            --print("Finished grabbing money")
+        end
+        
+        local StartLootGrabScene = function(bag, trolly)
+            local ped = PlayerPedId()
+            local coords = GetEntityCoords(trolly)
+            local rot = GetEntityRotation(trolly)
+        
+            local scene = CreateScene(coords, rot)
+            AddPlayerToScene(ped, scene, "anim@heists@ornate_bank@grab_cash", "grab")
+            AddEntityToScene(bag, scene, "anim@heists@ornate_bank@grab_cash", "bag_grab")
+            AddEntityToScene(trolly, scene, "anim@heists@ornate_bank@grab_cash", "cart_cash_dissapear")
+            StartScene(scene)
+        
+            return scene
+        end
+        local StartLootExitScene = function(bag, trolly)
+            local ped = PlayerPedId()
+            local coords = GetEntityCoords(trolly)
+            local rot = GetEntityRotation(trolly)
+        
+            local scene = CreateScene(coords, rot)
+            AddPlayerToScene(ped, scene, "anim@heists@ornate_bank@grab_cash", "exit")
+            AddEntityToScene(bag, scene, "anim@heists@ornate_bank@grab_cash", "bag_exit")
+            StartScene(scene)
+        
+            return scene
+        end
+        
+        LootTrolly = function(id, type, trolly)
+            local ped = PlayerPedId()
+            local cashPropModel = GetTrollyCashProp(type)
+            local emptyTrolly = GetEmptyTrollyModel(type)
+            local options = GetFrom(id)
+
+        
+            if IsEntityPlayingAnim(trolly, "anim@heists@ornate_bank@grab_cash", "cart_cash_dissapear", 3) then
+                return
+            end
+        
+            while not NetworkHasControlOfEntity(trolly) do
+                Citizen.Wait(1)
+                NetworkRequestControlOfEntity(trolly)
+            end
+        
+            local bagObj = CreateObject("hei_p_m_bag_var22_arm_s", vector3(0.0, 0.0, 0.0), true)
+            SetEntityCollision(bagObj, false, true)
+        
+            -- Intro
+                local introScene = StartLootIntroScene(bagObj, trolly)
+                print("Started Intro scene")
+        
+                SetPedComponentVariation(ped, 5, 0, 0, 0)
+                Citizen.Wait(1500)
+        
+                print("Create cash prop")
+                CreateCashProp(id, cashPropModel, options.giveCash)
+                print("Starting grabbing scene")
+        
+            -- Grab Scene
+                local grabScene = StartLootGrabScene(bagObj, trolly)
+                print("Started grab scene")
+                StartPlayerInteractionGrabLoop(grabScene, options.minSpeed or 1.0, options.maxSpeed or 1.6)
+        
+                CollectCashProp(id, options.giveCash) -- last cash prop isnt in the animation events
+                
+                SetEntityModel(trolly, emptyTrolly)
+        
+            -- Exit
+                UtilityLibrary.Cache.LootingTrolly = false
+        
+                local exitScene = StartLootExitScene(bagObj, trolly)
+                print("Started exit scene", trolly)
+                Citizen.Wait(1800)
+        
+                DeleteEntity(bagObj)
+        
+                StopScene(introScene)
+                StopScene(grabScene)
+                StopScene(exitScene)
+                print("Stopped all scenes", trolly)
+        
+                SetPedComponentVariation(ped, 5, 45, 0, 0)
+        end
+
+    -- Guards
+        local GuardAlertnessLoopRunning = false
+        local SpottedByGuards = false
+
+        Citizen.CreateThread(function()
+            AddRelationshipGroup("GUARDS")
+            SetPedRelationshipGroupHash(uPlayer.ped, `PLAYER`)
+        end)
+
+        local CheckIfCanAttack = function(player, v)
+            if HasEntityClearLosToEntity(v, player, 27) and GetPedTaskCombatTarget(v) ~= player then
+                TaskCombatHatedTargetsAroundPed(v, 10.0, 0)
+                SetRelationshipBetweenGroups(5, `GUARDS`, `PLAYER`)
+                SetPedToInformRespectedFriends(v, 30.0, 3)
+                SetPedAiBlipHasCone(v, false)
+
+                if not SpottedByGuards then
+                    SpottedByGuards = true
+                    TriggerEvent("Utility:On:spotted", v)
+                end
+            end
+        end
+
+        local TryToStartGuardAlertnessLoop = function()
+            if not GuardAlertnessLoopRunning then
+                GuardAlertnessLoopRunning = true
+
+                Citizen.CreateThread(function()
+                    while GuardAlertnessLoopRunning do        
+                        if next(Utility.Cache.Guards) then -- if there's any guard
+                            local player = PlayerPedId()
+                            local coords = GetEntityCoords(player)
+                            local inStealth = GetPedStealthMovement(player)
+                            local distance = inStealth and 30.0 or 60.0 -- (if stealth then 30.0 else 60.0)
+                            local running = IsPedRunning(player)
+                    
+                            for k,v in ipairs(Utility.Cache.Guards) do
+                                local guardCoords = GetEntityCoords(v)
+        
+                                -- Check if is dying
+                                if IsPedDeadOrDying(v) then
+                                    SetPedCanRagdoll(v, true)
+                                    SetEntityAsNoLongerNeeded(v)
+        
+                                    table.remove(Utility.Cache.Guards, k)
+                                else
+                                    -- Check if to near
+                                    if #(coords - guardCoords) < (running and 8.0 or 5.0) then -- if to near
+                                        CheckIfCanAttack(player, v)
+                                    end
+                                    
+                                    -- Check if can be viewed
+                                    if #(coords - guardCoords) < distance then -- if is in the possible cone
+                                        local guardMaxCoords = GetOffsetFromEntityInWorldCoords(v, 0.0, distance, 0.0)
+                        
+                                        if IsEntityInAngledArea(uPlayer.ped, guardCoords, guardMaxCoords, 50.0) then
+                                            CheckIfCanAttack(player, v)
+                                        end
+                                    end
+    
+                                    if IsPedShooting(v) or IsPedInCombat(v) then
+                                        SetPedToInformRespectedFriends(v, 30.0, 3)
+                                        SetPedAiBlipHasCone(v, false)
+
+                                        if not SpottedByGuards then
+                                            SpottedByGuards = true
+                                            TriggerEvent("Utility:On:spotted", v)
+                                        end
+                                    end
+                                end
+    
+                            end
+                        else
+                            SpottedByGuards = false
+                            GuardAlertnessLoopRunning = false
+                        end
+                
+                        Citizen.Wait(500)
+                    end
+                end)
+            end
+        end
+        
+        SetGuardDifficulty = function(guard, difficulty)
+            local armour, alertness, accuracy, range, ability = 0, 0, 0, 0, 0
+
+            if difficulty == "easy" then
+                alertness = 1
+                accuracy = 40
+                range = 0
+                ability = 0
+            elseif difficulty == "medium" then
+                alertness = 2
+                accuracy = 60
+                range = 2
+                ability = 1
+            elseif difficulty == "hard" then
+                alertness = 3
+                accuracy = 80
+                range = 2
+                ability = 2
+                armour = 50
+            elseif difficulty == "veryhard" then
+                alertness = 3
+                accuracy = 95
+                range = 2
+                ability = 2
+                armour = 100
+            end
+            
+            SetPedArmour(ped, armour)
+            SetPedAlertness(ped, alertness)
+            SetPedAccuracy(ped, accuracy)
+            SetPedCombatRange(ped, range)
+            SetPedCombatAbility(ped, ability)
+        end
+
+        CreateGuard = function(model, coords, heading, difficulty, guardRoute)
+            local ped, netId = CreatePed(model, coords, heading, true)
+            SetPedAiBlip(ped, true)
+            SetPedAiBlipForcedOn(ped, true)
+            SetPedAiBlipHasCone(ped, true)
+        
+            SetPedRandomComponentVariation(ped, 0)
+            SetPedRandomProps(ped)
+            SetPedCanRagdoll(ped, false)
+        
+            --SetEntityAsMissionEntity(ped)
+        
+            SetPedCombatMovement(ped, 2)
+            SetGuardDifficulty(ped, difficulty)
+            
+            SetPedCombatAttributes(ped, 46, true)
+            SetPedFleeAttributes(ped, 0, false)
+
+            --GiveWeaponToPed(ped, `WEAPON_PISTOL`, 255, false, true)
+            SetPedRelationshipGroupHash(ped, `GUARDS`)
+        
+            if guardRoute then
+                TaskPatrol(ped, "miss_"..guardRoute, 1, 0, 1)
+            end
+        
+            table.insert(Utility.Cache.Guards, ped)
+
+            TryToStartGuardAlertnessLoop()
+            return ped
+        end
+        
+        CreateGuardRoute = function(name, positions, manualRouteLink)
+            OpenPatrolRoute("miss_"..name)
+            local debugLines = {}
+        
+            for i=1, #positions do
+                local position = positions[i]
+        
+                if type(position) == "vector3" then
+                    AddPatrolRouteNode(i, "StandGuard", position, position, 5000)
+                else
+                    AddPatrolRouteNode(i, position.anim or "StandGuard", position.destination, position.viewat or position.destination, position.wait or 5000)
+                end
+        
+                if manualRouteLink then
+                    manualRouteLink(i-1, i)
+                else
+                    if i == #positions then
+                        AddPatrolRouteLink(i, 1) -- close the circle
+                        table.insert(debugLines, {positions[i], positions[1]})
+                    end
+        
+                    if i > 1 then
+                        AddPatrolRouteLink(i-1, i)
+                        table.insert(debugLines, {positions[i-1], positions[i]})
+                    end
+                end
+            end
+        
+            ClosePatrolRoute()
+            CreatePatrolRoute()
+        
+            if DevModeStatus then
+                CreateLoop(function(loopId)
+                    for i=1, #debugLines do
+                        DrawLine(debugLines[i][1], debugLines[i][2], 255, 0, 0, 255)
+                    end
+                end)
+            end
+        end
+        
+        SetGuardRoute = function(guard, route)
+            TaskPatrol(guard, "miss_"..route, 1, 0, 1)
+        end
+
+--// Other //--
+    SetEntityModel = function(entity, model)
+        TriggerServerEvent("Utility:SwapModel", GetEntityCoords(entity), GetEntityModel(entity), type(model) == "string" and GetHashKey(model) or model)
+    end
+
+    StartParticleFxOnNetworkEntity = function(ptxAsset, name, obj, ...)
+        TriggerServerEvent("Utility:StartParticleFxOnNetworkEntity", ptxAsset, name, ObjToNet(obj), ...)
+    end
+
+    GetEntitySize = function(entity)
+        local model = GetEntityModel(entity)
+        local min, max = GetModelDimensions(model)
+        return max - min
+    end
+
+    DebugCoords = function(coords)
+        CreateLoop(function(loopId)
+            DrawText3Ds(coords, "V")
+        end)
+    end
+
     GetDirectionFromVectors = function(vec, vec2)
         return vec - vec2
     end
@@ -1749,6 +2545,9 @@ end
         return {
             state = setmetatable({entity = entity, state = ent.state, replicate = replicate}, syncedStateBag)
         }
+<<<<<<< HEAD
+    end
+=======
     end
 
     -- Physics [Test]
@@ -1795,3 +2594,4 @@ end
             timer = timeAccurate
         end
     end
+>>>>>>> be6bbaa822c4f96bcd708171efba0a471a9f16fa

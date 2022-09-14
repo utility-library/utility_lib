@@ -12,12 +12,18 @@ local Keys = {
 
 -- Why?, see that https://www.lua.org/gems/sample.pdf#page=3
 local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords, _DrawMarker, _GetEntityCoords, _pairs, _AddTextEntry, _BeginTextCommandDisplayHelp, _EndTextCommandDisplayHelp = TriggerServerEvent, GetPlayerName, PlayerId, GetDistanceBetweenCoords, DrawMarker, GetEntityCoords, pairs, AddTextEntry, BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp
+local player, playerCoordsForDialogue, distance, distance2, question_entity_coords = PlayerPedId(), _GetEntityCoords(PlayerPedId()), {}, {}, nil
+local EntitySliceInfinite = {
+    Marker = {},
+    Object = {},
+    Dialogue = {}
+}
 
 --// Marker and Object handler //--
-    ButtonNotificationInternal = function(msg)
+    ButtonNotificationInternal = function(msg, beep) -- Skip the multigsub function for faster execution
         _AddTextEntry('ButtonNotificationInternal', msg)
         _BeginTextCommandDisplayHelp('ButtonNotificationInternal')
-        _EndTextCommandDisplayHelp(0, false, true, -1)
+        _EndTextCommandDisplayHelp(0, true, beep, -1)
     end
 
     CreateBlip = function(name, coords, sprite, colour, scale)
@@ -34,7 +40,75 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
         return blip
     end
 
-    local function CheckIfCanView(jobs)
+    -- Markers
+        DrawMarkerType = function(type, v)
+            if type == 0 then
+                if v.text ~= "" then
+                    DrawText3Ds(v.coords, v.text, v._scale or 0.35, v.font or 4, v.rect or false)
+                end
+            elseif type == 1 then
+                local dir = v._direction or {x = 0.0, y = 0.0, z = 0.0}
+                local rot = v._rot or {x = 0.0, y = 0.0, z = 0.0}
+                local scale = v._scale or {x = 1.5, y = 1.5, z = 0.5}
+
+                _DrawMarker(v._type or 1, v.coords, dir.x or 0.0, dir.y or 0.0, dir.z or 0.0, rot.x or 0.0, rot.y or 0.0, rot.z or 0.0, scale.x or 1.5, scale.y or 1.5, scale.z or 0.5, v.rgb[1], v.rgb[2], v.rgb[3], v.alpha or 100, v.anim or false, false, 2, false, nil, nil, v.draw_entity or false)
+            end
+        end
+
+        EnteredMarker = function(marker, v)
+            Emit("entered", false, "marker", k)
+            v.near = true
+        end
+
+        LeavedMarker = function(marker, v)
+            Emit("leaved", false, "marker", k)
+            v.near = false
+        end
+
+        DrawUtilityMarker = function(k,v)        
+            if v.candraw then
+                local distance = #(GetEntityCoords(player) - v.coords)
+                local doingSomething = false
+
+                if distance < (v.render_distance or 0) then   
+                    doingSomething = true                                
+                    DrawMarkerType(v.type, v)
+                end
+                
+                if distance < v.interaction_distance then
+                    if v.notify ~= nil then 
+                        ButtonNotificationInternal(v.notify, not v.near)
+                    end
+
+                    if not v.near then
+                        EnteredMarker(k, v)
+                    end
+                else
+                    if v.near then
+                        LeavedMarker(k, v)
+                        ClearAllHelpMessages()
+                    end
+                end
+
+                return doingSomething
+            end
+        end
+
+        TryToDrawUtilityMarkers = function(slice)
+            local drawing = false
+
+            for k,v in pairs(Utility.Cache.Marker) do
+                if v.slice == slice then
+                    if DrawUtilityMarker(k,v) then
+                        drawing = true
+                    end
+                end
+            end
+
+            return drawing
+        end
+
+    CheckIfCanView = function(jobs)
         if uPlayer then
             if type(jobs) == "table" then
                 for i=1, #jobs do
@@ -66,15 +140,23 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
         end
     end
 
-    local function ThereIsSomeInfinite()
-        for k,v in pairs(Utility.Cache.Marker) do
-            if v.slice == -1 then
-                return true
+    UpdateCanDraw = function(type)
+        for k,v in pairs(Utility.Cache[type]) do
+            if v.job then
+                v.candraw = CheckIfCanView(v.job)
+            else
+                v.candraw = true
             end
         end
     end
 
-    function JobChange()
+    RefreshDrawProperties = function()
+        UpdateCanDraw("Marker")
+        UpdateCanDraw("Object")
+        UpdateCanDraw("Dialogue")
+    end
+
+    JobChange = function()
         for id,data in pairs(Utility.Cache.Blips) do
             if CheckIfCanView(data.job) then
                 if not data.blip then
@@ -87,10 +169,11 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
                 end
             end
         end
+
+        RefreshDrawProperties()
     end
 
-    local player, playerCoordsForDialogue, distance, distance2, question_entity_coords = PlayerPedId(), _GetEntityCoords(PlayerPedId()), {}, {}, nil
-
+    -- Load Framework
     Citizen.CreateThread(function()
         Citizen.Wait(500)
         
@@ -129,61 +212,28 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
             end)
         elseif GetResourceState("utility_framework") == "started" then
             CurrentFramework = "Utility"
+            JobChange()
         end
-    end)
+    end) 
 
+    -- Slice update check
     CreateLoop(function(loopId)
         currentSlice = tostring(GetSelfSlice())
         player = PlayerPedId()
     end, Config.UpdateCooldown)
 
     CreateLoop(function(loopId)
-        local found = false
+        local drawing = false
 
-        if ThereIsSomeInfinite() or SliceUsed(currentSlice) then
-            for k,v in pairs(Utility.Cache.Marker) do
-                if currentSlice == v.slice or v.slice == -1 then
-                    local distance = #(GetEntityCoords(player) - v.coords)
-                    local candraw = true
-                    
-                    if v.job then
-                        candraw = CheckIfCanView(v.job)
-                    end
-
-                    if candraw then
-                        found = true
-                        if v.render_distance > 0.0 and distance < v.render_distance then                                   
-                            if v.type == 0 then
-                                if v.text ~= "" then
-                                    DrawText3Ds(v.coords, v.text, v._scale or 0.35, v.font or 4, v.rect or false)
-                                end
-                            elseif v.type == 1 then
-                                local dir = v._direction or {x = 0.0, y = 0.0, z = 0.0}
-                                local rot = v._rot or {x = 0.0, y = 0.0, z = 0.0}
-                                local scale = v._scale or {x = 1.5, y = 1.5, z = 0.5}
-        
-                                _DrawMarker(v._type or 1, v.coords, dir.x or 0.0, dir.y or 0.0, dir.z or 0.0, rot.x or 0.0, rot.y or 0.0, rot.z or 0.0, scale.x or 1.5, scale.y or 1.5, scale.z or 0.5, v.rgb[1], v.rgb[2], v.rgb[3], v.alpha or 100, v.anim or false, false, 2, false, nil, nil, v.draw_entity or false)
-                            end
-                        end
-                        
-                        if distance < v.interaction_distance then        
-                            if v.notify ~= nil then ButtonNotificationInternal(v.notify) end
-                            if not v.near then
-                                Emit("entered", false, "marker", k)
-                                v.near = true
-                            end
-                        else
-                            if v.near then
-                                Emit("leaved", false, "marker", k)
-                                v.near = false
-                            end
-                        end
-                    end
-                end
-            end
+        if SliceUsed(currentSlice) then
+            drawing = TryToDrawUtilityMarkers(currentSlice)
         end
 
-        if not found then
+        if next(EntitySliceInfinite.Marker) ~= nil then
+            drawing = TryToDrawUtilityMarkers(-1)
+        end
+
+        if not drawing then
             Citizen.Wait(Config.UpdateCooldown)
         end
     end)
@@ -295,11 +345,11 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
     end)
 
     CreateLoop(function(loopId)
-        local found = false
+        local drawing = false
 
         for k,v in pairs(Utility.Cache.N3d) do
             if v.show then
-                found = true
+                drawing = true
 
                 local scaleformCoords
                 local scaleformScale
@@ -340,7 +390,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
             end
         end
 
-        if not found then
+        if not drawing then
             Citizen.Wait(Config.UpdateCooldown)
         end
     end)
@@ -367,13 +417,56 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
 
 --// Emit Handler //--
     function Emit(type, manual, ...)
-        TriggerEvent("Utility:On:".. (fake_triggerable and "!" or "") ..type, ...)
+        TriggerEvent("Utility:On:".. (manual and "!" or "") ..type, ...)
     end
 
 --// Event //--
+    RegisterNetEvent("Utility:SwapModel", function(coords, model, newmodel)
+        RequestModel(newmodel)
+
+        while not HasModelLoaded(newmodel) do
+            Citizen.Wait(1)
+        end
+
+        CreateModelSwap(coords, 1.0, model, newmodel)
+
+        Citizen.Wait(10000)
+
+        RemoveModelSwap(coords, 1.0, model, newmodel)
+        SetModelAsNoLongerNeeded(newmodel)
+    end)
+
+    RegisterNetEvent("Utility:StartParticleFxOnNetworkEntity", function(ptxAsset, name, obj, ...)
+        RequestNamedPtfxAsset(ptxAsset)
+
+        while not HasNamedPtfxAssetLoaded(ptxAsset) do
+            Citizen.Wait(1)
+        end
+
+        SetPtfxAssetNextCall(ptxAsset)
+        --print(name, obj, NetToObj(obj), GetEntityModel(NetToObj(obj)))
+        StartNetworkedParticleFxLoopedOnEntity(name, NetToObj(obj), ...)
+    end)
+    RegisterNetEvent("Utility:FreezeNoNetworkedEntity", function(coords, model)
+        local obj = GetClosestObjectOfType(coords, 3.0, model)
+
+        print(obj)
+        if obj > 0 then
+            FreezeEntityPosition(obj, true)
+        end
+    end)
+
     RegisterNetEvent("Utility:Create", function(type, id, table, res)
         if table.slice then
+            if tostring(table.slice) == "-1" then
+                EntitySliceInfinite[type][id] = true 
+            end
+
             Utility.Cache.SliceGroups[tostring(table.slice)] = true
+        end
+
+        if table.job then
+            table.candraw = CheckIfCanView(table.job)
         end
 
         Utility.Cache[type][id] = table 
@@ -406,7 +499,7 @@ local _TriggerServerEvent, _GetPlayerName, _PlayerId, _GetDistanceBetweenCoords,
             TriggerEvent("Utility:Pressed_"..args[1].."_"..args[2])
         end
     end, true)
-
+    
 --// Test (dont unmark) //--
     --[[
         function CreateInternalLoop(tick)
