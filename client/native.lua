@@ -1680,7 +1680,7 @@ end
         end
 
         AddEntityToScene = function(entity, scene, dict, name, speed, speedMultiplier, flag)
-            if not DoesEntityExist(entity) then
+            if not DoesEntityExist(tonumber(entity)) then
                 local model = entity
                 local coords = GetEntityCoords(PlayerPedId())
                 entity = CreateObject(entity, coords + vector3(0,0, -4.0), true)
