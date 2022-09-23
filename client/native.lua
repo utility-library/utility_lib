@@ -1700,6 +1700,8 @@ end
         end
 
         AddPlayerToScene = function(player, scene, dict, name, ...)
+            Citizen.InvokeNative(0x144da052257ae7d8, true) -- synchronize the scene with any player that is in the scene
+
             local ped = DoesEntityExist(player) and player or GetPlayerPed(player) -- (player id) or (player ped id) are accepted
             AddPedToScene(ped, scene, dict, name, ...)
 

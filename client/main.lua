@@ -385,7 +385,7 @@ local EntitySliceInfinite = {
                 
                 if v.scaleform ~= nil and HasScaleformMovieLoaded(v.scaleform) then
                     --                            handle           coords          rot      unk        scale      unk
-                    DrawScaleformMovie_3dNonAdditive(v.scaleform, scaleformCoords, rotation, 0, 0, 0, scaleformScale, 0)
+                    DrawScaleformMovie_3dNonAdditive(v.scaleform, scaleformCoords, rotation, 0.0, 1.0, 0.0, scaleformScale, 0)
                 end
             end
         end
