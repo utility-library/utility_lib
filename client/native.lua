@@ -855,6 +855,7 @@ end
 
         ---
         SetMarkerCoords = function(id, coords)
+            SetMarker(id, "string", "slice", tostring(GetSliceFromCoords(coords)))
             SetMarker(id, "vector3", "coords", coords)
         end
 

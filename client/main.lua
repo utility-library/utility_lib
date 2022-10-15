@@ -445,7 +445,6 @@ local EntitySliceInfinite = {
     RegisterNetEvent("Utility:FreezeNoNetworkedEntity", function(coords, model)
         local obj = GetClosestObjectOfType(coords, 3.0, model)
 
-        print(obj)
         if obj > 0 then
             FreezeEntityPosition(obj, true)
         end
@@ -474,6 +473,14 @@ local EntitySliceInfinite = {
     end)
 
     RegisterNetEvent("Utility:Edit", function(type, id, field, new_data)
+        if field == "slice" then
+            -- Update used slice groups
+            local oldSlice = Utility.Cache[type][id][field]
+
+            Utility.Cache.SliceGroups[oldSlice] = nil
+            Utility.Cache.SliceGroups[new_data] = true
+        end
+
         Utility.Cache[type][id][field] = new_data 
     end)
 
