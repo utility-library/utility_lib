@@ -34,9 +34,9 @@ local EntitySliceInfinite = {
         SetBlipColour (blip, colour)
         SetBlipAsShortRange(blip, true)
 
-        BeginTextCommandSetBlipName('STRING')
-        AddTextComponentSubstringPlayerName(name)
-        EndTextCommandSetBlipName(blip)
+		AddTextEntry(name, name)
+		BeginTextCommandSetBlipName(name)
+		EndTextCommandSetBlipName(blip)
         return blip
     end
 
