@@ -1931,13 +1931,13 @@ end
             AttachEntityToEntity(cashProp, ped, GetPedBoneIndex(ped, 60309), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, false, false, 0, true)
             DisableCamCollisionForEntity(cashProp)
         
-            UtilityLibrary.Cache.LootingTrolly = true
+            Utility.Cache.LootingTrolly = true
         
             Citizen.CreateThread(function()
                 local eventCashAppear = `CASH_APPEAR`
                 local eventReleaseCashDestroy = `RELEASE_CASH_DESTROY`
         
-                while UtilityLibrary.Cache.LootingTrolly do            
+                while Utility.Cache.LootingTrolly do            
                     if HasAnimEventFired(ped, eventCashAppear) then
                         SetEntityVisible(cashProp, true, false) -- Set entity visible
                     end
@@ -2075,7 +2075,7 @@ end
                 SetEntityModel(trolly, emptyTrolly)
         
             -- Exit
-                UtilityLibrary.Cache.LootingTrolly = false
+                Utility.Cache.LootingTrolly = false
         
                 local exitScene = StartLootExitScene(bagObj, trolly)
                 developer("^3Scenes^0", "Started exit scene", trolly)
