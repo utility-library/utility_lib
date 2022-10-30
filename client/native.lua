@@ -1349,25 +1349,28 @@ end
 --// N3d //--
 
     local function LoadScaleform(N3dHandle, scaleform)
-        local scaleformHandle = RequestScaleformMovie(scaleform) -- Request the scaleform
+        local status, retval = pcall(RequestScaleformMovie, scaleform) -- idk why but sometimes give error
 
-        -- Wait till it has loaded
-        local a = 100
+        if status then
+            local scaleformHandle = retval
 
-        while not HasScaleformMovieLoaded(scaleformHandle) and a > 0 do
-            a = a - 1
-            scaleformHandle = RequestScaleformMovie(scaleform)
-            Citizen.Wait(5)
+            -- Wait till it has loaded
+            local startTimer = GetGameTimer()
+    
+            while not HasScaleformMovieLoaded(scaleformHandle) and (GetGameTimer() - startTimer) < 4000 do
+                RequestScaleformMovie(scaleform)
+                Citizen.Wait(0)
+            end
+    
+            if (GetGameTimer() - startTimer) > 4000 then
+                developer("^1Error^0", "After 4000 ms to load the scaleform the scaleform has not loaded yet, try again or check that it has started correctly!", "")
+                return
+            end
+    
+            -- Save the handle in the table
+            Utility.Cache.N3d[N3dHandle].scaleform = scaleformHandle
+            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "scaleform", scaleformHandle)
         end
-
-        if a == 0 then
-            developer("^1Error^0", "After 100 attempts to load the scaleform the scaleform has not loaded yet, try again or check that it has started correctly!", "")
-            return
-        end
-
-        -- Save the handle in the table
-        Utility.Cache.N3d[N3dHandle].scaleform = scaleformHandle
-        _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "scaleform", scaleformHandle)
     end
 
     local function StartupDui(N3dHandle, url, width, height)
