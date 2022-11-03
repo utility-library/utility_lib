@@ -129,7 +129,7 @@ end)
             AddToJob(pId, job.name)
         end)
     elseif GetResourceState("qb-core") == "started" then
-        AddEventHandler("playerDropped", function()
+        AddEventHandler("QBCore:Client:OnPlayerUnload", function()
             local Player = QBCore.Functions.GetPlayer(source)
             RemoveFromJob(source, Player.job.name)
         end)
