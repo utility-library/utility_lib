@@ -968,9 +968,9 @@ end
         SetBlipColour (blip, colour)
         SetBlipAsShortRange(blip, true)
 
-		AddTextEntry(name, name)
-		BeginTextCommandSetBlipName(name)
-		EndTextCommandSetBlipName(blip)
+        AddTextEntry(name, name)
+        BeginTextCommandSetBlipName(name)
+        EndTextCommandSetBlipName(blip)
         return blip
     end
 
