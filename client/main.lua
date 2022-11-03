@@ -26,20 +26,6 @@ local EntitySliceInfinite = {
         _EndTextCommandDisplayHelp(0, true, beep, -1)
     end
 
-    CreateBlip = function(name, coords, sprite, colour, scale)
-        local blip = AddBlipForCoord(coords)
-
-        SetBlipSprite (blip, sprite)
-        SetBlipScale  (blip, scale or 1.0)
-        SetBlipColour (blip, colour)
-        SetBlipAsShortRange(blip, true)
-
-		AddTextEntry(name, name)
-		BeginTextCommandSetBlipName(name)
-		EndTextCommandSetBlipName(blip)
-        return blip
-    end
-
     -- Markers
         DrawMarkerType = function(type, v)
             if type == 0 then
