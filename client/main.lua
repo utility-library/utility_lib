@@ -366,6 +366,8 @@ local EntitySliceInfinite = {
 
                     if v.rotation.syncedwithplayer then
                         rotation = vector3(0.0, 0.0, -GetEntityHeading(v.attach.entity) + rot)
+                    else
+                        rotation = vector3(0.0, 0.0, rot)
                     end
                     
                     local coords = GetOffsetFromEntityInWorldCoords(v.attach.entity, v.attach.offset.x, v.attach.offset.y, v.attach.offset.z)

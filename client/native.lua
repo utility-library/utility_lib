@@ -1347,30 +1347,38 @@ end
     end
 
 --// N3d //--
+    local old_RequestScaleformMovie = RequestScaleformMovie
+    local function RequestScaleformMovie(scaleform)-- idk why but sometimes give error
+        print(scaleform)
+
+        local status, retval = pcall(old_RequestScaleformMovie, scaleform)
+
+        while not status do
+            status, retval = pcall(old_RequestScaleformMovie, scaleform)
+            Citizen.Wait(1)
+        end
+
+        return retval
+    end
 
     local function LoadScaleform(N3dHandle, scaleform)
-        local status, retval = pcall(RequestScaleformMovie, scaleform) -- idk why but sometimes give error
+        local scaleformHandle = RequestScaleformMovie(scaleform) -- idk why but sometimes give error
 
-        if status then
-            local scaleformHandle = retval
+        -- Wait till it has loaded
+        local startTimer = GetGameTimer()
 
-            -- Wait till it has loaded
-            local startTimer = GetGameTimer()
-    
-            while not HasScaleformMovieLoaded(scaleformHandle) and (GetGameTimer() - startTimer) < 4000 do
-                RequestScaleformMovie(scaleform)
-                Citizen.Wait(0)
-            end
-    
-            if (GetGameTimer() - startTimer) > 4000 then
-                developer("^1Error^0", "After 4000 ms to load the scaleform the scaleform has not loaded yet, try again or check that it has started correctly!", "")
-                return
-            end
-    
-            -- Save the handle in the table
-            Utility.Cache.N3d[N3dHandle].scaleform = scaleformHandle
-            _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "scaleform", scaleformHandle)
+        while not HasScaleformMovieLoaded(scaleformHandle) and (GetGameTimer() - startTimer) < 4000 do
+            Citizen.Wait(0)
         end
+
+        if (GetGameTimer() - startTimer) > 4000 then
+            developer("^1Error^0", "After 4000 ms to load the scaleform the scaleform has not loaded yet, try again or check that it has started correctly!", "")
+            return
+        end
+
+        -- Save the handle in the table
+        Utility.Cache.N3d[N3dHandle].scaleform = scaleformHandle
+        _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "scaleform", scaleformHandle)
     end
 
     local function StartupDui(N3dHandle, url, width, height)
@@ -1379,22 +1387,26 @@ end
         Utility.Cache.N3d[N3dHandle].dui = CreateDui(url, width, height) -- Create Dui with the url
         _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "dui", Utility.Cache.N3d[N3dHandle].dui)
 
+        while not IsDuiAvailable(Utility.Cache.N3d[N3dHandle].dui) do
+            Citizen.Wait(1)
+        end
+
         local dui = GetDuiHandle(Utility.Cache.N3d[N3dHandle].dui) -- Getting dui handle
 
         CreateRuntimeTextureFromDuiHandle(txd, 'txn'..N3dHandle, dui) -- Applying the txd on the dui
 
         if Utility.Cache.N3d[N3dHandle].scaleform ~= nil and not Utility.Cache.N3d[N3dHandle].txd then
-            PushScaleformMovieFunction(Utility.Cache.N3d[N3dHandle].scaleform, 'SET_TEXTURE')
+            BeginScaleformMovieMethod(Utility.Cache.N3d[N3dHandle].scaleform, 'SET_TEXTURE')
 
-            PushScaleformMovieMethodParameterString('txd'..N3dHandle) -- txd
-            PushScaleformMovieMethodParameterString('txn'..N3dHandle) -- txn
+            ScaleformMovieMethodAddParamTextureNameString('txd'..N3dHandle) -- txd
+            ScaleformMovieMethodAddParamTextureNameString('txn'..N3dHandle) -- txn
 
-            PushScaleformMovieFunctionParameterInt(0) -- x
-            PushScaleformMovieFunctionParameterInt(0) -- y
-            PushScaleformMovieFunctionParameterInt(width)
-            PushScaleformMovieFunctionParameterInt(height)
+            ScaleformMovieMethodAddParamInt(0) -- x
+            ScaleformMovieMethodAddParamInt(0) -- y
+            ScaleformMovieMethodAddParamInt(width)
+            ScaleformMovieMethodAddParamInt(height)
 
-            PopScaleformMovieFunctionVoid()
+            EndScaleformMovieMethod()
             Utility.Cache.N3d[N3dHandle].txd = true
             _TriggerEvent("Utility:Edit", "N3d", N3dHandle, "txd", true)
         end
@@ -1430,9 +1442,9 @@ end
             StartupDui(N3dHandle, "nui://"..GetCurrentResourceName().."/"..url, width or 1920, height or 1080)
         end
 	
-	N3d_Class.datas = function(self)
-	    return Utility.Cache.N3d[N3dHandle]
-	end
+        N3d_Class.datas = function(self)
+            return Utility.Cache.N3d[N3dHandle]
+        end
 
         N3d_Class.scale = function(self, scale)
             Utility.Cache.N3d[N3dHandle].advanced_scale = scale
