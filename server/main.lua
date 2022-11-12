@@ -113,7 +113,7 @@ end)
     if GetResourceState("es_extended") == "started" then
         AddEventHandler('esx:playerDropped', function(pId)
             local xPlayer = ESX.GetPlayerFromId(pId)
-            RemoveFromJob(pId, xPlayer)
+            RemoveFromJob(pId, xPlayer.job.name)
         end)
     
         -- On join
@@ -129,9 +129,9 @@ end)
             AddToJob(pId, job.name)
         end)
     elseif GetResourceState("qb-core") == "started" then
-        AddEventHandler("playerDropped", function()
+        AddEventHandler("QBCore:Client:OnPlayerUnload", function()
             local Player = QBCore.Functions.GetPlayer(source)
-            RemoveFromJob(source, Player)
+            RemoveFromJob(source, Player.job.name)
         end)
 
         AddEventHandler("QBCore:Server:PlayerLoaded", function()
