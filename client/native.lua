@@ -1126,19 +1126,16 @@ end
         local txId = txName..":"..url -- txName:url (prop:textureName:url)
 
         if not Utility.Cache.Textures[txId] then -- If texture with same prop, texture name and url does not exist we create it (to prevent 2 totally same dui)
+            local txd = CreateRuntimeTxd(txName..'duiTxd')
             local duiObj = CreateDui(url, width, height)
             local dui = GetDuiHandle(duiObj)
+            
+            CreateRuntimeTextureFromDuiHandle(txd, txName..'duiTex', dui)
 
-            local txd = CreateRuntimeTxd(txName..'duiTxd')
-            local txn = CreateRuntimeTextureFromDuiHandle(txd, txName..'duiTex', dui)
-
-            Utility.Cache.Textures[txId] = {
-                txd = txd,
-                txn = txn
-            }
+            Utility.Cache.Textures[txId] = true
         end
 
-        AddReplaceTexture(prop, textureName, Utility.Cache.Textures[txId].txd, Utility.Cache.Textures[txId].txn)
+        AddReplaceTexture(prop, textureName, txName.."duiTxd", txName.."duiTex")
     end
 
     printd = function(_table, advanced)
