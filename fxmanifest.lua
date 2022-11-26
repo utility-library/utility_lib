@@ -1,5 +1,6 @@
 fx_version 'cerulean'
 
+repository 'https://github.com/utility-library/utility_lib'
 game 'gta5'
 
 client_scripts {

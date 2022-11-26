@@ -35,6 +35,8 @@ local Utility = {
         SetData = {},
         Frozen = {},
         FlowDetector = {},
+
+        Textures = {},
         --Constant = {},
 	Settings = {},
         EntityStack = {},
@@ -1120,11 +1122,23 @@ end
     end
 
     ReplaceTexture = function(prop, textureName, url, width, height)
-        local txd = CreateRuntimeTxd(prop..'duiTxd')
-        local duiObj = CreateDui(url, width, height)
-        local dui = GetDuiHandle(duiObj)
-        local tx = CreateRuntimeTextureFromDuiHandle(txd, prop..'duiTex', dui)
-        AddReplaceTexture(prop, textureName, prop..'duiTxd', prop..'duiTex')
+        local txName = prop..":"..textureName..":" -- prop:textureName 
+        local txId = txName..":"..url -- txName:url (prop:textureName:url)
+
+        if not Utility.Cache.Textures[txId] then -- If texture with same prop, texture name and url does not exist we create it (to prevent 2 totally same dui)
+            local duiObj = CreateDui(url, width, height)
+            local dui = GetDuiHandle(duiObj)
+
+            local txd = CreateRuntimeTxd(txName..'duiTxd')
+            local txn = CreateRuntimeTextureFromDuiHandle(txd, txName..'duiTex', dui)
+
+            Utility.Cache.Textures[txId] = {
+                txd = txd,
+                txn = txn
+            }
+        end
+
+        AddReplaceTexture(prop, textureName, Utility.Cache.Textures[txId].txd, Utility.Cache.Textures[txId].txn)
     end
 
     printd = function(_table, advanced)
