@@ -970,8 +970,8 @@ end
         SetBlipColour (blip, colour)
         SetBlipAsShortRange(blip, true)
 
-        BeginTextCommandSetBlipName('STRING')
-        _AddTextComponentSubstringPlayerName(name)
+        AddTextEntry(name, name)
+        BeginTextCommandSetBlipName(name)
         EndTextCommandSetBlipName(blip)
         return blip
     end
