@@ -20,158 +20,222 @@ local EntitySliceInfinite = {
 }
 
 --// Marker and Object handler //--
-    ButtonNotificationInternal = function(msg, beep) -- Skip the multigsub function for faster execution
-        _AddTextEntry('ButtonNotificationInternal', msg)
-        _BeginTextCommandDisplayHelp('ButtonNotificationInternal')
-        _EndTextCommandDisplayHelp(0, true, beep, -1)
-    end
+    -- Internal Functions
+        ButtonNotificationInternal = function(msg, beep) -- Skip the multigsub function for faster execution
+            _AddTextEntry('ButtonNotificationInternal', msg)
+            _BeginTextCommandDisplayHelp('ButtonNotificationInternal')
+            _EndTextCommandDisplayHelp(0, true, beep, -1)
+        end
 
-    CreateBlip = function(name, coords, sprite, colour, scale)
-        local blip = AddBlipForCoord(coords)
+        CreateBlip = function(name, coords, sprite, colour, scale)
+            local blip = AddBlipForCoord(coords)
 
-        SetBlipSprite (blip, sprite)
-        SetBlipScale  (blip, scale or 1.0)
-        SetBlipColour (blip, colour)
-        SetBlipAsShortRange(blip, true)
+            SetBlipSprite (blip, sprite)
+            SetBlipScale  (blip, scale or 1.0)
+            SetBlipColour (blip, colour)
+            SetBlipAsShortRange(blip, true)
 
-        BeginTextCommandSetBlipName('STRING')
-        AddTextComponentSubstringPlayerName(name)
-        EndTextCommandSetBlipName(blip)
-        return blip
-    end
+            BeginTextCommandSetBlipName('STRING')
+            AddTextComponentSubstringPlayerName(name)
+            EndTextCommandSetBlipName(blip)
+            return blip
+        end
 
-    -- Markers
-        DrawMarkerType = function(type, v)
-            if type == 0 then
-                if v.text ~= "" then
-                    DrawText3Ds(v.coords, v.text, v._scale or 0.35, v.font or 4, v.rect or false)
-                end
-            elseif type == 1 then
-                local dir = v._direction or {x = 0.0, y = 0.0, z = 0.0}
-                local rot = v._rot or {x = 0.0, y = 0.0, z = 0.0}
-                local scale = v._scale or {x = 1.5, y = 1.5, z = 0.5}
-
-                _DrawMarker(v._type or 1, v.coords, dir.x or 0.0, dir.y or 0.0, dir.z or 0.0, rot.x or 0.0, rot.y or 0.0, rot.z or 0.0, scale.x or 1.5, scale.y or 1.5, scale.z or 0.5, v.rgb[1], v.rgb[2], v.rgb[3], v.alpha or 100, v.anim or false, false, 2, false, nil, nil, v.draw_entity or false)
+        -- Dialogues
+            DrawDialogueTexts = function(questionCoords, playerCoords, dialogue)
+                DrawText3Ds(questionCoords, dialogue.questions[1][dialogue.curQuestion], nil, nil, true)
+                DrawText3Ds(playerCoords, dialogue.response.formatted[dialogue.curQuestion], nil, nil, true)
             end
-        end
 
-        EnteredMarker = function(k, v)
-            Emit("entered", false, "marker", k)
-            v.near = true
-        end
+            DrawLastQuestion = function(dialogue, time)
+                -- Delete dialogue
+                Utility.Cache.Dialogue[dialogue.entity] = nil                   
+                TriggerEvent("Utility:DeleteDialogue", dialogue.entity)
+        
+                if dialogue.lastQuestion ~= nil then
+                    local startTime = GetGameTimer()
+        
+                    CreateLoop(function(loopId)
+                        local entityCoords = GetEntityCoords(dialogue.entity) + vector3(0.0, 0.0, 1.0)
+                        
+                        ClearPedTasks(dialogue.entity)
+                        SetEntityAsMissionEntity(dialogue.entity)
 
-        LeavedMarker = function(k, v)
-            Emit("leaved", false, "marker", k)
-            v.near = false
-        end
-
-        DrawUtilityMarker = function(k,v)        
-            if v.candraw then
-                local distance = #(GetEntityCoords(player) - v.coords)
-                local doingSomething = false
-
-                if distance < (v.render_distance or 0) then   
-                    doingSomething = true                                
-                    DrawMarkerType(v.type, v)
+                        DrawText3Ds(entityCoords, dialogue.lastQuestion, nil, nil, true)
+        
+                        if (GetGameTimer() - startTime) > time then
+                            SetEntityAsNoLongerNeeded(dialogue.entity)
+                            Utility.Cache.LastEntityDialogued = nil
+                            StopLoop(loopId)
+                        end
+                    end)
                 end
-                
-                if distance < v.interaction_distance then
-                    if v.notify ~= nil then
-                        ButtonNotificationInternal(v.notify, not v.near)
-                    end
-
-                    if not v.near then
-                        EnteredMarker(k, v)
-                    end
-                else
-                    if v.near then
-                        LeavedMarker(k, v)
-                        ClearAllHelpMessages()
-                    end
-                end
-
-                return doingSomething
             end
-        end
 
-        TryToDrawUtilityMarkers = function(slice)
-            local drawing = false
+            ItsLastQuestion = function(dialogue)
+                return #dialogue.questions[1]+1 == dialogue.curQuestion
+            end
 
-            for k,v in pairs(Utility.Cache.Marker) do
-                if v.slice == slice then
-                    if DrawUtilityMarker(k,v) then
-                        drawing = true
+            CheckDialogueInteraction = function(dialogue)
+                for k,response in pairs(dialogue.response.no_formatted[dialogue.curQuestion]) do
+                    if old_IsControlJustPressed(0, Keys[k:upper()]) then -- on key press
+                        dialogue.callback(dialogue.curQuestion, response)
+
+                        -- Switching to the next question
+                        dialogue.curQuestion = dialogue.curQuestion + 1
+                        
+                        -- Prevent multiple interaction
+                        Citizen.Wait(100)
                     end
                 end
             end
 
-            return drawing
-        end
+            StopEntityWithIsTalking = function(entity)
+                if Utility.Cache.LastEntityDialogued ~= entity then
+                    if Utility.Cache.LastEntityDialogued then
+                        SetEntityAsNoLongerNeeded(Utility.Cache.LastEntityDialogued)
+                    end
 
-    CheckIfCanView = function(jobs)
-        if uPlayer then
-            if type(jobs) == "table" then
-                for i=1, #jobs do
-                    if CurrentFramework == "Utility" then
-                        for j=1, #uPlayer.jobs do
-                            if jobs[i] == uPlayer.jobs[j].name then
-                                return true
+                    ClearPedTasks(entity)
+                    StopCurrentTaskAndWatchPlayer(entity)
+                    SetEntityAsMissionEntity(entity)
+                end
+
+                Utility.Cache.LastEntityDialogued = entity
+            end
+
+        -- Markers
+            DrawMarkerType = function(type, v)
+                if type == 0 then
+                    if v.text ~= "" then
+                        DrawText3Ds(v.coords, v.text, v._scale or 0.35, v.font or 4, v.rect or false)
+                    end
+                elseif type == 1 then
+                    local dir = v._direction or {x = 0.0, y = 0.0, z = 0.0}
+                    local rot = v._rot or {x = 0.0, y = 0.0, z = 0.0}
+                    local scale = v._scale or {x = 1.5, y = 1.5, z = 0.5}
+
+                    _DrawMarker(v._type or 1, v.coords, dir.x or 0.0, dir.y or 0.0, dir.z or 0.0, rot.x or 0.0, rot.y or 0.0, rot.z or 0.0, scale.x or 1.5, scale.y or 1.5, scale.z or 0.5, v.rgb[1], v.rgb[2], v.rgb[3], v.alpha or 100, v.anim or false, false, 2, false, nil, nil, v.draw_entity or false)
+                end
+            end
+
+            EnteredMarker = function(k, v)
+                Emit("entered", false, "marker", k)
+                v.near = true
+            end
+
+            LeavedMarker = function(k, v)
+                Emit("leaved", false, "marker", k)
+                v.near = false
+            end
+
+            DrawUtilityMarker = function(k,v)        
+                if v.candraw then
+                    local distance = #(GetEntityCoords(player) - v.coords)
+                    local doingSomething = false
+
+                    if distance < (v.render_distance or 0) then   
+                        doingSomething = true                                
+                        DrawMarkerType(v.type, v)
+                    end
+                    
+                    if distance < v.interaction_distance then
+                        if v.notify ~= nil then
+                            ButtonNotificationInternal(v.notify, not v.near)
+                        end
+
+                        if not v.near then
+                            EnteredMarker(k, v)
+                        end
+                    else
+                        if v.near then
+                            LeavedMarker(k, v)
+                            ClearAllHelpMessages()
+                        end
+                    end
+
+                    return doingSomething
+                end
+            end
+
+            TryToDrawUtilityMarkers = function(slice)
+                local drawing = false
+
+                for k,v in pairs(Utility.Cache.Marker) do
+                    if v.slice == slice then
+                        if DrawUtilityMarker(k,v) then
+                            drawing = true
+                        end
+                    end
+                end
+
+                return drawing
+            end
+
+            CheckIfCanView = function(jobs)
+                if uPlayer then
+                    if type(jobs) == "table" then
+                        for i=1, #jobs do
+                            if CurrentFramework == "Utility" then
+                                for j=1, #uPlayer.jobs do
+                                    if jobs[i] == uPlayer.jobs[j].name then
+                                        return true
+                                    end
+                                end
+                            else
+                                if jobs[i] == uPlayer.job.name then
+                                    return true
+                                end
                             end
                         end
                     else
-                        if jobs[i] == uPlayer.job.name then
-                            return true
+                        if CurrentFramework == "Utility" then
+                            for i=1, #uPlayer.jobs do
+                                if jobs == uPlayer.jobs[i].name then
+                                    return true
+                                end
+                            end
+                        else
+                            if jobs == uPlayer.job.name then
+                                return true
+                            end 
                         end
                     end
                 end
-            else
-                if CurrentFramework == "Utility" then
-                    for i=1, #uPlayer.jobs do
-                        if jobs == uPlayer.jobs[i].name then
-                            return true
+            end
+
+            UpdateCanDraw = function(type)
+                for k,v in pairs(Utility.Cache[type]) do
+                    if v.job then
+                        v.candraw = CheckIfCanView(v.job)
+                    else
+                        v.candraw = true
+                    end
+                end
+            end
+
+            RefreshDrawProperties = function()
+                UpdateCanDraw("Marker")
+                UpdateCanDraw("Object")
+                UpdateCanDraw("Dialogue")
+            end
+
+            JobChange = function()
+                for id,data in pairs(Utility.Cache.Blips) do
+                    if CheckIfCanView(data.job) then
+                        if not data.blip then
+                            data.blip = CreateBlip(data.name, data.coords, data.sprite, data.colour, data.scale)
+                        end
+                    else
+                        if data.blip then
+                            RemoveBlip(data.blip)
+                            data.blip = nil
                         end
                     end
-                else
-                    if jobs == uPlayer.job.name then
-                        return true
-                    end 
                 end
+
+                RefreshDrawProperties()
             end
-        end
-    end
-
-    UpdateCanDraw = function(type)
-        for k,v in pairs(Utility.Cache[type]) do
-            if v.job then
-                v.candraw = CheckIfCanView(v.job)
-            else
-                v.candraw = true
-            end
-        end
-    end
-
-    RefreshDrawProperties = function()
-        UpdateCanDraw("Marker")
-        UpdateCanDraw("Object")
-        UpdateCanDraw("Dialogue")
-    end
-
-    JobChange = function()
-        for id,data in pairs(Utility.Cache.Blips) do
-            if CheckIfCanView(data.job) then
-                if not data.blip then
-                    data.blip = CreateBlip(data.name, data.coords, data.sprite, data.colour, data.scale)
-                end
-            else
-                if data.blip then
-                    RemoveBlip(data.blip)
-                    data.blip = nil
-                end
-            end
-        end
-
-        RefreshDrawProperties()
-    end
 
     -- Load Framework
     Citizen.CreateThread(function()
@@ -272,74 +336,38 @@ local EntitySliceInfinite = {
     end, Config.UpdateCooldown)
 
     CreateLoop(function(loopId)
-        local found = false
+        local drawing = false
 
         if SliceUsed(currentSlice) then
-            for k,v in pairs(Utility.Cache.Dialogue) do
+            for entity,v in pairs(Utility.Cache.Dialogue) do
                 if currentSlice == v.slice then
-                    -- k = handle
-                    question_entity_coords = _GetEntityCoords(v.entity) + vector3(0.0, 0.0, 1.0)
-                    playerCoordsForDialogue = _GetEntityCoords(player) + vector3(0.0, 0.0, 1.0)
+                    local questionCoords = _GetEntityCoords(entity) + vector3(0.0, 0.0, 1.0)
+                    local playerCoords = _GetEntityCoords(player) + vector3(0.0, 0.0, 1.0)
 
-                    if #(playerCoordsForDialogue - question_entity_coords) < v.distance then
-                        found = true
+                    if #(playerCoords - questionCoords) < v.distance then
+                        drawing = true
 
-                        DrawText3Ds(question_entity_coords, v.questions[1][v.current_question], nil, nil, true)
-                        DrawText3Ds(playerCoordsForDialogue, v.response.formatted[v.current_question], nil, nil, true)
+                        if v.stopWhenTalking then
+                            StopEntityWithIsTalking(entity)
+                        end
 
-                        for k2,v2 in pairs(v.response.no_formatted[v.current_question]) do
-                            if old_IsControlJustPressed(0, Keys[k2:upper()]) then
-                                --developer("^3Interacted^0", "with the dialogue "..k, "[key "..k2.."]")
-
-                                if #v.questions[1] == v.current_question then
-                                    v.callback(v.current_question, v2) -- Doing last callback
-                                    
-                                    -- Removing dialogue and resetting to default the question entity coords
-                                    TriggerEvent("Utility_Native:ResyncDialogue", k)
-                                    Utility.Cache.Dialogue[k] = nil                            
-                                    --developer("^3Switching^0 [Last]", "question number", "from "..(v.current_question-1).." to "..v.current_question)
-
-                                    if v.lastq ~= nil then
-                                        local _entity = v.entity
-                                        local bbreak = false
-
-                                        Citizen.SetTimeout(3000, function()
-                                            question_entity_coords = nil
-                                            bbreak = true
-                                        end)
-
-                                        CreateLoop(function(loopId)
-                                            question_entity_coords = GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
-												
-                                            if bbreak then
-                                                question_entity_coords = nil
-                                                StopLoop(loopId)
-                                            end
-
-                                            DrawText3Ds(question_entity_coords, v.lastq, nil, nil, true)
-                                        end)
-                                    else
-                                        question_entity_coords = nil
-                                    end
-                                else
-                                    v.callback(v.current_question, v2) -- Doing last callback
-
-                                    -- Switching to the next question
-                                    v.current_question = v.current_question + 1
-
-                                    --developer("^3Switching^0", "question number", "from "..(v.current_question-1).." to "..v.current_question)
-                                    
-                                    -- Prevent multiple interaction
-                                    Citizen.Wait(100)
-                                end
-                            end
+                        if not ItsLastQuestion(v) then
+                            DrawDialogueTexts(questionCoords, playerCoords, v)
+                            CheckDialogueInteraction(v)
+                        else
+                            DrawLastQuestion(v, 3000)
                         end
                     end
                 end
             end
         end
 
-        if not found then
+        if not drawing then
+            if Utility.Cache.LastEntityDialogued then
+                SetEntityAsNoLongerNeeded(Utility.Cache.LastEntityDialogued)
+                Utility.Cache.LastEntityDialogued = nil
+            end
+            
             Citizen.Wait(Config.UpdateCooldown)
         end
     end)
@@ -444,6 +472,7 @@ local EntitySliceInfinite = {
         --print(name, obj, NetToObj(obj), GetEntityModel(NetToObj(obj)))
         StartNetworkedParticleFxLoopedOnEntity(name, NetToObj(obj), ...)
     end)
+
     RegisterNetEvent("Utility:FreezeNoNetworkedEntity", function(coords, model)
         local obj = GetClosestObjectOfType(coords, 3.0, model)
 

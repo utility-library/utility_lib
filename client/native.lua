@@ -168,27 +168,27 @@ end
     end
 
     DrawText3Ds = function(coords, text, scale, font, rectangle)
-	if coords then
-	    local onScreen, _x, _y = _World3dToScreen2d(coords.x, coords.y, coords.z)
+        if coords then
+            local onScreen, _x, _y = _World3dToScreen2d(coords.x, coords.y, coords.z)
 
-	    if onScreen then
-	        _SetTextScale(scale or 0.35, scale or 0.35)
-	        _SetTextFont(font or 4)
-	        _SetTextEntry("STRING")
-	        _SetTextCentre(1)
+            if onScreen then
+                _SetTextScale(scale or 0.35, scale or 0.35)
+                _SetTextFont(font or 4)
+                _SetTextEntry("STRING")
+                _SetTextCentre(1)
 
-	        _AddTextComponentString(text)
-	        _DrawText(_x, _y)
+                _AddTextComponentString(text)
+                _DrawText(_x, _y)
 
-	        if rectangle then
-		    local factor = (string.len(text))/370
-		    local _, count = string.gsub(factor, "\n", "\n") * 0.025
-		    if count == nil then count = 0 end
+                if rectangle then
+                local factor = (string.len(text))/370
+                local _, count = string.gsub(factor, "\n", "\n") * 0.025
+                if count == nil then count = 0 end
 
-		    DrawRect(_x, _y + 0.0125, 0.025 + factor, 0.025 + count, 0, 0, 0, 90)
-	        end
-	    end
-	end
+                DrawRect(_x, _y + 0.0125, 0.025 + factor, 0.025 + count, 0, 0, 0, 90)
+                end
+            end
+        end
     end
 
     _G.old_TaskPlayAnim = TaskPlayAnim
@@ -1237,125 +1237,107 @@ end
     end
 
 --// Dialog //--
-    local function DialogueTable(entity, _dialog, editing)
+    local function DialogueTable(entity, dialog, editing)
         return {
             Question = function(...) 
-                local questions = {...}
-                _dialog.questions = questions
+                dialog.questions = {...}
 
-                return {
-                    Response = function(...)
-                        local formatted_text = {}
-                        local no_formatted = {}
+                return DialogueTable(entity, dialog, editing)
+            end,
 
-                        for k1,v1 in pairs({...}) do
-                            no_formatted[k1] = {}
+            Response = function(...)
+                local responses = {...}
+                
+                -- If a table is passed with the answers and not all the answers separated use that
+                if type(responses[1]) == "table" then
+                    responses = responses[1]
+                end
 
-                            for k,v in pairs(v1) do
-                                if formatted_text[k1] == nil then
-                                    formatted_text[k1] = ""
-                                end
+                local formatted_text = {}
+                local no_formatted = {}
 
-                                formatted_text[k1] = formatted_text[k1]..k.."~w~ "..v.." | "
+                for k1,v1 in pairs(responses) do
+                    no_formatted[k1] = {}
 
-                                k = string.multigsub(k, {"%[", "%]"}, {"", ""})
-                                k = string.multigsub(k, {"~r~", "~b~", "~g~", "~y~", "~p~", "~o~", "~c~", "~m~", "~u~", "~n~", "~s~", "~w~"}, {"", "","", "","", "","", "","", "","", ""})
-
-                                --print("k = "..k)
-                                no_formatted[k1][k] = v
-                            end
-
-                            formatted_text[k1] = formatted_text[k1]:sub(1, -3)
+                    for k,v in pairs(v1) do
+                        if formatted_text[k1] == nil then
+                            formatted_text[k1] = ""
                         end
 
-                        _dialog.response = {
-                            no_formatted = no_formatted,
-                            formatted = formatted_text
-                        }
+                        formatted_text[k1] = formatted_text[k1]..k.."~w~ "..v.." | "
 
-                        if editing then
-                            _TriggerEvent("Utility:Remove", "Dialogue", entity)
-                            _TriggerEvent("Utility:Create", "Dialogue", entity, _dialog)
-                        else
-                            _TriggerEvent("Utility:Create", "Dialogue", entity, _dialog)
-                        end
-                        Utility.Cache.Dialogue[entity] = _dialog
+                        k = string.multigsub(k, {"%[", "%]"}, {"", ""})
+                        k = string.multigsub(k, {"~r~", "~b~", "~g~", "~y~", "~p~", "~o~", "~c~", "~m~", "~u~", "~n~", "~s~", "~w~"}, {"", "","", "","", "","", "","", "","", ""})
 
-                        return {
-                            LastQuestion = function(last)
-                                Utility.Cache.Dialogue[entity].lastq = last
-                                _TriggerEvent("Utility:Edit", "Dialogue", entity, "lastq", last)
-                            end
-                        }
+                        --print("k = "..k)
+                        no_formatted[k1][k] = v
                     end
+
+                    formatted_text[k1] = formatted_text[k1]:sub(1, -3)
+                end
+
+                dialog.response = {
+                    no_formatted = no_formatted,
+                    formatted = formatted_text
                 }
+
+                if editing then
+                    _TriggerEvent("Utility:Remove", "Dialogue", entity)
+                    _TriggerEvent("Utility:Create", "Dialogue", entity, dialog)
+                else
+                    _TriggerEvent("Utility:Create", "Dialogue", entity, dialog)
+                end
+                Utility.Cache.Dialogue[entity] = dialog
+
+                return DialogueTable(entity, dialog, editing)
+            end,
+
+            LastQuestion = function(last)
+                Utility.Cache.Dialogue[entity].lastQuestion = last
+                _TriggerEvent("Utility:Edit", "Dialogue", entity, "lastQuestion", last)
+
+                return DialogueTable(entity, dialog, editing)
             end
         }
     end
 
-    StartDialogue = function(entity, distance, callback)
-        local _dialog = {}
-
-        _dialog = {
+    StartDialogue = function(entity, distance, callback, stopWhenTalking)
+        local dialog = {
             entity = entity,
             distance = distance,
-            current_question = 1,
+            curQuestion = 1,
             callback = callback,
+            stopWhenTalking = stopWhenTalking,
             slice = tostring(GetEntitySlice(entity))
         }
 
         developer("^2Created^0", "dialogue with entity", entity)
-
-        return DialogueTable(entity, _dialog)
+        return DialogueTable(entity, dialog)
     end
 
     EditDialogue = function(entity)
         if entity ~= nil and IsEntityOnDialogue(entity) then
-            return DialogueTable(entity, _dialog, true)
+            return DialogueTable(entity, Utility.Cache.Dialogue[entity], true)
         end
     end
 
     StopDialogue = function(entity)
         if entity ~= nil and IsEntityOnDialogue(entity) then
             developer("^1Stopping^0", "dialogue", entity)
-            if Utility.Cache.Dialogue[entity].lastq ~= nil then
-                local a = 0
-                local lastq = Utility.Cache.Dialogue[entity].lastq
-                local __entity = Utility.Cache.Dialogue[entity].entity
-                local entity_coords = GetEntityCoords(__entity) + vector3(0.0, 0.0, 1.0)
 
-			
-		local bbreak = false
-
-		Citizen.SetTimeout(3000, function()
-		    entity_coords = nil
-		    bbreak = true
-		end)
-
-		CreateLoop(function(loopId)
-		    entity_coords = GetEntityCoords(_entity) + vector3(0.0, 0.0, 1.0)
-
-		    if bbreak then
-			entity_coords = nil
-			StopLoop(loopId)
-		    end
-
-		    DrawText3Ds(entity_coords, lastq, nil, nil, true)
-		end)
-            end
-
-            Utility.Cache.Dialogue[entity] = nil
-            _TriggerEvent("Utility:Remove", "Dialogue", entity)
+            -- Set the current question as if it were the last one
+            local questions = Utility.Cache.Dialogue[entity].questions[1]
+            _TriggerEvent("Utility:Edit", "Dialogue", entity, "curQuestion", #questions)
         end
     end
-
-    RegisterNetEvent("Utility_Native:ResyncDialogue", function(entity)
-        Utility.Cache.Dialogue[entity] = nil
-    end)
 
     IsEntityOnDialogue = function(entity)
         return Utility.Cache.Dialogue[entity]
     end
+
+    RegisterNetEvent("Utility:DeleteDialogue", function(entity)
+        Utility.Cache.Dialogue[entity] = nil
+    end)
 
 --// N3d //--
     local old_RequestScaleformMovie = RequestScaleformMovie
@@ -2312,6 +2294,14 @@ end
 --// Other //--
     SetEntityModel = function(entity, model)
         TriggerServerEvent("Utility:SwapModel", GetEntityCoords(entity), GetEntityModel(entity), type(model) == "string" and GetHashKey(model) or model)
+    end
+
+    StopCurrentTaskAndWatchPlayer = function(ped, duration)
+        local coords1 = GetEntityCoords(ped, true)
+        local coords2 = GetEntityCoords(PlayerPedId(), true)
+        local heading = GetHeadingFromVector_2d(coords2.x - coords1.x, coords2.y - coords1.y)
+
+        TaskAchieveHeading(ped, heading, duration or 2000)
     end
 
     StartParticleFxOnNetworkEntity = function(ptxAsset, name, obj, ...)
