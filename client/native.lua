@@ -1340,18 +1340,22 @@ end
     end)
 
 --// N3d //--
-    function GetScaleformStatus()
+    function GetScaleformsStatus()
         local ActiveList = {}
         local InactiveList = {}
         for i = 1, 10 do
-            local handleName = "utility_lib_" .. i
-            if Utility.Cache.N3d[handleName] then
-                table.insert(ActiveList, {Name = handleName, Data = Utility.Cache.N3d[handleName]})
+            local scaleformName = "utility_lib_" .. i
+            if Utility.Cache.N3d[scaleformName] then
+                table.insert(ActiveList, {name = scaleformName, data = Utility.Cache.N3d[scaleformName]})
             else
-                table.insert(InactiveList, {Name = handleName, Data = {txd = false, show = false, rotation = {}}})
+                table.insert(InactiveList, {name = scaleformName, data = {txd = false, show = false, rotation = {}}})
             end
         end
         return ActiveList, InactiveList
+    end
+
+    function IsScaleformTaken(scaleformName)
+        return Utility.Cache.N3d[scaleformName] ~= nil
     end
 
     local old_RequestScaleformMovie = RequestScaleformMovie
@@ -1368,8 +1372,8 @@ end
         return retval
     end
 
-    local function LoadScaleform(N3dHandle, scaleform)
-        local scaleformHandle = RequestScaleformMovie(scaleform) -- idk why but sometimes give error
+    local function LoadScaleform(N3dHandle, scaleformName)
+        local scaleformHandle = RequestScaleformMovie(scaleformName) -- idk why but sometimes give error
 
         -- Wait till it has loaded
         local startTimer = GetGameTimer()
@@ -1420,7 +1424,7 @@ end
     end
 
     -- Class and handle
-    function CreateNui3d(sfName, url)
+    function CreateNui3d(scaleformName, url)
         local N3dHandle = tostring(math.random(0, 9999))
 
         local _N3d = {
@@ -1433,10 +1437,10 @@ end
         _TriggerEvent("Utility:Create", "N3d", N3dHandle, _N3d) -- Sync the table in the utility_lib
 
         -- Auto load the scaleform
-        LoadScaleform(N3dHandle, sfName)
+        LoadScaleform(N3dHandle, scaleformName)
 
         if url ~= nil then
-            developer("^2Starting^0", N3dHandle.." with url ".."nui://"..GetCurrentResourceName().."/"..url.." sf "..sfName, "")
+            developer("^2Starting^0", N3dHandle.." with url ".."nui://"..GetCurrentResourceName().."/"..url.." sf "..scaleformName, "")
             StartupDui(N3dHandle, "nui://"..GetCurrentResourceName().."/"..url, 1920, 1080)
         end
 
