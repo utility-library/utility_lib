@@ -1341,14 +1341,14 @@ end
 
 --// N3d //--
     function GetScaleformsStatus()
-        local ActiveList = {}
-        local InactiveList = {}
+        local activeList = {}
+        local inactiveList = {}
         for i = 1, 10 do
             local scaleformName = "utility_lib_" .. i
-            if Utility.Cache.N3d[scaleformName] then
-                table.insert(ActiveList, {name = scaleformName, data = Utility.Cache.N3d[scaleformName]})
+            if IsScaleformTaken(scaleformName) then
+                table.insert(activeList, {name = scaleformName, data = Utility.Cache.N3d[scaleformName]})
             else
-                table.insert(InactiveList, {name = scaleformName, data = {txd = false, show = false, rotation = {}}})
+                table.insert(inactiveList, {name = scaleformName, data = {txd = false, show = false, rotation = {}}})
             end
         end
         return activeList, inactiveList
