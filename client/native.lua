@@ -1340,6 +1340,20 @@ end
     end)
 
 --// N3d //--
+    function GetScaleformStatus()
+        local ActiveList = {}
+        local InactiveList = {}
+        for i = 1, 10 do
+            local handleName = "utility_lib_" .. i
+            if Utility.Cache.N3d[handleName] then
+                table.insert(ActiveList, {Name = handleName, Data = Utility.Cache.N3d[handleName]})
+            else
+                table.insert(InactiveList, {Name = handleName, Data = {txd = false, show = false, rotation = {}}})
+            end
+        end
+        return ActiveList, InactiveList
+    end
+
     local old_RequestScaleformMovie = RequestScaleformMovie
     local function RequestScaleformMovie(scaleform)-- idk why but sometimes give error
         print(scaleform)
