@@ -1341,17 +1341,17 @@ end
 
 --// N3d //--
     function GetScaleformStatus()
-        local ActiveList = {}
-        local InactiveList = {}
+        local activeList = {}
+        local inactiveList = {}
         for i = 1, 10 do
             local handleName = "utility_lib_" .. i
             if Utility.Cache.N3d[handleName] then
-                table.insert(ActiveList, {Name = handleName, Data = Utility.Cache.N3d[handleName]})
+                table.insert(activeList, {name = handleName, data = Utility.Cache.N3d[handleName]})
             else
-                table.insert(InactiveList, {Name = handleName, Data = {txd = false, show = false, rotation = {}}})
+                table.insert(inactiveList, {name = handleName, data = {txd = false, show = false, rotation = {}}})
             end
         end
-        return ActiveList, InactiveList
+        return activeList, inactiveList
     end
 
     local old_RequestScaleformMovie = RequestScaleformMovie
