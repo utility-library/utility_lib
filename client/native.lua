@@ -1471,8 +1471,8 @@ end
         N3d_Class.destroy = function(self)
             if Utility.Cache.N3d[N3dHandle].dui ~= nil then
                 DestroyDui(Utility.Cache.N3d[N3dHandle].dui)
-                Utility.Cache.N3d[N3dHandle] = nil
                 SetScaleformMovieAsNoLongerNeeded(Utility.Cache.N3d[N3dHandle].scaleform)
+                Utility.Cache.N3d[N3dHandle] = nil
                 _TriggerEvent("Utility:Remove", "N3d", N3dHandle)
 
             end
