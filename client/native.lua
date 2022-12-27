@@ -1247,11 +1247,6 @@ end
 
             Response = function(...)
                 local responses = {...}
-                
-                -- If a table is passed with the answers and not all the answers separated use that
-                if type(responses[1]) == "table" then
-                    responses = responses[1]
-                end
 
                 local formatted_text = {}
                 local no_formatted = {}
