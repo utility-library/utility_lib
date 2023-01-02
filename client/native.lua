@@ -887,7 +887,7 @@ end
                 text = string.multigsub(text, {"{A}","{B}", "{C}", "{D}", "{E}", "{F}", "{G}", "{H}", "{L}", "{M}", "{N}", "{O}", "{P}", "{Q}", "{R}", "{S}", "{T}", "{U}", "{V}", "{W}", "{X}", "{Y}", "{Z}"}, {"~INPUT_VEH_FLY_YAW_LEFT~", "~INPUT_SPECIAL_ABILITY_SECONDARY~", "~INPUT_LOOK_BEHIND~", "~INPUT_MOVE_LR~", "~INPUT_CONTEXT~", "~INPUT_ARREST~", "~INPUT_DETONATE~", "~INPUT_VEH_ROOF~", "~INPUT_CELLPHONE_CAMERA_FOCUS_LOCK~", "~INPUT_INTERACTION_MENU~", "~INPUT_REPLAY_ENDPOINT~" , "~INPUT_FRONTEND_PAUSE~", "~INPUT_FRONTEND_LB~", "~INPUT_RELOAD~", "~INPUT_MOVE_DOWN_ONLY~", "~INPUT_MP_TEXT_CHAT_ALL~", "~INPUT_REPLAY_SCREENSHOT~", "~INPUT_NEXT_CAMERA~", "~INPUT_MOVE_UP_ONLY~", "~INPUT_VEH_HOTWIRE_LEFT~", "~INPUT_VEH_DUCK~", "~INPUT_MP_TEXT_CHAT_TEAM~", "~INPUT_HUD_SPECIAL~"})
             end
 
-            SetMarker(id, "string", "notify", notify)
+            SetMarker(id, "string", "notify", text)
         end
 
         -- 3dText
@@ -1680,7 +1680,7 @@ end
             --DebugCoords(coords)
             --DebugCoords(pos)
 
-            while (#(GetEntityCoords(ped) - pos) > 0.3) do
+            while (#(GetEntityCoords(ped) - pos) > 0.3) and (GetGameTimer() - startCheckingDistance) < 4000 do
                 Citizen.Wait(1)
             end
 
@@ -1688,12 +1688,17 @@ end
             --Citizen.Wait(1000)
 
             -- Wait until he has stopped
-            while GetEntitySpeed(ped) > 0.2 do
+            while GetEntitySpeed(ped) > 0.2 and (GetGameTimer() - startCheckingDistance) < 4000 do
                 Citizen.Wait(50)
             end
 
             -- Let's add a break just in case (weird bugs can happen without it)
             --Citizen.Wait(1000)
+
+            if (GetGameTimer() - startCheckingDistance) >= 4000 then
+                TaskPedSlideToCoord(ped, pos, heading, 2000)
+                Citizen.Wait(2000)
+            end
         end
 
         StartScene = function(scene, goNearInitialOffset)
