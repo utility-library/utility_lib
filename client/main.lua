@@ -507,8 +507,19 @@ local EntitySliceInfinite = {
         if field == "slice" then
             -- Update used slice groups
             local oldSlice = Utility.Cache[type][id][field]
+            local canClearOldSlice = true
 
-            Utility.Cache.SliceGroups[oldSlice] = nil
+            for k,v in pairs(Utility.Cache[type]) do
+                if v.slice == oldSlice then
+                    canClearOldSlice = false
+                    break
+                end
+            end
+
+            if canClearOldSlice then
+                Utility.Cache.SliceGroups[oldSlice] = nil
+            end
+
             Utility.Cache.SliceGroups[new_data] = true
         end
 
