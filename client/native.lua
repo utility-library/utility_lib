@@ -113,6 +113,8 @@ end
             input = "mouse_button"
         elseif key:find("_index") then
             input = "pad_digitalbutton"
+        elseif key:find("iom_axis") then
+            input = "pad_axis"
         end
 
         RegisterKeyMapping('utility '..resName..' '..key, (description or ''), input, key)

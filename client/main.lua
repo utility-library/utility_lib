@@ -425,7 +425,7 @@ local EntitySliceInfinite = {
         end
     end)
 --// IsControlJustPressed Handler //--
-    IsControlJustPressed("E", function()
+    local Interaction = function()
         for k,v in _pairs(Utility.Cache.Marker) do
             local distance = #(GetEntityCoords(PlayerPedId()) - v.coords)
 
@@ -443,7 +443,10 @@ local EntitySliceInfinite = {
                 v.near = false
             end
         end
-    end)
+    end
+
+    IsControlJustPressed("E", Interaction)
+    IsControlJustPressed("LRIGHT_INDEX", Interaction)
 
 --// Emit Handler //--
     function Emit(type, manual, ...)
