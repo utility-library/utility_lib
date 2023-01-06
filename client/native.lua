@@ -1108,13 +1108,13 @@ end
                     if type == nil then
                         print(hour..":"..minute..":"..second.." - "..action)
                     else
-                        print(hour..":"..minute..":"..second.." - "..string.format(format, action, type, id))
+                        print(hour..":"..minute..":"..second.." - "..string.format(format, action, type, id or ""))
                     end
                 else
                     if type == nil then
                         print(action)
                     else
-                        print(string.format(format, action, type, id))
+                        print(string.format(format, action, type, id or ""))
                     end
                 end
             end
@@ -1172,13 +1172,13 @@ end
                 sub_printTable(_table, "  ")
                 print("}")
             else
-                developer("^1Error^0", "error dumping table ".._table.." why isnt a table", "")
+                developer("^1Error^0", "error dumping table ".._table.." why isnt a table")
             end
         else
             if type(_table) == "table" then
                 print(json.encode(_table, {indent = true}))
             else
-                developer("^1Error^0", "error dumping table ".._table.." why isnt a table", "")
+                developer("^1Error^0", "error dumping table ".._table.." why isnt a table")
             end
         end
     end
@@ -1380,7 +1380,7 @@ end
         end
 
         if (GetGameTimer() - startTimer) > 4000 then
-            developer("^1Error^0", "After 4000 ms to load the scaleform the scaleform has not loaded yet, try again or check that it has started correctly!", "")
+            developer("^1Error^0", "After 4000 ms to load the scaleform the scaleform has not loaded yet, try again or check that it has started correctly!")
             return
         end
 
@@ -1437,7 +1437,7 @@ end
         LoadScaleform(N3dHandle, scaleformName)
 
         if url ~= nil then
-            developer("^2Starting^0", N3dHandle.." with url ".."nui://"..GetCurrentResourceName().."/"..url.." sf "..scaleformName, "")
+            developer("^2Starting^0", N3dHandle.." with url ".."nui://"..GetCurrentResourceName().."/"..url.." sf "..scaleformName)
             StartupDui(N3dHandle, "nui://"..GetCurrentResourceName().."/"..url, 1920, 1080)
         end
 
@@ -1635,7 +1635,7 @@ end
                 Citizen.Wait(1)
             end
 
-            developer("^3Scenes^0", "Adding object", entity, "to scene", scene, "[", dict, name, "]", "")
+            developer("^3Scenes^0", "Adding object", entity, "to scene", scene, "[", dict, name, "]")
             NetworkAddEntityToSynchronisedScene(entity, scene, dict, name, speed or 4.0, speedMultiplier or -8.0, flag or 1)
             table.insert(Utility.Cache.Scenes[scene].dicts, dict)
         end
@@ -1665,7 +1665,7 @@ end
                 Citizen.Wait(1)
             end
 
-            developer("^3Scenes^0", "Adding ped", ped, "to scene", scene, "[", dict, name, "]", "")
+            developer("^3Scenes^0", "Adding ped", ped, "to scene", scene, "[", dict, name, "]")
             NetworkAddPedToSynchronisedScene(ped, scene, dict, name, blendIn or 1.5, blendOut or -4.0, duration or 1, flag or 16, 0, 0)
             table.insert(Utility.Cache.Scenes[scene].dicts, dict)
         end
@@ -1855,12 +1855,12 @@ end
             StopScene(scene)
             SetPedComponentVariation(ped, 5, bagComponent or 45, 0, 0) -- Reset real bag to player
 
-            developer("^3Scenes^0", "Cover eyes", "")
+            developer("^3Scenes^0", "Cover eyes")
             --print("cover eyes")
             CoverEyesFromThermalCharge(ped)
             Citizen.Wait(1000)
             ChangeDoorModel(door)
-            developer("^3Scenes^0", "Wait "..(duration or 3000), "")
+            developer("^3Scenes^0", "Wait "..(duration or 3000))
             Citizen.Wait(duration or 3000)
             StopThermalChargeEffect(ped, thermal)
         end
@@ -2085,18 +2085,18 @@ end
         
             -- Intro
                 local introScene = StartLootIntroScene(bagObj, trolly)
-                developer("^3Scenes^0", "Started Intro scene", "")
+                developer("^3Scenes^0", "Started Intro scene")
         
                 SetPedComponentVariation(ped, 5, 0, 0, 0)
                 Citizen.Wait(1500)
         
-                developer("^3Scenes^0", "Create cash prop", "")
+                developer("^3Scenes^0", "Create cash prop")
                 CreateCashProp(id, cashPropModel, options.giveCash)
-                developer("^3Scenes^0", "Starting grabbing scene", "")
+                developer("^3Scenes^0", "Starting grabbing scene")
         
             -- Grab Scene
                 local grabScene = StartLootGrabScene(bagObj, trolly)
-                developer("^3Scenes^0", "Started grab scene", "")
+                developer("^3Scenes^0", "Started grab scene")
                 StartPlayerInteractionGrabLoop(grabScene, options.minSpeed or 1.0, options.maxSpeed or 1.6)
         
                 CollectCashProp(id, options.giveCash) -- last cash prop isnt in the animation events
