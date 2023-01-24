@@ -244,10 +244,7 @@ local EntitySliceInfinite = {
         if GetResourceState("es_extended") == "started" then
             CurrentFramework = "ESX"
 
-            while FW == nil do
-                TriggerEvent(eventName or 'esx:getSharedObject', function(obj) FW = obj end)
-                Citizen.Wait(1)
-            end
+            FW = exports["es_extended"]:getSharedObject()
             
             while FW.GetPlayerData().job == nil do
                 Citizen.Wait(1)

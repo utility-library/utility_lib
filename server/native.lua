@@ -1,6 +1,6 @@
 --// Improved/Custom Native //--
     StartESX = function(triggerName)
-        TriggerEvent(triggerName or 'esx:getSharedObject', function(obj) ESX = obj end)
+        ESX = exports["es_extended"]:getSharedObject()
     end
     StartQB = function(triggerName)
         QBCore = exports['qb-core']:GetCoreObject()

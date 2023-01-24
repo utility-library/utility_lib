@@ -499,10 +499,7 @@ end
     -- Init
         StartESX = function(eventName, second_job)
             Citizen.CreateThreadNow(function()
-                while ESX == nil do
-                    TriggerEvent(eventName or 'esx:getSharedObject', function(obj) ESX = obj end)
-                    Citizen.Wait(1)
-                end
+                ESX = exports["es_extended"]:getSharedObject()
                 
                 while ESX.GetPlayerData().job == nil do
                     Citizen.Wait(1)

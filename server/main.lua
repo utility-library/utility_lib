@@ -62,10 +62,7 @@ AddEventHandler("onResourceStart", function(resource)
                 end
             end
         elseif GetResourceState("es_extended") == "started" then
-            while ESX == nil do
-                TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-                Citizen.Wait(10)
-            end
+            ESX = exports["es_extended"]:getSharedObject()
     
             ESX.RegisterServerCallback('Utility:GetJobData', function(src, cb, job)
                 if not table.fexist(UtilityServer.Cache.SavedJobs, job) then
