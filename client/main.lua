@@ -443,7 +443,7 @@ local EntitySliceInfinite = {
     end
 
     IsControlJustPressed("E", Interaction)
-    IsControlJustPressed("LRIGHT_INDEX", Interaction)
+    IsControlJustPressed("L1_INDEX", Interaction)
 
 --// Emit Handler //--
     function Emit(type, manual, ...)
