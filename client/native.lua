@@ -79,8 +79,14 @@ end
     end
 
     _G.old_DisableControlAction = DisableControlAction
-    DisableControlAction = function(control, disable)
-        return old_DisableControlAction(0, Keys[string.upper(control)], true or disable)
+    DisableControlAction = function(group, control, disable)
+        disable = disable ~= nil and disable or true
+
+        if Keys[string.upper(group)] then
+            return old_DisableControlAction(0, Keys[string.upper(group)], control)
+        else
+            return old_DisableControlAction(group, control, disable) -- Retro compatibility
+        end
     end
 
     DisableControlForSeconds = function(control, seconds)
