@@ -1321,13 +1321,18 @@ end
         end
     end
 
-    StopDialogue = function(entity)
+    StopDialogue = function(entity, immediately)
         if entity ~= nil and IsEntityOnDialogue(entity) then
             developer("^1Stopping^0", "dialogue", entity)
 
             -- Set the current question as if it were the last one
-            local questions = Utility.Cache.Dialogue[entity].questions[1]
-            _TriggerEvent("Utility:Edit", "Dialogue", entity, "curQuestion", #questions)
+            
+            if immediately then
+                Utility.Cache.Dialogue[entity] = nil
+            else
+                local questions = Utility.Cache.Dialogue[entity].questions[1]
+                _TriggerEvent("Utility:Edit", "Dialogue", entity, "curQuestion", #questions)
+            end
         end
     end
 
