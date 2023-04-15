@@ -1540,6 +1540,14 @@ end
             end
         end
 
+        N3d_Class.replaceTexture = function(self, dict, textureName)
+            local obj = self:object()
+            local txd = CreateRuntimeTxd(dict..'duiTxd')
+            local dui = GetDuiHandle(obj)
+            local tx = CreateRuntimeTextureFromDuiHandle(txd, dict..'duiTex', dui)
+            AddReplaceTexture(dict, textureName, dict..'duiTxd', dict..'duiTex')
+        end
+
         return setmetatable({}, N3d_Class), N3dHandle
     end
 
