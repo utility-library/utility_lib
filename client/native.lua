@@ -2484,34 +2484,3 @@ end
             end
         end
     end
-
-    local syncedStateBag = {
-        __index = function(self, k)
-            if k == "set" then
-                return function(self, k, v, replicate) -- set method
-                    if replicate then
-                        if not self.state[k] then -- if dont exist
-                            TriggerServerEvent("Utility:CreateStateBag", NetworkGetNetworkIdFromEntity(self.entity), k, v)
-                        else -- if exist
-                            self.state:set(k, v, replicate)
-                        end
-                    else
-                        self.state:set(k, v, replicate)
-                    end
-                end
-            else
-                return self.state[k] -- return state from the statebag
-            end
-        end,
-        __newindex = function(self, k, v)
-            self:set(k, v, self.replicate) -- use the wrapped set method
-        end
-    }
-
-    _G.old_Entity = Entity
-    Entity = function(entity, replicate)
-        local ent = old_Entity(entity)
-        return {
-            state = setmetatable({entity = entity, state = ent.state, replicate = replicate}, syncedStateBag)
-        }
-    end
