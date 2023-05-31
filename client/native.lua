@@ -111,6 +111,13 @@ end
 
     _G.old_IsControlJustPressed = IsControlJustPressed
     IsControlJustPressed = function(key, _function, description)
+        if type(key) == "number" then
+            local inputGroup = key
+            local control = _function
+
+            return old_IsControlJustPressed(inputGroup, control)
+        end
+
         developer("^2Created^0", "key map", key)
         local input = "keyboard"
         key = key:lower()
@@ -724,7 +731,7 @@ end
     function GetSliceFromCoords(pos)
         local slice = GetSliceCoordsFromCoords(pos)
         --               (x * 2^2 + y) = id
-        local id = (slice.x * math.pow(2, 2)) + slice.y
+        local id = (slice.x * 4) + slice.y
 
         return id
     end
@@ -1365,7 +1372,7 @@ end
 
     local old_RequestScaleformMovie = RequestScaleformMovie
     local function RequestScaleformMovie(scaleform)-- idk why but sometimes give error
-        print(scaleform)
+        --print(scaleform)
 
         local status, retval = pcall(old_RequestScaleformMovie, scaleform)
 
@@ -1576,49 +1583,246 @@ end
         end
     end)
 
---// Physics [Test] //--
-    CalculateNewAxisPosition = function(coords, space, axis, time)
-        local speed = space[axis] * time
+--// Animated Object Translations [Test] //--
+    -- Thanks to https://github.com/gre/bezier-easing for the incredible math behind this, i just converted the code to lua and did the NEWTON_MIN_SLOPE tweening, since precision rounding in lua seems to be different than in js.
+    -- by Gaëtan Renaudeau 2014 - 2015 – MIT License
+    
+    local NEWTON_ITERATIONS = 10
+    local NEWTON_MIN_SLOPE = 0.01
+    local SUBDIVISION_PRECISION = 0.0000001
+    local SUBDIVISION_MAX_ITERATIONS = 10
 
-        return coords[axis] + speed
+    local kSplineTableSize = 11
+    local kSampleStepSize = 1.0 / (kSplineTableSize - 1.0)
+
+    local function A(aA1, aA2)
+        return 1.0 - 3.0 * aA2 + 3.0 * aA1
     end
 
-    TranslateUniformRectilinearMotion = function(obj, destination, duration, minDistance)
+    local function B(aA1, aA2)
+        return 3.0 * aA2 - 6.0 * aA1
+    end
+
+    local function C(aA1)
+        return 3.0 * aA1
+    end
+
+    -- Returns x(t) given t, x1, and x2, or y(t) given t, y1, and y2.
+    local function calcBezier(aT, aA1, aA2)
+        return ((A(aA1, aA2) * aT + B(aA1, aA2)) * aT + C(aA1)) * aT
+    end
+
+    -- Returns dx/dt given t, x1, and x2, or dy/dt given t, y1, and y2.
+    local function getSlope(aT, aA1, aA2)
+        return 3.0 * A(aA1, aA2) * aT * aT + 2.0 * B(aA1, aA2) * aT + C(aA1)
+    end
+
+    local function binarySubdivide(aX, aA, aB, mX1, mX2)
+        local currentX, currentT, i = 0, 0, 0
+        repeat
+            currentT = aA + (aB - aA) / 2.0
+            currentX = calcBezier(currentT, mX1, mX2) - aX
+            if currentX > 0.0 then
+                aB = currentT
+            else
+                aA = currentT
+            end
+
+            i = i + 1
+        until math.abs(currentX) <= SUBDIVISION_PRECISION or i >= SUBDIVISION_MAX_ITERATIONS
+
+        return currentT
+    end
+
+    local function newtonRaphsonIterate(aX, aGuessT, mX1, mX2)
+        for i = 1, NEWTON_ITERATIONS do
+            local currentSlope = getSlope(aGuessT, mX1, mX2)
+            if currentSlope == 0.0 then
+                return aGuessT
+            end
+
+            local currentX = calcBezier(aGuessT, mX1, mX2) - aX
+            aGuessT = aGuessT - currentX / currentSlope
+        end
+        return aGuessT
+    end
+
+    local function LinearEasing(x)
+        return x
+    end
+
+    local function bezier(mX1, mY1, mX2, mY2)
+        if not (0 <= mX1 and mX1 <= 1 and 0 <= mX2 and mX2 <= 1) then
+            error('bezier x values must be in [0, 1] range')
+        end
+
+        if mX1 == mY1 and mX2 == mY2 then
+            return LinearEasing
+        end
+
+        -- Precompute samples table
+        local sampleValues = {}
+        for i = 1, kSplineTableSize do
+            sampleValues[i] = calcBezier((i - 1) * kSampleStepSize, mX1, mX2)
+        end
+
+        local function getTForX(aX)
+            local intervalStart = 0.0
+            local currentSample = 1
+            local lastSample = kSplineTableSize - 1
+
+            while currentSample ~= lastSample and sampleValues[currentSample] <= aX do
+                intervalStart = intervalStart + kSampleStepSize
+                currentSample = currentSample + 1
+            end
+
+            currentSample = currentSample - 1
+
+            -- Interpolate to provide an initial guess for t
+            local dist = (aX - sampleValues[currentSample]) / (sampleValues[currentSample + 1] - sampleValues[currentSample])
+            local guessForT = intervalStart + dist * kSampleStepSize
+            local initialSlope = getSlope(guessForT, mX1, mX2)
+
+            if initialSlope >= NEWTON_MIN_SLOPE then
+                return newtonRaphsonIterate(aX, guessForT, mX1, mX2)
+            elseif initialSlope == 0.0 then
+                return guessForT
+            else
+                return binarySubdivide(aX, intervalStart, intervalStart + kSampleStepSize, mX1, mX2)
+            end
+        end
+
+        return function(x)
+            if x == 0 or x == 1 then
+                return x
+            end
+
+            return calcBezier(getTForX(x), mY1, mY2)
+        end
+    end
+
+    local predefinedCubicBeziers = {
+        ease = {0.25, 0.1, 0.25, 1},
+        easeIn = {0.42, 0, 1, 1},
+        easeOut = {0, 0, 0.58, 1},
+        easeInOut = {0.42, 0, 0.58, 1},
+    }
+
+    TranslateObjectCoordsCubicBezier = function(obj, destination, duration, cubicBezier)
+        local startCoords = GetEntityCoords(obj)
+        local startTimer = GetNetworkTimeAccurate()
+
         local coords = GetEntityCoords(obj)
         local timer = GetNetworkTimeAccurate()
-        local space = {
-            x = destination.x - coords.x,
-            y = destination.y - coords.y,
-            z = destination.z - coords.z,
-        }
+        local done = false
+        local space = destination - coords
+        local axis = {"x", "y", "z"}
 
-        --print(json.encode(space))
-        --print("First Distance: "..#(coords - destination))
-        while #(coords - destination) > (minDistance or 0.05) do -- while not at destination
-            --print("Distance: "..#(coords - destination))
+        if type(cubicBezier) == "string" then
+            cubicBezier = predefinedCubicBeziers[cubicBezier]
 
-            Citizen.Wait(0) -- wait 1 tick
+            if not cubicBezier then
+                error("TranslateObjectCoordsCubicBezier: `"..cubicBezier.."` its not a predefined cubic bezier")
+                return
+            end
+        end
+
+        local easingFunction = bezier(table.unpack(cubicBezier))
+
+        while not done and (timer - startTimer) < duration do
+            Citizen.Wait(0) -- Wait 1 tick
             coords = GetEntityCoords(obj)
             local timeAccurate = GetNetworkTimeAccurate()
 
-            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
+            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- If some time has elapsed since the last call
                 local deltaTime = (timeAccurate - timer)
-                local time = deltaTime / duration
-                local newCoords = {x = 0.0, y = 0.0, z = 0.0}
+                local speed = {}
+                local progress = (timer - startTimer) / (duration)
 
-                for i=1, 3 do
-                    local axis = (i==1 and "x") or (i==2 and "y") or (i==3 and "z")
-                    local newAxis = CalculateNewAxisPosition(coords, space, axis, time)
+                for k, v in pairs(axis) do
+                    local newCoord = math.lerp(startCoords[v], destination[v], easingFunction(progress)) -- we get the new coords from lerp and the easing function for the translation progress
+                    local updatedCoords = GetEntityCoords(obj)
+                    local distance = updatedCoords[v] - newCoord
 
-                    newCoords[axis] = newAxis
+                    local _speed = math.abs(distance) / deltaTime -- we divide for deltaTime so the translation its relative to deltaTime from last call to contrast time intervals between frames
+                    
+                    speed[v] = _speed
                 end
-
-                --print("Set coords: ", json.encode(newCoords))
-                SetEntityCoords(obj, newCoords.x, newCoords.y, newCoords.z)
+                
+                done = SlideObject(obj, destination, speed.x, speed.y, speed.z, false)
             end
 
             timer = timeAccurate
         end
+
+        SetEntityCoords(obj, destination)
+    end
+
+    TranslateObjectCoords = function(obj, destination, duration)
+        local coords = GetEntityCoords(obj)
+        local startTimer = GetNetworkTimeAccurate()
+        local timer = GetNetworkTimeAccurate()
+        local done = false
+        local space = destination - coords
+        local axis = {"x", "y", "z"}
+
+        while not done and (timer - startTimer) < duration do
+            Citizen.Wait(0) -- wait 1 tick
+            coords = GetEntityCoords(obj)
+            local timeAccurate = GetNetworkTimeAccurate()
+    
+            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
+                local deltaTime = (timeAccurate - timer)
+                local time = deltaTime / duration
+                local speed = {}
+
+                for k,v in pairs(axis) do
+                    speed[v] = math.abs(space[v]) * time
+                end
+
+                done = SlideObject(obj, destination, speed.x, speed.y, speed.z, false)
+            end
+            
+            timer = timeAccurate
+        end
+
+        --print(obj, "Done")
+        SetEntityCoords(obj, destination)
+    end
+    TranslateUniformRectilinearMotion = TranslateObjectCoords
+
+    TranslateObjectRotation = function(obj, destination, duration, rotationOrder)
+        local rotation = GetEntityRotation(obj, rotationOrder or 2)
+        local startTimer = GetNetworkTimeAccurate() 
+        local timer = GetNetworkTimeAccurate()
+        local space = destination - rotation
+        local axis = {"x", "y", "z"}
+
+        print((timer - startTimer), duration)
+        while (timer - startTimer) < duration do
+            Citizen.Wait(0) -- wait 1 tick
+            rotation = GetEntityRotation(obj, rotationOrder or 2)
+            local timeAccurate = GetNetworkTimeAccurate()
+    
+            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
+                local deltaTime = (timeAccurate - timer)
+                local time = deltaTime / duration
+                local newRotation = {}
+
+                for k,v in pairs(axis) do
+                    local speed = space[v] * time
+                    newRotation[v] = rotation[v] + speed
+                end
+
+                print("Set rotation")
+                SetEntityRotation(obj, newRotation.x, newRotation.y, newRotation.z, 2)
+            end
+            
+            timer = timeAccurate
+        end
+
+        print("Final set rotation")
+        SetEntityRotation(button, destination, rotationOrder or 2)
     end
 
 --// Heists //--
@@ -2398,6 +2602,29 @@ end
 
 
     -- NEW --
+    apairs = function(t, f)
+        local a = {}
+        local i = 0
+    
+        for k in pairs(t) do table.insert(a, k) end
+        table.sort(a, f)
+        
+        local iter = function() -- iterator function
+            i = i + 1
+            if a[i] == nil then 
+                return nil
+            else 
+                return a[i], t[a[i]]
+            end
+        end
+    
+        return iter
+    end
+
+    math.lerp = function(start, _end, perc)
+        return start + (_end - start) * perc
+    end
+
     CreateMissionText = function(msg, duration)            
         SetTextEntry_2("STRING")
         AddTextComponentString(msg)
@@ -2418,25 +2645,6 @@ end
         end
     end
 
-    apairs = function(t, f)
-        local a = {}
-        local i = 0
-    
-        for k in pairs(t) do table.insert(a, k) end
-        table.sort(a, f)
-        
-        local iter = function() -- iterator function
-            i = i + 1
-            if a[i] == nil then 
-                return nil
-            else 
-                return a[i], t[a[i]]
-            end
-        end
-    
-        return iter
-    end
-
     FindInTable = function(table, text)
         for i=1, #table do
             if table[i] == text then
@@ -2446,6 +2654,7 @@ end
     
         return nil
     end
+
     GetRandom = function(table)
         local random = math.random(1, #table)
         return table[random]
