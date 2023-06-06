@@ -1739,13 +1739,17 @@ end
                 local progress = (timer - startTimer) / (duration)
 
                 for k, v in pairs(axis) do
-                    local newCoord = math.lerp(startCoords[v], destination[v], easingFunction(progress)) -- we get the new coords from lerp and the easing function for the translation progress
-                    local updatedCoords = GetEntityCoords(obj)
-                    local distance = updatedCoords[v] - newCoord
-
-                    local _speed = math.abs(distance) -- we divide for deltaTime so the translation its relative to deltaTime from last call to contrast time intervals between frames
-                    
-                    speed[v] = _speed
+                    if startCoords[v] == destination[v] then
+                        speed[v] = 0
+                    else
+                        local newCoord = math.lerp(startCoords[v], destination[v], easingFunction(progress)) -- we get the new coords from lerp and the easing function for the translation progress
+                        local updatedCoords = GetEntityCoords(obj)
+                        local distance = updatedCoords[v] - newCoord
+    
+                        local _speed = math.abs(distance) -- we divide for deltaTime so the translation its relative to deltaTime from last call to contrast time intervals between frames
+                        
+                        speed[v] = _speed
+                    end
                 end
                 
                 done = SlideObject(obj, destination, speed.x, speed.y, speed.z, false)
@@ -1776,7 +1780,11 @@ end
                 local speed = {}
 
                 for k,v in pairs(axis) do
-                    speed[v] = math.abs(space[v]) * time
+                    if space[v] == 0 then
+                        speed[v] = 0
+                    else
+                        speed[v] = math.abs(space[v]) * time
+                    end
                 end
 
                 done = SlideObject(obj, destination, speed.x, speed.y, speed.z, false)
@@ -1797,7 +1805,6 @@ end
         local space = destination - rotation
         local axis = {"x", "y", "z"}
 
-        print((timer - startTimer), duration)
         while (timer - startTimer) < duration do
             Citizen.Wait(0) -- wait 1 tick
             rotation = GetEntityRotation(obj, rotationOrder or 2)
@@ -1806,22 +1813,71 @@ end
             if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
                 local deltaTime = (timeAccurate - timer)
                 local time = deltaTime / duration
-                local newRotation = {}
+                local rot = {}
 
                 for k,v in pairs(axis) do
-                    local speed = space[v] * time
-                    newRotation[v] = rotation[v] + speed
+                    if space[v] == 0 then
+                        rot[v] = 0
+                    else
+                        rot[v] = math.abs(space[v]) * time
+                    end
                 end
 
-                print("Set rotation")
-                SetEntityRotation(obj, newRotation.x, newRotation.y, newRotation.z, 2)
+                SetEntityRotation(obj, rot.x, rot.y, rot.z, 2)
             end
             
             timer = timeAccurate
         end
 
-        print("Final set rotation")
-        SetEntityRotation(button, destination, rotationOrder or 2)
+        SetEntityRotation(obj, destination, rotationOrder or 2)
+    end
+
+    TranslateObjectRotationCubicBezier = function(obj, destination, duration, rotationOrder, cubicBezier)
+        local startRotation = GetEntityRotation(obj)
+        local startTimer = GetNetworkTimeAccurate()
+
+        local rotation = GetEntityRotation(obj)
+        local timer = GetNetworkTimeAccurate()
+        local done = false
+        local space = destination - rotation
+        local axis = {"x", "y", "z"}
+
+        if type(cubicBezier) == "string" then
+            cubicBezier = predefinedCubicBeziers[cubicBezier]
+
+            if not cubicBezier then
+                error("TranslateObjectCoordsCubicBezier: `"..cubicBezier.."` its not a predefined cubic bezier")
+                return
+            end
+        end
+
+        local easingFunction = bezier(table.unpack(cubicBezier))
+
+        while not done and (timer - startTimer) < duration do
+            Citizen.Wait(0) -- Wait 1 tick
+            rotation = GetEntityRotation(obj)
+            local timeAccurate = GetNetworkTimeAccurate()
+
+            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- If some time has elapsed since the last call
+                local rot = {}
+                local progress = (timer - startTimer) / (duration)
+
+                for k, v in pairs(axis) do
+                    if space[v] == 0 then
+                        rot[v] = 0
+                    else
+                        local newRot = math.lerp(startRotation[v], destination[v], easingFunction(progress)) -- we get the new coords from lerp and the easing function for the translation progress
+                        rot[v] = newRot
+                    end
+                end
+                
+                SetEntityRotation(obj, rot.x, rot.y, rot.z, rotationOrder or 2)
+            end
+
+            timer = timeAccurate
+        end
+
+        SetEntityRotation(obj, destination, rotationOrder or 2)
     end
 
 --// Heists //--
@@ -2579,18 +2635,6 @@ end
             z = math.sin(adjustedRotation.x)
         }
         return vector3(direction.x, direction.y, direction.z)
-    end
-
-    TranslateZAnimated = function(obj, z, stepduration)
-        local coords = GetEntityCoords(obj)
-        local isNegative = z < 0
-    
-        for i=1, math.abs(z)*100 do
-            local newZ = isNegative and (coords.z - i/100) or (coords.z + i/100)
-    
-            SetEntityCoords(obj, coords.x, coords.y, newZ)
-            Citizen.Wait(stepduration)
-        end
     end
 
     SetVehicleWheelsPowered = function(veh, active)
