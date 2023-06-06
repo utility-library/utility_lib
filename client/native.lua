@@ -1735,7 +1735,6 @@ end
             local timeAccurate = GetNetworkTimeAccurate()
 
             if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- If some time has elapsed since the last call
-                local deltaTime = (timeAccurate - timer)
                 local speed = {}
                 local progress = (timer - startTimer) / (duration)
 
@@ -1744,7 +1743,7 @@ end
                     local updatedCoords = GetEntityCoords(obj)
                     local distance = updatedCoords[v] - newCoord
 
-                    local _speed = math.abs(distance) / deltaTime -- we divide for deltaTime so the translation its relative to deltaTime from last call to contrast time intervals between frames
+                    local _speed = math.abs(distance) -- we divide for deltaTime so the translation its relative to deltaTime from last call to contrast time intervals between frames
                     
                     speed[v] = _speed
                 end
