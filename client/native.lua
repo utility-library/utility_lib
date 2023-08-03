@@ -343,12 +343,6 @@ end
         end
     end
 
-    _G.old_RegisterNetEvent = RegisterNetEvent
-    RegisterNetEvent = function(eventName, eventRoutine)
-        old_RegisterNetEvent(eventName)
-        AddEventHandler(eventName, eventRoutine)
-    end
-
     _G.old_GetPlayerName = GetPlayerName
     GetPlayerName = function(id)
         return old_GetPlayerName(id or PlayerId())
@@ -1224,7 +1218,7 @@ end
         elseif type(index) == "string" then
             for k, v in pairs(_table) do
                 if k == index then
-                    _table[k] = nil -- Can be bugged, probably in future update will be changed with a empty table => {}
+                    _table[k] = nil -- Can be bugged, probably in future update will be changed with a empty table
 
                     if onlyfirst then
                         return k
@@ -1552,6 +1546,7 @@ end
             local txd = CreateRuntimeTxd(dict..'duiTxd')
             local dui = GetDuiHandle(obj)
             local tx = CreateRuntimeTextureFromDuiHandle(txd, dict..'duiTex', dui)
+            
             AddReplaceTexture(dict, textureName, dict..'duiTxd', dict..'duiTex')
         end
 
@@ -1712,10 +1707,9 @@ end
         local startCoords = GetEntityCoords(obj)
         local startTimer = GetNetworkTimeAccurate()
 
-        local coords = GetEntityCoords(obj)
         local timer = GetNetworkTimeAccurate()
         local done = false
-        local space = destination - coords
+        local space = destination - startCoords
         local axis = {"x", "y", "z"}
 
         if type(cubicBezier) == "string" then
@@ -1731,7 +1725,6 @@ end
 
         while not done and (timer - startTimer) < duration do
             Citizen.Wait(0) -- Wait 1 tick
-            coords = GetEntityCoords(obj)
             local timeAccurate = GetNetworkTimeAccurate()
 
             if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- If some time has elapsed since the last call
@@ -1762,16 +1755,15 @@ end
     end
 
     TranslateObjectCoords = function(obj, destination, duration)
-        local coords = GetEntityCoords(obj)
+        local startCoords = GetEntityCoords(obj)
         local startTimer = GetNetworkTimeAccurate()
         local timer = GetNetworkTimeAccurate()
         local done = false
-        local space = destination - coords
+        local space = destination - startCoords
         local axis = {"x", "y", "z"}
 
         while not done and (timer - startTimer) < duration do
             Citizen.Wait(0) -- wait 1 tick
-            coords = GetEntityCoords(obj)
             local timeAccurate = GetNetworkTimeAccurate()
     
             if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
@@ -1799,31 +1791,26 @@ end
     TranslateUniformRectilinearMotion = TranslateObjectCoords
 
     TranslateObjectRotation = function(obj, destination, duration, rotationOrder)
-        local rotation = GetEntityRotation(obj, rotationOrder or 2)
+        local startRot = GetEntityRotation(obj, rotationOrder or 2)
         local startTimer = GetNetworkTimeAccurate() 
+
         local timer = GetNetworkTimeAccurate()
-        local space = destination - rotation
+        local space = destination - startRot
         local axis = {"x", "y", "z"}
 
         while (timer - startTimer) < duration do
             Citizen.Wait(0) -- wait 1 tick
-            rotation = GetEntityRotation(obj, rotationOrder or 2)
             local timeAccurate = GetNetworkTimeAccurate()
-    
-            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
-                local deltaTime = (timeAccurate - timer)
-                local time = deltaTime / duration
-                local rot = {}
+            local progress = (timer - startTimer) / (duration)
 
+            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
+                local rot = {}
+                
                 for k,v in pairs(axis) do
-                    if space[v] == 0 then
-                        rot[v] = 0
-                    else
-                        rot[v] = math.abs(space[v]) * time
-                    end
+                    rot[v] = math.lerp(startRot[v], destination[v], progress) -- we get the new coords from lerp and the easing function for the translation progress
                 end
 
-                SetEntityRotation(obj, rot.x, rot.y, rot.z, 2)
+                SetEntityRotation(obj, vec3(rot.x, rot.y, rot.z), 2)
             end
             
             timer = timeAccurate
@@ -1836,10 +1823,17 @@ end
         local startRotation = GetEntityRotation(obj)
         local startTimer = GetNetworkTimeAccurate()
 
-        local rotation = GetEntityRotation(obj)
         local timer = GetNetworkTimeAccurate()
         local done = false
-        local space = destination - rotation
+        local space = destination - startRotation
+
+        -- round numbers (beyond a number of decimal places, calculations tend to fail)
+        space = {
+            tonumber(string.format("%.3f", space.x)),
+            tonumber(string.format("%.3f", space.y)),
+            tonumber(string.format("%.3f", space.z)),
+        }
+
         local axis = {"x", "y", "z"}
 
         if type(cubicBezier) == "string" then
@@ -1855,7 +1849,6 @@ end
 
         while not done and (timer - startTimer) < duration do
             Citizen.Wait(0) -- Wait 1 tick
-            rotation = GetEntityRotation(obj)
             local timeAccurate = GetNetworkTimeAccurate()
 
             if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- If some time has elapsed since the last call
@@ -1882,8 +1875,8 @@ end
 
 --// Heists //--
     -- Scene
-        CreateScene = function(coords, rot, holdLastFrame, looped, animSpeed)
-            local scene = NetworkCreateSynchronisedScene(coords, rot, 2, holdLastFrame or false, looped or false, 1065353216, 0, animSpeed or 1.3)
+        CreateScene = function(coords, rot, holdLastFrame, looped, animSpeed, animTime)
+            local scene = NetworkCreateSynchronisedScene(coords, rot, 2, holdLastFrame or false, looped or false, 1065353216, animTime or 0, animSpeed or 1.3)
             Utility.Cache.Scenes[scene] = {
                 coords = coords,
                 rotation = rot,
