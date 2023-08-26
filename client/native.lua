@@ -131,7 +131,15 @@ end
         end
 
         RegisterKeyMapping('utility '..resName..' '..key, (description or ''), input, key)
-        table.insert(Utility.Cache.Events, AddEventHandler("Utility:Pressed_"..resName.."_"..key, _function))
+
+        local eventHandler = nil
+
+        Citizen.CreateThread(function()
+            Citizen.Wait(500)
+            eventHandler = RegisterNetEvent("Utility:Pressed_"..resName.."_"..key, _function)
+
+            table.insert(Utility.Cache.Events, eventHandler)
+        end)
     end
 
     ShowNotification = function(msg)
@@ -1541,12 +1549,16 @@ end
             end
         end
 
-        N3d_Class.replaceTexture = function(self, dict, textureName)
+        N3d_Class.replaceTexture = function(self, dict, textureName, wait)
             local obj = self:object()
             local txd = CreateRuntimeTxd(dict..'duiTxd')
             local dui = GetDuiHandle(obj)
             local tx = CreateRuntimeTextureFromDuiHandle(txd, dict..'duiTex', dui)
-            
+
+            if wait then
+                Citizen.Wait(wait)
+            end
+
             AddReplaceTexture(dict, textureName, dict..'duiTxd', dict..'duiTex')
         end
 
@@ -1561,12 +1573,11 @@ end
 
             for handle,data in pairs(Utility.Cache.N3d) do
                 if data.dui ~= nil and IsDuiAvailable(data.dui) then
-                      DestroyDui(data.dui)
+                    DestroyDui(data.dui)
                 end
 		
-	        _TriggerEvent("Utility:Remove", "N3d", handle)
+                _TriggerEvent("Utility:Remove", "N3d", handle)
             end
-
 	    if Utility.Cache.Settings.UseDelete then
                 for i=1, #Utility.Cache.EntityStack do
                     local ent = Utility.Cache.EntityStack[i]
@@ -2658,8 +2669,13 @@ end
         return iter
     end
 
+    -- https://www.gamedev.net/tutorials/programming/general-and-gameplay-programming/inverse-lerp-a-super-useful-yet-often-overlooked-function-r5230/
     math.lerp = function(start, _end, perc)
         return start + (_end - start) * perc
+    end
+
+    math.invlerp = function(start, _end, value)
+        return (value - start) / (_end - start)
     end
 
     CreateMissionText = function(msg, duration)            

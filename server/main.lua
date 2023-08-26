@@ -78,9 +78,11 @@ AddEventHandler("onResourceStart", function(resource)
     
             -- Jobs
             for _, playerId in ipairs(GetPlayers()) do
-                --print("On start check")
                 local xPlayer = ESX.GetPlayerFromId(playerId)
-                AddToJob(playerId, xPlayer.job.name)
+
+                if xPlayer then
+                    AddToJob(playerId, xPlayer.job.name)
+                end
             end
         end
     end
