@@ -1560,10 +1560,11 @@ end
             end
 
             for handle,data in pairs(Utility.Cache.N3d) do
-                if data.dui ~= nil then
+                if data.dui ~= nil and IsDuiAvailable(data.dui) then
                       DestroyDui(data.dui)
-                      _TriggerEvent("Utility:Remove", "N3d", handle)
                 end
+		
+	        _TriggerEvent("Utility:Remove", "N3d", handle)
             end
 
 	    if Utility.Cache.Settings.UseDelete then
