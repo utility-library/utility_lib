@@ -542,13 +542,7 @@ local EntitySliceInfinite = {
 
     RegisterCommand('utility', function(_, args)
         if args[1] and args[2] then
-            if Keys[args[2]] then
-                if IsControlEnabled(0, Keys[args[2]]) then 
-                    TriggerEvent("Utility:Pressed_"..args[1].."_"..args[2])
-                end
-            else
-                TriggerEvent("Utility:Pressed_"..args[1].."_"..args[2])
-            end
+            TriggerEvent("Utility:Pressed_"..args[1].."_"..args[2])
         end
     end, true)
     
