@@ -237,9 +237,16 @@ end
     end
 
     _G.old_CreateObject = CreateObject
-    CreateObject = function(modelHash, ...)
-        if type(modelHash) == "string" then
-            modelHash = GetHashKey(modelHash)
+    CreateObject = function(model, ...)
+        local modelHash = model
+
+        if type(model) == "string" then
+            modelHash = GetHashKey(model)
+        end
+
+        if not IsModelValid(modelHash) then
+            error("Model \""..model.."\" loaded from \""..GetCurrentResourceName().."\" is not valid^0")
+            return
         end
 
         if not HasModelLoaded(modelHash) then
@@ -2620,7 +2627,7 @@ end
             DrawText3Ds(coords, "V")
         end)
     end
-
+    
     GetDirectionFromVectors = function(vec, vec2)
         return vec - vec2
     end
