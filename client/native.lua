@@ -1557,16 +1557,11 @@ end
         end
 
         N3d_Class.replaceTexture = function(self, dict, textureName, wait)
-            local obj = self:object()
-            local txd = CreateRuntimeTxd(dict..'duiTxd')
-            local dui = GetDuiHandle(obj)
-            local tx = CreateRuntimeTextureFromDuiHandle(txd, dict..'duiTex', dui)
-
             if wait then
                 Citizen.Wait(wait)
             end
 
-            AddReplaceTexture(dict, textureName, dict..'duiTxd', dict..'duiTex')
+            AddReplaceTexture(dict, textureName, 'txd'..N3dHandle, 'txn'..N3dHandle)
         end
 
         return setmetatable({}, N3d_Class), N3dHandle
