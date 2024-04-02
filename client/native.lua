@@ -2285,9 +2285,14 @@ end
             local finished = false
         
             -- Every mouse click add 0.1 to the speed
-            IsControlJustPressed("MOUSE_LEFT", function()
-                if speed <= max then
-                    speed = speed + 0.1
+            Citizen.CreateThread(function()
+                while not finished do
+                    if IsControlJustPressed(0, 24) then
+                        if speed <= max then
+                            speed = speed + 0.1
+                        end
+                    end
+                    Citizen.Wait(0)
                 end
             end)
         
