@@ -2163,17 +2163,17 @@ end
             return "utility_heist:"..type.."_trolly:"..math.random(1, 10000) -- example: utility_heist:cash_trolly:3910
         end
         
-        CreateTrolly = function(type, coords, giveCash, notify, minSpeed, maxSpeed)
+        CreateTrolly = function(type, coords, giveCash, notify, minSpeed, maxSpeed, networked)
             local obj = nil
             local id = GenerateTrollyId(type) -- Pseudo random id
         
             -- Object creation
             if type == "cash" then
-                obj = CreateObject("hei_prop_hei_cash_trolly_01", coords, true)
+                obj = CreateObject("hei_prop_hei_cash_trolly_01", coords, networked)
             elseif type == "gold" then
-                obj = CreateObject("ch_prop_gold_trolly_01a", coords, true)
+                obj = CreateObject("ch_prop_gold_trolly_01a", coords, networked)
             elseif type == "diamond" then
-                obj = CreateObject("ch_prop_diamond_trolly_01a", coords, true)
+                obj = CreateObject("ch_prop_diamond_trolly_01a", coords, networked)
             end
             
             PlaceObjectOnGroundProperly(obj)
