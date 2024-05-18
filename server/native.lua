@@ -105,18 +105,18 @@
             end
         end
 
-        HaveMoney = function(source, type, ...)
+        HaveMoney = function(source, type, amount)
             if ESX then
                 xPlayer = ESX.GetPlayerFromId(source)
                 if type == "cash" then
-                    return xPlayer.getMoney(...)
+                    return xPlayer.getMoney(type) >= amount
                 else
-                    return xPlayer.getAccount(type).money
+                    return xPlayer.getAccount(type).money >= amount
                 end
             else
                 xPlayer = QBCore.Functions.GetPlayer(source)
                 
-                return xPlayer.Functions.GetItem(type, ...)
+                return xPlayer.Functions.GetMoney(type) >= amount
             end
         end
 
