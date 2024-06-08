@@ -1,0 +1,36 @@
+name: Minify Lua
+
+on: 
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  minify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install luamin
+        run: |
+          npm install -g luamin
+
+      - name: Minify Lua files
+        run: |
+          luamin -f "./client/native.lua" > "./client/native_min.lua"
+          luamin -f "./server/native.lua" > "./server/native_min.lua"
+
+      - name: Commit and push minified files
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m 'actions(minify): minified client/native.lua and server/native.lua'
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
