@@ -1,4 +1,4 @@
-_G["ESX"], _G["xPlayer"], _G["source"], _G["developer"] = nil, {}, GetPlayerServerId(PlayerId()), function() end
+_G["xPlayer"], _G["source"], _G["developer"] = {}, GetPlayerServerId(PlayerId()), function() end
 
 -- Why?, see that https://www.lua.org/gems/sample.pdf#page=3
 local _AddTextEntry, _BeginTextCommandDisplayHelp, _EndTextCommandDisplayHelp, _SetNotificationTextEntry, _AddTextComponentSubstringPlayerName, _DrawNotification, _GetEntityCoords, _World3dToScreen2d, _SetTextScale, _SetTextFont, _SetTextEntry, _SetTextCentre, _AddTextComponentString, _DrawText, _DoesEntityExist, _GetDistanceBetweenCoords, _GetPlayerPed, _TriggerEvent, _TriggerServerEvent = AddTextEntry, BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp, SetNotificationTextEntry, AddTextComponentSubstringPlayerName, DrawNotification, GetEntityCoords, World3dToScreen2d, SetTextScale, SetTextFont, SetTextEntry, SetTextCentre, AddTextComponentString, DrawText, DoesEntityExist, GetDistanceBetweenCoords, GetPlayerPed, TriggerEvent, TriggerServerEvent
@@ -44,6 +44,8 @@ local Utility = {
         SliceGroups = {}
     }
 }
+
+UtilityNet = {}
 
 Citizen.CreateThreadNow(function() -- Load Classes
     if UFAPI then -- if the utility framework API is loaded
@@ -517,7 +519,7 @@ end
         return n, diff, _i
     end
 
---// ESX integration //--
+--// Frameworks integration //--
     -- Init
         StartESX = function(eventName, second_job)
             Citizen.CreateThreadNow(function()
@@ -2056,7 +2058,7 @@ end
         local FindDoorLockCoords = function(door)
             local size = GetEntitySize(door)
 
-            if doorHash == `hei_v_ilev_bk_safegate_pris` then
+            if doorHash == GetHashKey("hei_v_ilev_bk_safegate_pris") then
                 --                                                                 SafePedCoords
                 return GetOffsetFromEntityInWorldCoords(door, -(size.x - 0.1), -0.05, 0.0)
             else
@@ -2089,13 +2091,13 @@ end
         local GetMoltenModel = function(door)
             local model = GetEntityModel(door)
 
-            if model == `hei_v_ilev_bk_gate_pris` then
+            if model == GetHashKey("hei_v_ilev_bk_gate_pris") then
                 return "hei_v_ilev_bk_gate_molten"
 
-            elseif model == `hei_v_ilev_bk_gate2_pris` then
+            elseif model == GetHashKey("hei_v_ilev_bk_gate2_pris") then
                 return "hei_v_ilev_bk_gate2_molten"
                 
-            elseif model == `hei_v_ilev_bk_safegate_pris` then
+            elseif model == GetHashKey("hei_v_ilev_bk_safegate_pris") then
                 return "hei_v_ilev_bk_safegate_molten"
             end
         end
@@ -2194,6 +2196,8 @@ end
                     local trollyObj = GetClosestObjectOfType(coords, 3.0, GetHashKey(model))
                         
                     DeleteMarker(id)
+                    Citizen.Wait(500)
+                    ClearAllHelpMessages()
         
                     if trollyObj > 0 then
                         LootTrolly(id, type, trollyObj)
@@ -2245,8 +2249,8 @@ end
             Utility.Cache.LootingTrolly = true
         
             Citizen.CreateThread(function()
-                local eventCashAppear = `CASH_APPEAR`
-                local eventReleaseCashDestroy = `RELEASE_CASH_DESTROY`
+                local eventCashAppear = GetHashKey("CASH_APPEAR")
+                local eventReleaseCashDestroy = GetHashKey("RELEASE_CASH_DESTROY")
         
                 while Utility.Cache.LootingTrolly do            
                     if HasAnimEventFired(ped, eventCashAppear) then
@@ -2413,13 +2417,13 @@ end
 
         Citizen.CreateThread(function()
             AddRelationshipGroup("GUARDS")
-            SetPedRelationshipGroupHash(PlayerPedId(), `PLAYER`)
+            SetPedRelationshipGroupHash(PlayerPedId(), GetHashKey("PLAYER"))
         end)
 
         local CheckIfCanAttack = function(player, v)
             if HasEntityClearLosToEntity(v, player, 27) and GetPedTaskCombatTarget(v) ~= player then
                 TaskCombatHatedTargetsAroundPed(v, 10.0, 0)
-                SetRelationshipBetweenGroups(5, `GUARDS`, `PLAYER`)
+                SetRelationshipBetweenGroups(5, GetHashKey("GUARDS"), GetHashKey("PLAYER"))
                 SetPedToInformRespectedFriends(v, 30.0, 3)
                 SetPedAiBlipHasCone(v, false)
 
@@ -2543,7 +2547,7 @@ end
             SetPedFleeAttributes(ped, 0, false)
 
             --GiveWeaponToPed(ped, `WEAPON_PISTOL`, 255, false, true)
-            SetPedRelationshipGroupHash(ped, `GUARDS`)
+            SetPedRelationshipGroupHash(ped, GetHashKey("GUARDS"))
         
             if guardRoute then
                 TaskPatrol(ped, "miss_"..guardRoute, 1, 0, 1)
@@ -2753,3 +2757,109 @@ end
             end
         end
     end
+
+--// UtilityNet //
+local CreatedEntities = {}
+
+--#region API
+
+UtilityNet.SetModelRenderDistance = function(model, distance)
+    TriggerServerEvent("Utility:Net:SetModelRenderDistance", model, distance)
+end
+
+UtilityNet.CreateEntity = function(model, coords, options)
+    local callId = math.random(0, 10000000)
+    local event = nil
+    local entity = promise:new()
+
+    event = RegisterNetEvent("Utility:Net:EntityCreated"..callId, function(uNetId)
+        entity:resolve(uNetId)
+        RemoveEventHandler(event)
+    end)
+
+    options = options or {}
+    options.resource = GetCurrentResourceName()
+    TriggerServerEvent("Utility:Net:CreateEntity", callId, model, coords, options)
+
+    local id = Citizen.Await(entity)
+    table.insert(CreatedEntities, id)
+
+    return id
+end
+
+UtilityNet.DeleteEntity = function(uNetId)
+    TriggerServerEvent("Utility:Net:DeleteEntity", uNetId)
+
+    for k, v in pairs(CreatedEntities) do
+        if v == uNetId then
+            table.remove(CreatedEntities, k)
+            break
+        end
+    end
+end
+
+UtilityNet.PreserveEntity = function(uNetId)
+    local entity = UtilityNet.GetEntityFromUNetId(uNetId)
+    
+    Entity(entity).state.preserved = true
+end
+
+UtilityNet.OnRender = function(cb)
+    AddEventHandler("Utility:Net:OnRender", cb)
+end
+
+UtilityNet.OnUnrender = function(cb)
+    AddEventHandler("Utility:Net:OnUnrender", cb)
+end
+
+--#region State
+UtilityNet.AddStateBagChangeHandler = function(uNetId, func)
+    return AddStateBagChangeHandler(nil, "global", function(bagName, key, value)
+        local _unetId, _key = key:match("EntityState_(%d+)_(%w+)")
+
+        if tonumber(_unetId) == uNetId and _key then
+            func(_key, value)
+        end
+    end)
+end
+
+UtilityNet.State = function(uNetId)
+    local state = setmetatable({}, {
+        __index = function(_, k)
+            local stateId = "EntityState_"..uNetId.."_"..k
+
+            return GlobalState[stateId]
+        end,
+
+        __newindex = function(_, k, v)
+            error("Cannot set states from client")
+        end
+    })
+
+    return state
+end
+--#endregion
+
+--#region Casters
+UtilityNet.GetEntityFromUNetId = function(uNetId)
+    return exports["utility_lib"]:GetEntityFromUNetId()
+end
+
+UtilityNet.GetUNetIdFromEntity = function(entity)
+    return exports["utility_lib"]:GetUNetIdFromEntity()
+end
+--#endregion
+
+--#endregion
+
+--#region Garbage Collection
+AddEventHandler("onResourceStop", function(resource)
+    local currentResource = GetCurrentResourceName()
+
+    if resource == currentResource then
+        for k, v in pairs(CreatedEntities) do
+            TriggerServerEvent("Utility:Net:DeleteEntity", v)
+        end
+    end
+end)
+--#endregion

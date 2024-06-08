@@ -3,18 +3,21 @@ fx_version 'cerulean'
 repository 'https://github.com/utility-library/utility_lib'
 game 'gta5'
 
+lua54 "yes"
+
 client_scripts {
-    "@utility_framework/client/api.lua",
     "config.lua",
     'client/native.lua',
+    'client/functions/*.lua',
     'client/main.lua',
 }
 
 server_scripts {
-    "@utility_framework/server/api.lua",
-    "config.lua",
     "@mysql-async/lib/MySQL.lua",
+    
+    "config.lua",
     "server/native.lua",
+    'server/functions/*.lua',
     "server/main.lua",
     "version_checker.lua"
 }

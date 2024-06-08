@@ -496,3 +496,57 @@
     GetDataForJob = function(job)
         return exports["utility_lib"]:GetDataForJob(job)
     end
+
+--// UtilityNet //--
+local CreatedEntities = {}
+UtilityNet = {}
+
+UtilityNet.CreateEntity = function(model, coords, options)
+    local id = exports["utility_lib"]:CreateEntity(model, coords, options)
+    table.insert(CreatedEntities, id)
+
+    return id
+end
+
+UtilityNet.DeleteEntity = function(uNetId)
+    for k, v in pairs(CreatedEntities) do
+        if v == uNetId then
+            table.remove(CreatedEntities, k)
+            break
+        end
+    end
+
+    return exports["utility_lib"]:DeleteEntity(uNetId)
+end
+
+UtilityNet.SetModelRenderDistance = function(model, distance)
+    return exports["utility_lib"]:SetModelRenderDistance(model, distance)
+end
+
+UtilityNet.State = function(id)
+    local state = setmetatable({}, {
+        __index = function(_, k)
+            local stateId = "EntityState_"..id.."_"..k
+
+            return GlobalState[stateId]
+        end,
+
+        __newindex = function(_, k, v)
+            -- Everything in single states so when we update one of the values we dont need to update all of them
+            local stateId = "EntityState_"..id.."_"..k
+            exports["utility_lib"]:EnsureStateKey(id, k)
+
+            GlobalState[stateId] = v
+        end
+    })
+
+    return state
+end
+
+AddEventHandler("onResourceStop", function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        for k, v in pairs(CreatedEntities) do
+            exports["utility_lib"]:DeleteEntity(v)
+        end
+    end
+end)

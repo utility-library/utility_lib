@@ -1,10 +1,6 @@
 Config = {}
 
--- Marker/Object
-Config.UpdateCooldown = 500 -- (default: 500ms) This is the time when the position/distance will update
-
--- Dialogue
-Config.UpdateDialogue = 100 -- (default: 100ms) This is the time when the 3dText will update
+Config.UpdateCooldown = 500 -- (default: 500ms) This is the time when every loop will update (dialogues, markers, utilityNet rendering)
 
 Config.EmitterTriggerForSyncedVariable = true -- (default: false) Active the emitter for synced variables, can be a problem in the side of security since it could be abused by modders to pretend to be in a marker!
 
