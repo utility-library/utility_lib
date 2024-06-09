@@ -62,8 +62,15 @@ StartUtilityNetRenderLoop = function()
         local modelsRenderDistance = GlobalState.ModelsRenderDistance
 
         if #entities > 0 then
+            local wasLoading = false
+
             while not HasCollisionLoadedAroundEntity(player) or not NetworkIsPlayerActive(PlayerId()) do
+                wasLoading = true
                 Citizen.Wait(100)
+            end
+
+            if wasLoading then
+                Citizen.Wait(1000)
             end
     
             local coords = GetEntityCoords(player)
