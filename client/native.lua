@@ -2801,7 +2801,11 @@ end
 UtilityNet.PreserveEntity = function(uNetId)
     local entity = UtilityNet.GetEntityFromUNetId(uNetId)
     
-    Entity(entity).state.preserved = true
+    if entity then
+        Entity(entity).state.preserved = true
+    else
+        warn("PreserverEntity: Entity with uNetId "..uNetId.." not found")        
+    end
 end
 
 UtilityNet.OnRender = function(cb)
@@ -2842,11 +2846,11 @@ end
 
 --#region Casters
 UtilityNet.GetEntityFromUNetId = function(uNetId)
-    return exports["utility_lib"]:GetEntityFromUNetId()
+    return exports["utility_lib"]:GetEntityFromUNetId(uNetId)
 end
 
 UtilityNet.GetUNetIdFromEntity = function(entity)
-    return exports["utility_lib"]:GetUNetIdFromEntity()
+    return exports["utility_lib"]:GetUNetIdFromEntity(entity)
 end
 --#endregion
 

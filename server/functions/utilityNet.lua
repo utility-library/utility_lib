@@ -2,6 +2,12 @@ local NextId = 1
 local StateKeys = {}
 UtilityNet = {}
 
+-- options = {
+--     resource = string (used internally)
+--     replace = boolean (replace an already existing object, without creating a new one)
+--     searchDistance = number (default 5.0, replace search distance)
+-- }
+
 UtilityNet.CreateEntity = function(model, coords, options)
     --#region Checks
     if not model or (type(model) ~= "string" and type(model) ~= "number") then

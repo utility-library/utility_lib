@@ -6,13 +6,13 @@ RenderLocalEntity = function(uNetId, coords, model, options)
         local attempts = 0
         
         while attempts < 5 and not DoesEntityExist(obj) do
-            obj = GetClosestObjectOfType(coords, 1.0, model)
+            obj = GetClosestObjectOfType(coords, options.searchDistance or 5.0, model)
             attempts = attempts + 1
             Citizen.Wait(500)
         end
 
         if attempts >= 5 and not DoesEntityExist(obj) then
-            error("Failed to find object to replace, model: "..model.." coords: "..coords.." uNetId:"..uNetId)
+            warn("Failed to find object to replace, model: "..model.." coords: "..coords.." uNetId:"..uNetId)
             return
         end
 
