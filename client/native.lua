@@ -334,9 +334,11 @@ end
     _G.old_DeleteEntity = DeleteEntity
     DeleteEntity = function(entity, isnetwork)
         if not isnetwork then
+            local attempts = 0
             NetworkRequestControlOfEntity(entity)
             -- entity = entityHandler
-            while not NetworkRequestControlOfEntity(entity) do
+            while not NetworkRequestControlOfEntity(entity) and attempts < 10 do
+                attempts = attempts + 1
                 Citizen.Wait(1)
             end
 
@@ -350,8 +352,10 @@ end
             NetworkRequestControlOfNetworkId(entity)
             
             local new_entity = NetworkGetEntityFromNetworkId(entity)
+            local attempts = 0
 
-            while not NetworkRequestControlOfEntity(new_entity) do
+            while not NetworkRequestControlOfEntity(new_entity) and attempts < 10 do
+                attempts = attempts + 1
                 Citizen.Wait(1)
             end
 
