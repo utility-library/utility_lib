@@ -37,11 +37,11 @@ end
 
 UnrenderLocalEntity = function(uNetId)
     local entity = UtilityNet.GetEntityFromUNetId(uNetId)
-    TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
-
-    Citizen.Wait(1)
 
     if DoesEntityExist(LocalEntities[uNetId]) then
+        TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
+        Citizen.Wait(1)
+
         local state = Entity(LocalEntities[uNetId]).state
 
         if not state.keepAlive then
