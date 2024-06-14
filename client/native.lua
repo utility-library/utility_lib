@@ -2169,7 +2169,13 @@ end
             return "utility_heist:"..type.."_trolly:"..math.random(1, 10000) -- example: utility_heist:cash_trolly:3910
         end
         
-        CreateTrolly = function(type, coords, giveCash, notify, minSpeed, maxSpeed, networked)
+        CreateTrolly = function(type, coords, giveCash, notify, repeatedlyPress, minSpeed, maxSpeed, networked)
+            if type(repeatedlyPress) == "number" then -- For backwards compatibility
+                networked = maxSpeed
+                maxSpeed = minSpeed
+                minSpeed = repeatedlyPress
+            end
+
             local obj = nil
             local id = GenerateTrollyId(type) -- Pseudo random id
         
@@ -2189,6 +2195,7 @@ end
             SetFor(id, "minSpeed", minSpeed)
             SetFor(id, "maxSpeed", maxSpeed)
             SetFor(id, "giveCash", giveCash)
+            SetFor(id, "repeatedlyPress", repeatedlyPress)
 
             local eventHandler = nil
             eventHandler = On("marker", function(_id)
@@ -2287,7 +2294,7 @@ end
             return scene
         end
         
-        local StartPlayerInteractionGrabLoop = function(grabScene, min, max)
+        local StartPlayerInteractionGrabLoop = function(grabScene, min, max, repeatedlyPress)
             local lscene = NetworkGetLocalSceneFromNetworkId(grabScene)
             local speed = min
             local finished = false
@@ -2311,7 +2318,7 @@ end
             end
 
             Citizen.CreateThread(function()
-                AddTextEntry('PersistentButtonNotification', "Repeatedly press ~INPUT_SCRIPT_RDOWN~ to grab faster")
+                AddTextEntry('PersistentButtonNotification', repeatedlyPress or "Repeatedly press ~INPUT_SCRIPT_RDOWN~ to grab faster")
                 BeginTextCommandDisplayHelp('PersistentButtonNotification')
                 EndTextCommandDisplayHelp(0, true, true, -1)
             end)
@@ -2392,7 +2399,7 @@ end
             -- Grab Scene
                 local grabScene = StartLootGrabScene(bagObj, trolly)
                 developer("^3Scenes^0", "Started grab scene")
-                StartPlayerInteractionGrabLoop(grabScene, options.minSpeed or 1.0, options.maxSpeed or 1.6)
+                StartPlayerInteractionGrabLoop(grabScene, options.minSpeed or 1.0, options.maxSpeed or 1.6, options.repeatedlyPress)
         
                 CollectCashProp(id, options.giveCash) -- last cash prop isnt in the animation events
                 
