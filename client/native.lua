@@ -1253,16 +1253,6 @@ end
         return next(_table) == nil
     end
 
-    -- I dont think this works, i dont have learned and tested so much metatable of lua
-    table.clone = function(_table)
-        _table.metatable = {__index = _table}
-
-        local _result = {}
-        setmetatable(_result, _table.metatable)
-
-        return _result
-    end
-
 --// Dialog //--
     local function DialogueTable(entity, dialog, editing)
         return {
