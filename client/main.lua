@@ -59,7 +59,7 @@ LoadJobsAndListenForChanges()
 
     RegisterNetEvent("Utility:Create", function(type, id, table, res)
         if table.slice then
-            Utility.Cache.SliceGroups[tostring(table.slice)] = true
+            SetSliceUsed(table.slice, true)
         end
 
         if table.job then
@@ -89,10 +89,10 @@ LoadJobsAndListenForChanges()
             end
 
             if canClearOldSlice then
-                Utility.Cache.SliceGroups[oldSlice] = nil
+                SetSliceUsed(oldSlice, false)
             end
-
-            Utility.Cache.SliceGroups[new_data] = true
+            
+            SetSliceUsed(new_data, true)
         end
 
         Utility.Cache[type][id][field] = new_data 

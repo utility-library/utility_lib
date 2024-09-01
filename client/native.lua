@@ -738,42 +738,113 @@ end
     end
 
 --// Slices //--
-    function GetSliceCoordsFromCoords(coord)
-        --                       coord + max / sliceRadius
-        return vector2(math.floor((coord.x + 8192) / 100), math.floor((coord.y + 8192) / 100))
+    local sliceSize = 100.0
+    local slicesLength = 8100
+    local sliceCollumns = slicesLength / sliceSize
+
+    function GetSliceColRowFromCoords(coords)
+        local row = math.floor((coords.x) / sliceSize)
+        local col = math.floor((coords.y) / sliceSize)
+
+        return col, row
+    end
+
+    function GetWorldCoordsFromSlice(slice)
+        local col = math.floor(slice / sliceCollumns)
+        local row = slice % sliceCollumns
+
+        return vec3((row * sliceSize), (col * sliceSize), 0.0)
+    end
+
+    function GetSliceIdFromColRow(col, row)
+        return math.floor(col * sliceCollumns + row)
     end
 
     function GetSliceFromCoords(pos)
-        local slice = GetSliceCoordsFromCoords(pos)
-        --               (x * 2^2 + y) = id
-        local id = (slice.x * 4) + slice.y
+        local col, row = GetSliceColRowFromCoords(pos)
 
-        return id
+        return GetSliceIdFromColRow(col, row)
     end
 
     function GetEntitySlice(ped)
         return GetSliceFromCoords(GetEntityCoords(ped))
     end
+
     function GetPlayerSlice(player)
         local ped = GetPlayerPed(player)
 
         return GetSliceFromCoords(GetEntityCoords(ped))
     end
+    
     function GetSelfSlice()
         local ped = PlayerPedId()
 
         return GetSliceFromCoords(GetEntityCoords(ped))
     end
+
     function IsOnScreen(coords)
         local onScreen, _x, _y = World3dToScreen2d(coords.x, coords.y, coords.z)
                         
         return onScreen
     end
+    
+    function GetSurroundingSlices(slice)
+        local top = slice - sliceCollumns
+        local bottom = slice + sliceCollumns
+    
+        local right = slice - 1
+        local left = slice + 1
+    
+        local topright = slice - sliceCollumns - 1
+        local topleft = slice - sliceCollumns + 1
+        local bottomright = slice + sliceCollumns - 1
+        local bottomleft = slice + sliceCollumns + 1
+    
+        return {top, bottom, left, right, topright, topleft, bottomright, bottomleft}
+    end
+
+    function DrawDebugSlice(slice, drawSorroundings, zOffset)
+        local drawRects = {}
+        local sorrounding = drawSorroundings and GetSurroundingSlices(slice) or {}
+    
+        for k,v in pairs({slice, table.unpack(sorrounding)}) do
+            local bottomLeftSlice = slice + sliceCollumns + 1
+    
+            table.insert(drawRects, {
+                GetWorldCoordsFromSlice(v)               + vec3(0.0,0.0, zOffset or 500.0),
+                GetWorldCoordsFromSlice(bottomLeftSlice) + vec3(0.0,0.0, zOffset or 500.0),
+            })
+        end
+    
+        -- Predefined colors to distinguish slices
+        local colors = {
+            {255, 0, 0},
+            {0, 255, 0},
+            {0, 0, 255},
+            {255, 255, 0},
+            {0, 255, 255},
+            {255, 0, 255},
+            {255, 255, 255}
+        }
+
+        -- Draw rects
+        for i=1, #drawRects do
+            local color = colors[i % #colors + 1]
+
+            DrawBox(drawRects[i][1], drawRects[i][2], color[1], color[2], color[3], 150)
+        end
+    end
+
     function SliceUsed(slice)
         return Utility.Cache.SliceGroups[slice] or false
     end
+    
     function SetSliceUsed(slice, value)
-        Utility.Cache.SliceGroups[slice] = value
+        if value then
+            Utility.Cache.SliceGroups[slice] = value
+        else
+            Utility.Cache.SliceGroups[slice] = nil
+        end
     end
 
 
@@ -809,7 +880,7 @@ end
                 render_distance = render_distance,
                 interaction_distance = interaction_distance,
                 coords = coords,
-                slice = (options and options.slice == "ignore") and -1 or tostring(GetSliceFromCoords(coords))
+                slice = (options and options.slice == "ignore") and "ignore" or GetSliceFromCoords(coords)
             }
 
             -- Options
@@ -966,7 +1037,7 @@ end
             obj = obj,
             coords = pos,
             interaction_distance = interaction_distance or 3.0,
-            slice = tostring(GetSliceFromCoords(pos)),
+            slice = GetSliceFromCoords(pos),
             job = job
         }
 
@@ -1253,16 +1324,6 @@ end
         return next(_table) == nil
     end
 
-    -- I dont think this works, i dont have learned and tested so much metatable of lua
-    table.clone = function(_table)
-        _table.metatable = {__index = _table}
-
-        local _result = {}
-        setmetatable(_result, _table.metatable)
-
-        return _result
-    end
-
 --// Dialog //--
     local function DialogueTable(entity, dialog, editing)
         return {
@@ -1330,7 +1391,7 @@ end
             curQuestion = 1,
             callback = callback,
             stopWhenTalking = stopWhenTalking,
-            slice = tostring(GetEntitySlice(entity))
+            slice = GetEntitySlice(entity)
         }
 
         developer("^2Created^0", "dialogue with entity", entity)
@@ -2795,7 +2856,20 @@ UtilityNet.CreateEntity = function(model, coords, options)
     local id = Citizen.Await(entity)
     table.insert(CreatedEntities, id)
 
+    if not options.ignoreExistance then
+        while not UtilityNet.DoesEntityExist(id) do
+            --print("Wait exist")
+            Citizen.Wait(0)
+        end
+    else
+        options.ignoreExistance = nil
+    end
+
     return id
+end
+
+UtilityNet.DoesEntityExist = function(uNetId)
+    return DoesEntityExist(UtilityNet.GetEntityFromUNetId(uNetId))
 end
 
 UtilityNet.DeleteEntity = function(uNetId)
@@ -2805,6 +2879,56 @@ UtilityNet.DeleteEntity = function(uNetId)
         if v == uNetId then
             table.remove(CreatedEntities, k)
             break
+        end
+    end
+end
+
+UtilityNet.AttachToEntity = function(uNetId, object, bone, pos, rot, useSoftPinning, collision, rotationOrder, syncRot)
+    local params = {bone = bone, pos = pos, rot = rot, useSoftPinning = useSoftPinning, collision = collision, rotationOrder = rotationOrder, syncRot = syncRot}
+
+    if NetworkGetEntityIsNetworked(object) and DoesEntityExist(object) then
+        TriggerServerEvent("Utility:Net:AttachToEntity", uNetId, NetworkGetNetworkIdFromEntity(object), params)
+    else
+        params.isUtilityNet = true
+        TriggerServerEvent("Utility:Net:AttachToEntity", uNetId, object, params)
+    end
+end
+
+UtilityNet.DetachEntity = function(uNetId)
+    local obj = UtilityNet.GetEntityFromUNetId(uNetId)
+    local coords = GetEntityCoords(obj)
+
+    TriggerServerEvent("Utility:Net:DetachEntity", uNetId, coords)
+
+    while IsEntityAttached(obj) do
+        Citizen.Wait(1)
+    end
+end
+
+UtilityNet.SetEntityCoords = function(uNetId, coords)
+    TriggerServerEvent("Utility:Net:SetEntityCoords", uNetId, coords)
+end
+
+UtilityNet.SetEntityRotation = function(uNetId, rot)
+    TriggerServerEvent("Utility:Net:SetEntityRotation", uNetId, rot)
+end
+
+UtilityNet.GetEntityCoords = function(uNetId)
+    local entities = GlobalState.Entities
+
+    for k, v in pairs(entities) do
+        if v.id == uNetId then
+            return v.coords
+        end
+    end
+end
+
+UtilityNet.GetEntityRotation = function(uNetId)
+    local entities = GlobalState.Entities
+
+    for k, v in pairs(entities) do
+        if v.id == uNetId then
+            return v.options.rotation
         end
     end
 end
@@ -2852,6 +2976,12 @@ UtilityNet.State = function(uNetId)
     })
 
     return state
+end
+
+UtilityNet.StateFromObj = function(obj)
+    local netId = UtilityNet.GetUNetIdFromEntity(obj)
+
+    return UtilityNet.State(netId)
 end
 --#endregion
 

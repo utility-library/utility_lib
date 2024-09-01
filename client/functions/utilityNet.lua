@@ -1,12 +1,32 @@
+local AttachToEntity = function(obj, to, params)
+    local attachToObj = nil
+
+    if not params.isUtilityNet then
+        attachToObj = NetworkGetEntityFromNetworkId(to)
+    else
+        local obj = UtilityNet.GetEntityFromUNetId(to)
+
+        if DoesEntityExist(obj) then
+            attachToObj = obj
+        end
+    end
+
+    if attachToObj then
+        print("Attaching", obj.." ("..GetEntityArchetypeName(obj)..")", "with", tostring(attachToObj).." ("..GetEntityArchetypeName(attachToObj)..")")
+        AttachEntityToEntity(obj, attachToObj, params.bone, params.pos, params.rot, false, params.useSoftPinning, params.collision, true, params.rotationOrder, params.syncRot)
+    end
+end
+
 RenderLocalEntity = function(uNetId, coords, model, options)
     options = options or {}
     local obj = 0
+    local state = UtilityNet.State(uNetId)
 
     if options.replace then
         local attempts = 0
         
         while attempts < 5 and not DoesEntityExist(obj) do
-            obj = GetClosestObjectOfType(coords, options.searchDistance or 5.0, model)
+            obj = GetClosestObjectOfType(coords.xyz, options.searchDistance or 5.0, model)
             attempts = attempts + 1
             Citizen.Wait(500)
         end
@@ -18,21 +38,26 @@ RenderLocalEntity = function(uNetId, coords, model, options)
 
         -- If found keep it alive on unrender
         Entity(obj).state.keepAlive = true
-    else
-        -- If already exists use that (to also allow for re-rendering of map placed objects)
-        obj = GetClosestObjectOfType(coords, 1.0, model)
 
-        if obj == 0 then
-            obj = CreateObject(model, coords, false)
-        else
-            -- If found keep it alive on unrender
-            Entity(obj).state.keepAlive = true
+        -- Force heading to be the same
+        SetEntityHeading(obj, coords.w)
+    else
+        obj = CreateObject(model, coords, false)
+        SetEntityCoords(obj, coords) -- This is required to ignore the pivot
+      
+        if options.rotation then
+            SetEntityRotation(obj, options.rotation)
         end
     end
     
-    LocalEntities[uNetId] = obj
+    if state.__attached then
+        AttachToEntity(obj, state.__attached.object, state.__attached.params)
+    end
 
+    LocalEntities[uNetId] = obj
     TriggerEvent("Utility:Net:OnRender", uNetId, obj, model)
+
+    return obj
 end
 
 UnrenderLocalEntity = function(uNetId)
@@ -41,6 +66,10 @@ UnrenderLocalEntity = function(uNetId)
     if DoesEntityExist(LocalEntities[uNetId]) then
         TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
         Citizen.Wait(1)
+
+        if not LocalEntities[uNetId] then
+            return
+        end
 
         local state = Entity(LocalEntities[uNetId]).state
 
@@ -62,32 +91,47 @@ StartUtilityNetRenderLoop = function()
         local modelsRenderDistance = GlobalState.ModelsRenderDistance
 
         if #entities > 0 then
-            local wasLoading = false
+            local isLoading = false
 
             while not HasCollisionLoadedAroundEntity(player) or not NetworkIsPlayerActive(PlayerId()) do
-                wasLoading = true
+                isLoading = true
                 Citizen.Wait(100)
             end
 
-            if wasLoading then
+            if isLoading then
                 Citizen.Wait(1000)
             end
     
             local coords = GetEntityCoords(player)
+            local slices = {}
+            
+            -- Add current slice and surrounding slices to the list
+            slices[currentSlice] = true
+
+            for _, v in pairs(GetSurroundingSlices(currentSlice)) do
+                slices[v] = true
+            end
 
             for _, v in pairs(entities) do
                 local uNetId = v.id
                 local entity = UtilityNet.GetEntityFromUNetId(uNetId)
-    
-                if #(v.coords - coords) < (modelsRenderDistance[v.model] or 50.0) then
-                    if not entity or not DoesEntityExist(entity) then
+                local state = UtilityNet.State(uNetId)
+
+                -- Is in a drawing slice
+                if slices[v.slice] and ((#(v.coords - coords) < (modelsRenderDistance[v.model] or 50.0)) or state.__attached) then
+                    if not DoesEntityExist(entity) then
                         if entity and not DoesEntityExist(entity) then
                             --print("Before rendering unrender old entity", uNetId)
                             UnrenderLocalEntity(uNetId)
                         end
     
-                        --print("Render", uNetId)
-                        RenderLocalEntity(uNetId, v.coords, v.model, v.options)
+                        entity = RenderLocalEntity(uNetId, v.coords, v.model, v.options)
+                    end
+
+                    if state.__attached and not IsEntityAttached(entity) then
+                        AttachToEntity(entity, state.__attached.object, state.__attached.params)
+                    elseif not state.__attached and IsEntityAttached(entity) then
+                        DetachEntity(entity, true, true)
                     end
                 else
                     if entity then
@@ -98,6 +142,18 @@ StartUtilityNetRenderLoop = function()
         end
     end, Config.UpdateCooldown)
 end
+
+RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords)
+    if LocalEntities[uNetId] then
+        SetEntityCoords(LocalEntities[uNetId], coords)
+    end
+end)
+
+RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation)
+    if LocalEntities[uNetId] then
+        SetEntityRotation(LocalEntities[uNetId], rotation)
+    end
+end)
 
 -- Unrender entities on resource stop
 AddEventHandler("onResourceStop", function(resource)

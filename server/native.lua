@@ -483,18 +483,60 @@
         return next(_table) == nil
     end
 
-    -- I dont think this works, i dont have learned and tested so much metatable of lua
-    table.clone = function(_table)
-        _table.metatable = {__index = _table}
+    -- https://www.gamedev.net/tutorials/programming/general-and-gameplay-programming/inverse-lerp-a-super-useful-yet-often-overlooked-function-r5230/
+    math.lerp = function(start, _end, perc)
+        return start + (_end - start) * perc
+    end
 
-        local _result = {}
-        setmetatable(_result, _table.metatable)
-
-        return _result
+    math.invlerp = function(start, _end, value)
+        return (value - start) / (_end - start)
     end
 
     GetDataForJob = function(job)
         return exports["utility_lib"]:GetDataForJob(job)
+    end
+--// Slices //--
+    local sliceSize = 100.0
+    local slicesLength = 8100
+    local sliceCollumns = slicesLength / sliceSize
+
+    function GetSliceColRowFromCoords(coords)
+        local row = math.floor((coords.x) / sliceSize)
+        local col = math.floor((coords.y) / sliceSize)
+
+        return col, row
+    end
+
+    function GetWorldCoordsFromSlice(slice)
+        local col = math.floor(slice / sliceCollumns)
+        local row = slice % sliceCollumns
+
+        return vec3((row * sliceSize), (col * sliceSize), 0.0)
+    end
+
+    function GetSliceIdFromColRow(col, row)
+        return math.floor(col * sliceCollumns + row)
+    end
+
+    function GetSliceFromCoords(pos)
+        local col, row = GetSliceColRowFromCoords(pos)
+
+        return GetSliceIdFromColRow(col, row)
+    end
+
+    function GetSurroundingSlices(slice)
+        local top = slice - sliceCollumns
+        local bottom = slice + sliceCollumns
+
+        local right = slice - 1
+        local left = slice + 1
+
+        local topright = slice - sliceCollumns - 1
+        local topleft = slice - sliceCollumns + 1
+        local bottomright = slice + sliceCollumns - 1
+        local bottomleft = slice + sliceCollumns + 1
+
+        return {top, bottom, left, right, topright, topleft, bottomright, bottomleft}
     end
 
 --// UtilityNet //--
@@ -519,16 +561,99 @@ UtilityNet.DeleteEntity = function(uNetId)
     return exports["utility_lib"]:DeleteEntity(uNetId)
 end
 
+UtilityNet.DoesUNetIdExist = function(uNetId)
+    for k,v in pairs(GlobalState.Entities) do
+        if v.id == uNetId then
+            return true
+        end
+    end
+
+    return false
+end
+
+UtilityNet.GetEntityCoords = function(uNetId)
+    for k,v in pairs(GlobalState.Entities) do
+        if v.id == uNetId then
+            return v.coords
+        end
+    end
+end
+
+UtilityNet.GetEntityModel = function(uNetId)
+    for k,v in pairs(GlobalState.Entities) do
+        if v.id == uNetId then
+            return v.model
+        end
+    end
+end
+
 UtilityNet.SetModelRenderDistance = function(model, distance)
     return exports["utility_lib"]:SetModelRenderDistance(model, distance)
+end
+
+UtilityNet.SetEntityCoords = function(uNetId, newCoords)
+    return exports["utility_lib"]:SetEntityCoords(uNetId, newCoords)
+end
+
+UtilityNet.SetEntityRotation = function(uNetId, newRotation)
+    return exports["utility_lib"]:SetEntityRotation(uNetId, newRotation)
+end
+
+local getValueAsStateTable = nil
+getValueAsStateTable = function(stateId, depth)
+    depth = depth or {}
+
+    local getCurrentValue = function(baseTab)
+        local value = baseTab or GlobalState[stateId]
+
+        -- Dive into table
+        for k,v in pairs(depth) do
+            value = value[v]
+        end
+
+        return value
+    end
+
+    return setmetatable({}, {
+        __index = function(_, k2)
+            local value = getCurrentValue()
+
+            if type(value[k2]) == "table" then
+                -- Clone the table to dont mess up the current depth table
+                local clonedDepth = table.clone(depth)
+                -- Add to depth
+                table.insert(clonedDepth, k2)
+
+                -- Generate another state table but more in depth
+                return getValueAsStateTable(stateId, clonedDepth)
+            else
+                return value[k2]
+            end
+        end,
+        __newindex = function(_, k2, v)
+            local valueBeforeDepth = GlobalState[stateId]
+            local value = getCurrentValue(valueBeforeDepth)
+
+            -- Set
+            value[k2] = v
+            
+            -- Update state table
+            GlobalState[stateId] = valueBeforeDepth
+        end
+    })
 end
 
 UtilityNet.State = function(id)
     local state = setmetatable({}, {
         __index = function(_, k)
             local stateId = "EntityState_"..id.."_"..k
+            local value = GlobalState[stateId]
 
-            return GlobalState[stateId]
+            if type(value) == "table" then
+                return getValueAsStateTable(stateId)
+            else
+                return value
+            end
         end,
 
         __newindex = function(_, k, v)

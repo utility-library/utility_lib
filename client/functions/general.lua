@@ -20,7 +20,7 @@ end
 
 StartCacheUpdateLoop = function()
     CreateLoop(function(loopId)
-        currentSlice = tostring(GetSelfSlice())
+        currentSlice = GetSelfSlice()
         player = PlayerPedId()
     end, Config.UpdateCooldown)
 end

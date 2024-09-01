@@ -1,6 +1,7 @@
 local NextId = 1
 local StateKeys = {}
-UtilityNet = {}
+
+UtilityNet = UtilityNet or {}
 
 -- options = {
 --     resource = string (used internally)
@@ -11,7 +12,7 @@ UtilityNet = {}
 UtilityNet.CreateEntity = function(model, coords, options)
     --#region Checks
     if not model or (type(model) ~= "string" and type(model) ~= "number") then
-        error("Invalid model, got "..type(model).." expected string", 2)
+        error("Invalid model, got "..type(model).." expected string", 0)
     else
         if type(model) == "string" then
             model = GetHashKey(model)
@@ -19,7 +20,7 @@ UtilityNet.CreateEntity = function(model, coords, options)
     end
 
     if not coords or type(coords) ~= "vector3" then
-        error("Invalid coords, got "..type(coords).." expected vector3", 2)
+        error("Invalid coords, got "..type(coords).." expected vector3", 0)
     end
 
     options = options or {}
@@ -39,12 +40,14 @@ UtilityNet.CreateEntity = function(model, coords, options)
         id = NextId,
         model = model,
         coords = coords,
+        slice = GetSliceFromCoords(coords),
         options = options,
         createdBy = options.resource or GetInvokingResource(),
     }
 
     table.insert(entities, object)
     GlobalState.Entities = entities
+
     NextId = NextId + 1
 
     return object.id
@@ -88,6 +91,7 @@ UtilityNet.DeleteEntity = function(uNetId)
         for k,v in pairs(StateKeys[uNetId]) do
             local stateId = "EntityState_"..uNetId.."_"..k
             GlobalState[stateId] = nil
+            --print("Cleared", stateId)
         end
 
         StateKeys[uNetId] = nil
@@ -108,11 +112,53 @@ end
 
 -- We need to store keys setted by every entity for clearing (as of now, there's no way to get the full table under the statebag)
 UtilityNet.EnsureStateKey = function(uNetId, key)
+    local resource = GetInvokingResource()
+
     if not StateKeys[uNetId] then
         StateKeys[uNetId] = {}
     end
 
     StateKeys[uNetId][key] = true
+end
+
+UtilityNet.SetEntityRotation = function(uNetId, newRotation)
+    local entities = GlobalState.Entities
+
+    if type(newRotation) ~= "vector3" then
+        error("Invalid rotation, got "..type(newRotation).." expected vector3", 2)
+    end
+
+    for k,v in pairs(entities) do
+        if v.id == uNetId then
+            v.options.rotation = newRotation
+            break
+        end
+    end
+
+    GlobalState.Entities = entities
+
+    -- This is to refresh the rotation also for currently rendering objects
+    TriggerClientEvent("Utility:Net:RefreshRotation", -1, uNetId, newRotation)
+end
+
+UtilityNet.SetEntityCoords = function(uNetId, newCoords)
+    local entities = GlobalState.Entities
+
+    if type(newCoords) ~= "vector3" then
+        error("Invalid coords, got "..type(newCoords).." expected vector3", 2)
+    end
+
+    for k,v in pairs(entities) do
+        if v.id == uNetId then
+            v.coords = newCoords
+            v.slice = GetSliceFromCoords(newCoords)
+            break
+        end
+    end
+
+    GlobalState.Entities = entities
+    -- This is to refresh the coords also for currently rendering objects
+    TriggerClientEvent("Utility:Net:RefreshCoords", -1 , uNetId, newCoords)
 end
 
 --#region Events
@@ -131,6 +177,38 @@ UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:SetModelRenderDistance", function(model, distance)
         UtilityNet.SetModelRenderDistance(model, distance)
     end)
+
+    RegisterNetEvent("Utility:Net:AttachToEntity", function(uNetId, object, params)
+        local state = UtilityNet.State(uNetId)
+
+        state.__attached = {
+            object = object,
+            params = params
+        }
+    end)
+
+    RegisterNetEvent("Utility:Net:DetachEntity", function(uNetId, newCoords)
+        local state = UtilityNet.State(uNetId)
+
+        if state.__attached then
+            -- Update entity coords
+            UtilityNet.SetEntityCoords(uNetId, newCoords)
+            state.__attached = nil
+        end
+    end)
+
+    RegisterNetEvent("Utility:Net:SetEntityCoords", UtilityNet.SetEntityCoords)
+    RegisterNetEvent("Utility:Net:SetEntityRotation", UtilityNet.SetEntityRotation)
+
+    -- Clear all entities on resource stop (this will prevent also statebag leaks)
+    AddEventHandler("onResourceStop", function(resource)
+        if resource == GetCurrentResourceName() then
+            for k,v in pairs(GlobalState.Entities) do
+                --print("Stopped utility deleting", v.id)
+                UtilityNet.DeleteEntity(v.id)
+            end
+        end
+    end)
 end
 --#endregion
 
@@ -139,3 +217,6 @@ exports("CreateEntity", UtilityNet.CreateEntity)
 exports("DeleteEntity", UtilityNet.DeleteEntity)
 exports("SetModelRenderDistance", UtilityNet.SetModelRenderDistance)
 exports("EnsureStateKey", UtilityNet.EnsureStateKey)
+
+exports("SetEntityCoords", UtilityNet.SetEntityCoords)
+exports("SetEntityRotation", UtilityNet.SetEntityRotation)

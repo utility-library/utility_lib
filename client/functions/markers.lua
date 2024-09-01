@@ -55,7 +55,7 @@ TryToDrawUtilityMarkers = function(slice)
     local drawing = false
 
     for k,v in pairs(Utility.Cache.Marker) do
-        if v.slice == slice or v.slice == -1 then
+        if v.slice == slice or v.slice == "ignore" then
             if DrawUtilityMarker(k,v) then
                 drawing = true
             end
