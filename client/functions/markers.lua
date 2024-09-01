@@ -154,7 +154,8 @@ LoadJobsAndListenForChanges = function()
             CurrentFramework = "QB"
 
             local QBCore = exports['qb-core']:GetCoreObject()
-
+            uPlayer = QBCore.Functions.GetPlayerData() or {}
+                
             RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
                 uPlayer = QBCore.Functions.GetPlayerData()
                 JobChange()
