@@ -38,16 +38,13 @@ RenderLocalEntity = function(uNetId, coords, model, options)
 
         -- If found keep it alive on unrender
         Entity(obj).state.keepAlive = true
-
-        -- Force heading to be the same
-        SetEntityHeading(obj, coords.w)
     else
         obj = CreateObject(model, coords, false)
         SetEntityCoords(obj, coords) -- This is required to ignore the pivot
-      
-        if options.rotation then
-            SetEntityRotation(obj, options.rotation)
-        end
+    end
+
+    if options.rotation then
+        SetEntityRotation(obj, options.rotation)
     end
     
     if state.__attached then
