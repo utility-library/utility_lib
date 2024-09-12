@@ -2903,6 +2903,11 @@ UtilityNet.DetachEntity = function(uNetId)
     while IsEntityAttached(obj) do
         Citizen.Wait(1)
     end
+
+    local state = UtilityNet.State(uNetId)
+    while state.__attached do
+        Citizen.Wait(1)
+    end
 end
 
 UtilityNet.SetEntityCoords = function(uNetId, coords)
@@ -2954,7 +2959,7 @@ end
 --#region State
 UtilityNet.AddStateBagChangeHandler = function(uNetId, func)
     return AddStateBagChangeHandler(nil, "global", function(bagName, key, value)
-        local _unetId, _key = key:match("EntityState_(%d+)_(%w+)")
+        local _unetId, _key = key:match("EntityState_(%d+)_(.+)")
 
         if tonumber(_unetId) == uNetId and _key then
             func(_key, value)

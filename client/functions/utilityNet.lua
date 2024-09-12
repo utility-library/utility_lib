@@ -54,6 +54,19 @@ RenderLocalEntity = function(uNetId, coords, model, options)
     LocalEntities[uNetId] = obj
     TriggerEvent("Utility:Net:OnRender", uNetId, obj, model)
 
+    -- Handle attach, detach
+    Entity(obj).state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
+        if key == "__attached" then
+            if value then
+                --print("Attach")
+                AttachToEntity(obj, value.object, value.params)
+            else
+                --print("Detach")
+                DetachEntity(obj, true, true)
+            end
+        end
+    end)
+
     return obj
 end
 
@@ -69,6 +82,11 @@ UnrenderLocalEntity = function(uNetId)
         end
 
         local state = Entity(LocalEntities[uNetId]).state
+
+        if state.changeHandler then
+            RemoveStateBagChangeHandler(state.changeHandler)
+            state.changeHandler = nil
+        end
 
         if not state.keepAlive then
             if state.preserved then
@@ -125,11 +143,11 @@ StartUtilityNetRenderLoop = function()
                         entity = RenderLocalEntity(uNetId, v.coords, v.model, v.options)
                     end
 
-                    if state.__attached and not IsEntityAttached(entity) then
+                    --[[ if state.__attached and not IsEntityAttached(entity) then
                         AttachToEntity(entity, state.__attached.object, state.__attached.params)
                     elseif not state.__attached and IsEntityAttached(entity) then
                         DetachEntity(entity, true, true)
-                    end
+                    end ]]
                 else
                     if entity then
                         UnrenderLocalEntity(uNetId)
