@@ -453,13 +453,9 @@
         return string
     end
 
+
     table.fexist = function(_table, field)
-        _table = _table[field]
-        if not _table then
-            return false
-        else
-            return true
-        end
+        return _table[field] ~= nil
     end
 
     local table_remove = table.remove
@@ -469,7 +465,7 @@
         elseif type(index) == "string" then
             for k, v in pairs(_table) do
                 if k == index then
-                    _table[k] = nil -- Can be bugged, probably in future update will be changed with a empty table => {}
+                    _table[k] = nil -- Can be bugged, probably in future update will be changed with a empty table
 
                     if onlyfirst then
                         return k
@@ -479,8 +475,128 @@
         end
     end
 
-    table.empty = function(_table)
-        return next(_table) == nil
+    ---Check if a table is empty.
+    ---@param t table
+    ---@return boolean
+    table.empty = function(t)
+        return next(t) == nil
+    end
+
+    ---Internal usage: Inserts a value into a table at a given key, or appends to the end if the key is a number.
+    ---@param t table
+    ---@param k any
+    ---@param v any
+    local table_insert = function(t, k, v)
+        if type(k) == "number" then
+            table.insert(t, v)
+        else
+            t[k] = v
+        end
+    end
+
+    ---Merges two tables together, if the same key is found in both tables the second table takes precedence.
+    ---@param t1 table
+    ---@param t2 table
+    ---@return table
+    table.merge = function(t1, t2)
+        ---@type table
+        local result = table.clone(t1)
+
+        for k, v in pairs(t2) do
+            table_insert(result, k, v)
+        end
+
+        return result
+    end
+
+
+    ---Checks if the given value exists in the table, if a function is given it test it on each value until it returns true.
+    ---@param t table
+    ---@param value any|fun(value: any): boolean
+    ---@return boolean
+    table.includes = function(t, value)
+        if type(value) == "function" then
+            for _, v in pairs(t) do
+                if value(v) then
+                    return true
+                end
+            end
+        else
+            for _, v in pairs(t) do
+                if value == v then
+                    return true
+                end
+            end
+        end
+
+        return false
+    end
+
+    ---Filters a table using a given filter, which can be an another table or a function.
+    ---@param t table
+    ---@param filter table|fun(k: any, v: any): boolean
+    ---@return table
+    table.filter = function(t, filter)
+        local result = {}
+
+        if type(filter) == "function" then
+            -- returns true.
+            for k, v in pairs(t) do
+                if filter(k, v) then
+                    table_insert(result, k, v)
+                end
+            end
+        elseif type(filter) == "table" then
+            for k, v in pairs(t) do
+                if table.includes(filter, v) then
+                    table_insert(result, k, v)
+                end
+            end
+        end
+
+        return result
+    end
+
+    ---Searches a table for the given value and returns the key if found.
+    ---@param t table
+    ---@param value any
+    ---@return any
+    table.find = function(t, value)
+        for k, v in pairs(t) do
+            if value == v then
+                return k
+            end
+        end
+    end
+
+    ---Returns a table with all keys of the given table.
+    ---@param t table
+    ---@return table
+    table.keys = function(t)
+        local keys = {}    
+        for k, _ in pairs(t) do
+            table.insert(keys, k)
+        end
+
+        return keys
+    end
+
+    ---Returns a table with all values of the given table.
+    ---@param t table
+    ---@return table
+    table.values = function(t)
+        local values = {}
+        
+        for _, v in pairs(t) do
+            table.insert(values, v)
+        end
+        
+        return values
+    end
+
+    math.round = function(number, decimals)
+        local _ = 10 ^ decimals
+        return math.floor((number * _) + 0.5) / (_)
     end
 
     -- https://www.gamedev.net/tutorials/programming/general-and-gameplay-programming/inverse-lerp-a-super-useful-yet-often-overlooked-function-r5230/
