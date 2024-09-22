@@ -1434,6 +1434,11 @@ end
         return values
     end
 
+    math.round = function(number, decimals)
+        local _ = 10 ^ decimals
+        return math.floor((number * _) + 0.5) / (_)
+    end
+
 --// Dialog //--
     local function DialogueTable(entity, dialog, editing)
         return {
