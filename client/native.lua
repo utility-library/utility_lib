@@ -3071,21 +3071,21 @@ end
 
 --#region State
 UtilityNet.AddStateBagChangeHandler = function(uNetId, func)
-    return AddStateBagChangeHandler(nil, "global", function(bagName, key, value)
-        local _unetId, _key = key:match("EntityState_(%d+)_(.+)")
-
-        if tonumber(_unetId) == uNetId and _key then
-            func(_key, value)
+    return RegisterNetEvent("Utility:Net:UpdateStateValue", function(s_uNetId, key, value)
+        if uNetId == s_uNetId then
+            func(key, value)
         end
     end)
+end
+
+UtilityNet.RemoveStateBagChangeHandler = function(eventData)
+    RemoveEventHandler(eventData)
 end
 
 UtilityNet.State = function(uNetId)
     local state = setmetatable({}, {
         __index = function(_, k)
-            local stateId = "EntityState_"..uNetId.."_"..k
-
-            return GlobalState[stateId]
+            return exports["utility_lib"]:GetEntityStateValue(uNetId, k)
         end,
 
         __newindex = function(_, k, v)

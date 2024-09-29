@@ -52,10 +52,19 @@ RenderLocalEntity = function(uNetId, coords, model, options)
     end
 
     LocalEntities[uNetId] = obj
+
+    TriggerServerEvent("Utility:Net:GetState", uNetId) -- Fetch initial states
+    TriggerServerEvent("Utility:Net:ListenStateUdpates", uNetId) -- Listen for future state updates
+
+    while EntitiesStates[uNetId] == nil do
+        Citizen.Wait(1)
+    end
+
     TriggerEvent("Utility:Net:OnRender", uNetId, obj, model)
 
     -- Handle attach, detach
-    Entity(obj).state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
+    local state = Entity(obj).state
+    state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
         if key == "__attached" then
             if value then
                 --print("Attach")
@@ -84,7 +93,7 @@ UnrenderLocalEntity = function(uNetId)
         local state = Entity(LocalEntities[uNetId]).state
 
         if state.changeHandler then
-            RemoveStateBagChangeHandler(state.changeHandler)
+            UtilityNet.RemoveStateBagChangeHandler(state.changeHandler)
             state.changeHandler = nil
         end
 
@@ -95,6 +104,9 @@ UnrenderLocalEntity = function(uNetId)
                 DeleteEntity(LocalEntities[uNetId])
             end
         end
+
+        EntitiesStates[uNetId] = nil
+        TriggerServerEvent("Utility:Net:RemoveStateListener", uNetId)
     end
 
     LocalEntities[uNetId] = nil

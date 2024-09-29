@@ -1,5 +1,4 @@
 local NextId = 1
-local StateKeys = {}
 
 UtilityNet = UtilityNet or {}
 
@@ -45,6 +44,7 @@ UtilityNet.CreateEntity = function(model, coords, options)
         createdBy = options.resource or GetInvokingResource(),
     }
 
+    RegisterEntityState(object.id)
     table.insert(entities, object)
     GlobalState.Entities = entities
 
@@ -86,17 +86,7 @@ UtilityNet.DeleteEntity = function(uNetId)
 
     GlobalState.Entities = entities
 
-    -- Clear all states
-    if StateKeys[uNetId] then
-        for k,v in pairs(StateKeys[uNetId]) do
-            local stateId = "EntityState_"..uNetId.."_"..k
-            GlobalState[stateId] = nil
-            --print("Cleared", stateId)
-        end
-
-        StateKeys[uNetId] = nil
-    end
-
+    ClearEntityStates(uNetId)
     TriggerClientEvent("Utility:Net:RequestDeletion", -1, uNetId)
 end
 
@@ -108,17 +98,6 @@ UtilityNet.SetModelRenderDistance = function(model, distance)
     local _ = GlobalState.ModelsRenderDistance
     _[model] = distance
     GlobalState.ModelsRenderDistance = _
-end
-
--- We need to store keys setted by every entity for clearing (as of now, there's no way to get the full table under the statebag)
-UtilityNet.EnsureStateKey = function(uNetId, key)
-    local resource = GetInvokingResource()
-
-    if not StateKeys[uNetId] then
-        StateKeys[uNetId] = {}
-    end
-
-    StateKeys[uNetId][key] = true
 end
 
 UtilityNet.SetEntityRotation = function(uNetId, newRotation)
@@ -216,7 +195,6 @@ end
 exports("CreateEntity", UtilityNet.CreateEntity)
 exports("DeleteEntity", UtilityNet.DeleteEntity)
 exports("SetModelRenderDistance", UtilityNet.SetModelRenderDistance)
-exports("EnsureStateKey", UtilityNet.EnsureStateKey)
 
 exports("SetEntityCoords", UtilityNet.SetEntityCoords)
 exports("SetEntityRotation", UtilityNet.SetEntityRotation)

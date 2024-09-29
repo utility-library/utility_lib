@@ -716,45 +716,49 @@ UtilityNet.SetEntityRotation = function(uNetId, newRotation)
 end
 
 local getValueAsStateTable = nil
-getValueAsStateTable = function(stateId, depth)
+getValueAsStateTable = function(id, baseKey, depth)
     depth = depth or {}
 
-    local getCurrentValue = function(baseTab)
-        local value = baseTab or GlobalState[stateId]
+    local getCurrentTable = function()
+        local baseTable = exports["utility_lib"]:GetEntityStateValue(id, baseKey)
 
         -- Dive into table
         for k,v in pairs(depth) do
-            value = value[v]
+            baseTable = baseTable[v]
         end
 
-        return value
+        return baseTable
     end
 
     return setmetatable({}, {
-        __index = function(_, k2)
-            local value = getCurrentValue()
+        __index = function(_, k)
+            local currentTable = getCurrentTable()
 
-            if type(value[k2]) == "table" then
+            if type(currentTable[k]) == "table" then
                 -- Clone the table to dont mess up the current depth table
                 local clonedDepth = table.clone(depth)
-                -- Add to depth
-                table.insert(clonedDepth, k2)
+                table.insert(clonedDepth, k)
 
                 -- Generate another state table but more in depth
-                return getValueAsStateTable(stateId, clonedDepth)
+                return getValueAsStateTable(id, baseKey, clonedDepth)
             else
-                return value[k2]
+                return currentTable[k]
             end
         end,
-        __newindex = function(_, k2, v)
-            local valueBeforeDepth = GlobalState[stateId]
-            local value = getCurrentValue(valueBeforeDepth)
+        __newindex = function(_, k, v)
+            local baseTable = exports["utility_lib"]:GetEntityStateValue(id, baseKey)
+            local currentTable = baseTable
 
+            -- Dive into table
+            for k,v in pairs(depth) do
+                currentTable = currentTable[v]
+            end
+    
             -- Set
-            value[k2] = v
+            currentTable[k] = v
             
             -- Update state table
-            GlobalState[stateId] = valueBeforeDepth
+            exports["utility_lib"]:SetEntityStateValue(id, baseKey, baseTable)
         end
     })
 end
@@ -762,22 +766,17 @@ end
 UtilityNet.State = function(id)
     local state = setmetatable({}, {
         __index = function(_, k)
-            local stateId = "EntityState_"..id.."_"..k
-            local value = GlobalState[stateId]
+            local value = exports["utility_lib"]:GetEntityStateValue(id, k)
 
             if type(value) == "table" then
-                return getValueAsStateTable(stateId)
+                return getValueAsStateTable(id, k, {})
             else
                 return value
             end
         end,
 
         __newindex = function(_, k, v)
-            -- Everything in single states so when we update one of the values we dont need to update all of them
-            local stateId = "EntityState_"..id.."_"..k
-            exports["utility_lib"]:EnsureStateKey(id, k)
-
-            GlobalState[stateId] = v
+            exports["utility_lib"]:SetEntityStateValue(id, k, v)
         end
     })
 
