@@ -50,6 +50,7 @@ UtilityNet.CreateEntity = function(model, coords, options)
 
     NextId = NextId + 1
 
+    TriggerClientEvent("Utility:Net:EntityCreated", -1, nil, object.id)
     return object.id
 end
 
@@ -90,6 +91,60 @@ UtilityNet.DeleteEntity = function(uNetId)
     TriggerClientEvent("Utility:Net:RequestDeletion", -1, uNetId)
 end
 
+local queues = {
+    ModelsRenderDistance = {},
+    Entities = {},
+}
+
+local function StartQueueUpdateLoop(bagkey)
+    local queue = queues[bagkey]
+
+    Citizen.CreateThread(function()
+        while queue.updateLoop do
+            -- Nothing added in the last 100ms
+            if (GetGameTimer() - queue.lastInt) > 200 then
+                local old = GlobalState[bagkey]
+                local count = 0
+
+                for k,v in pairs(old) do
+                    -- Net id need to be updated
+                    if queue[v.id] then
+                        count = count + 1
+
+                        -- Update values from queue to GlobalState
+                        if queue[v.id].rotation then
+                            v.options.rotation = queue[v.id].rotation
+                        end
+
+                        if queue[v.id].coords then
+                            v.coords = queue[v.id].coords
+                            v.slice = queue[v.id].slice
+                        end
+                    end
+                end
+
+                print(bagkey, "Updated", count, "entities")
+                -- Refresh GlobalState
+                GlobalState[bagkey] = old
+
+                queue.updateLoop = nil
+            end
+            Citizen.Wait(150)
+        end
+    end)
+end
+
+local function InsertValueInQueue(bagkey, id, value)
+    queues[bagkey][id] = value
+    queues[bagkey].lastInt = GetGameTimer()
+
+    if not queues[bagkey].updateLoop then
+        queues[bagkey].updateLoop = true
+        StartQueueUpdateLoop(bagkey)
+    end
+end
+
+
 UtilityNet.SetModelRenderDistance = function(model, distance)
     if type(model) == "string" then
         model = GetHashKey(model)
@@ -101,41 +156,21 @@ UtilityNet.SetModelRenderDistance = function(model, distance)
 end
 
 UtilityNet.SetEntityRotation = function(uNetId, newRotation)
-    local entities = GlobalState.Entities
-
     if type(newRotation) ~= "vector3" then
         error("Invalid rotation, got "..type(newRotation).." expected vector3", 2)
     end
 
-    for k,v in pairs(entities) do
-        if v.id == uNetId then
-            v.options.rotation = newRotation
-            break
-        end
-    end
-
-    GlobalState.Entities = entities
-
+    InsertValueInQueue("Entities", uNetId, {rotation = newRotation})
     -- This is to refresh the rotation also for currently rendering objects
     TriggerClientEvent("Utility:Net:RefreshRotation", -1, uNetId, newRotation)
 end
 
 UtilityNet.SetEntityCoords = function(uNetId, newCoords)
-    local entities = GlobalState.Entities
-
     if type(newCoords) ~= "vector3" then
         error("Invalid coords, got "..type(newCoords).." expected vector3", 2)
     end
 
-    for k,v in pairs(entities) do
-        if v.id == uNetId then
-            v.coords = newCoords
-            v.slice = GetSliceFromCoords(newCoords)
-            break
-        end
-    end
-
-    GlobalState.Entities = entities
+    InsertValueInQueue("Entities", uNetId, {coords = newCoords, slice = GetSliceFromCoords(newCoords)})
     -- This is to refresh the coords also for currently rendering objects
     TriggerClientEvent("Utility:Net:RefreshCoords", -1 , uNetId, newCoords)
 end
@@ -146,7 +181,7 @@ UtilityNet.RegisterEvents = function()
         local entity = UtilityNet.CreateEntity(model, coords, options)
     
         -- Call callback event
-        TriggerClientEvent("Utility:Net:EntityCreated"..callId, -1, entity)
+        TriggerClientEvent("Utility:Net:EntityCreated", -1, callId, entity)
     end)
     
     RegisterNetEvent("Utility:Net:DeleteEntity", function(uNetId)
