@@ -17,7 +17,15 @@ local AttachToEntity = function(obj, to, params)
     end
 end
 
-RenderLocalEntity = function(uNetId, coords, model, options)
+GetEntityIndexByNetId = function(netId)
+    for k, v in pairs(GlobalState.Entities) do
+        if v.id == netId then
+            return k
+        end
+    end
+end
+
+RenderLocalEntity = function(entityIndex, uNetId, coords, model, options)
     options = options or {}
     local obj = 0
     local state = UtilityNet.State(uNetId)
@@ -43,6 +51,10 @@ RenderLocalEntity = function(uNetId, coords, model, options)
         SetEntityCoords(obj, coords) -- This is required to ignore the pivot
     end
 
+    -- "Disable" the entity
+    SetEntityVisible(obj, false)
+    SetEntityCollision(obj, false, false)
+
     if options.rotation then
         SetEntityRotation(obj, options.rotation)
     end
@@ -56,14 +68,31 @@ RenderLocalEntity = function(uNetId, coords, model, options)
     TriggerServerEvent("Utility:Net:GetState", uNetId) -- Fetch initial states
     TriggerServerEvent("Utility:Net:ListenStateUdpates", uNetId) -- Listen for future state updates
 
+    local start = GetGameTimer()
     while EntitiesStates[uNetId] == nil do
+        if GlobalState.Entities[entityIndex] == nil then
+            warn("Entity "..uNetId.." ("..GetEntityArchetypeName(obj)..") was deleted from net before state was fetched, aborting local replication")
+            UnrenderLocalEntity(uNetId)
+            return
+        end
+
+        if GetGameTimer() - start > 500 then
+            warn("Failed to fetch state of "..uNetId.." ("..GetEntityArchetypeName(obj)..") after 500ms, aborting local replication")
+            UnrenderLocalEntity(uNetId)
+            return
+        end
         Citizen.Wait(1)
     end
+
+    -- "Enable" the entity, this is done after the state has been fetched to avoid props appearing and then disappearing, state fetch can go wrong if the entity has been deleted
+    SetEntityVisible(obj, true)
+    SetEntityCollision(obj, true, true)
 
     TriggerEvent("Utility:Net:OnRender", uNetId, obj, model)
 
     -- Handle attach, detach
     local state = Entity(obj).state
+    state.rendered = true
     state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
         if key == "__attached" then
             if value then
@@ -105,11 +134,75 @@ UnrenderLocalEntity = function(uNetId)
             end
         end
 
+        state.rendered = false
         EntitiesStates[uNetId] = nil
         TriggerServerEvent("Utility:Net:RemoveStateListener", uNetId)
     end
 
     LocalEntities[uNetId] = nil
+end
+
+UpdateLocalEntity = function(uNetId, entityIndex, slices, entities, modelsRenderDistance)
+    local coords = GetEntityCoords(PlayerPedId())
+
+    entities = entities or GlobalState.Entities
+    modelsRenderDistance = modelsRenderDistance or GlobalState.ModelsRenderDistance
+    entityIndex = entityIndex or GetEntityIndexByNetId(uNetId)
+
+    local entityData = entities[entityIndex]
+    
+    -- Entity doesn't exist
+    if not entityData then
+        return
+    end
+
+    -- Load slices if not provided
+    if not slices then
+        slices = {}
+        
+        -- Add current slice and surrounding slices to the list
+        slices[currentSlice] = true
+    
+        for _, v in pairs(GetSurroundingSlices(currentSlice)) do
+            slices[v] = true
+        end
+    end
+
+    local entity = UtilityNet.GetEntityFromUNetId(uNetId)
+
+    -- Is in a drawing slice
+    if not slices[entityData.slice] then
+        if entity then
+            UnrenderLocalEntity(uNetId)
+        end
+        return
+    end
+
+    local state = UtilityNet.State(uNetId)
+
+    -- Can be rendered
+    if ((#(entityData.coords - coords) > (modelsRenderDistance[entityData.model] or 50.0)) and not state.__attached) then
+        if entity then
+            UnrenderLocalEntity(uNetId)
+        end
+        return
+    end
+
+
+    if not DoesEntityExist(entity) then
+        if entity then
+            --print("Before rendering unrender old entity", uNetId)
+            UnrenderLocalEntity(uNetId)
+        end
+
+        entity = RenderLocalEntity(entityIndex, uNetId, entityData.coords, entityData.model, entityData.options)
+    end
+
+    --[[ if state.__attached and not IsEntityAttached(entity) then
+        AttachToEntity(entity, state.__attached.object, state.__attached.params)
+    elseif not state.__attached and IsEntityAttached(entity) then
+        DetachEntity(entity, true, true)
+    end ]]
 end
 
 StartUtilityNetRenderLoop = function()
@@ -129,6 +222,9 @@ StartUtilityNetRenderLoop = function()
                 Citizen.Wait(1000)
             end
     
+            local entities = GlobalState.Entities
+            local modelsRenderDistance = GlobalState.ModelsRenderDistance
+
             local coords = GetEntityCoords(player)
             local slices = {}
             
@@ -139,32 +235,8 @@ StartUtilityNetRenderLoop = function()
                 slices[v] = true
             end
 
-            for _, v in pairs(entities) do
-                local uNetId = v.id
-                local entity = UtilityNet.GetEntityFromUNetId(uNetId)
-                local state = UtilityNet.State(uNetId)
-
-                -- Is in a drawing slice
-                if slices[v.slice] and ((#(v.coords - coords) < (modelsRenderDistance[v.model] or 50.0)) or state.__attached) then
-                    if not DoesEntityExist(entity) then
-                        if entity and not DoesEntityExist(entity) then
-                            --print("Before rendering unrender old entity", uNetId)
-                            UnrenderLocalEntity(uNetId)
-                        end
-    
-                        entity = RenderLocalEntity(uNetId, v.coords, v.model, v.options)
-                    end
-
-                    --[[ if state.__attached and not IsEntityAttached(entity) then
-                        AttachToEntity(entity, state.__attached.object, state.__attached.params)
-                    elseif not state.__attached and IsEntityAttached(entity) then
-                        DetachEntity(entity, true, true)
-                    end ]]
-                else
-                    if entity then
-                        UnrenderLocalEntity(uNetId)
-                    end
-                end
+            for i, v in pairs(entities) do
+                UpdateLocalEntity(v.id, i, slices, entities, modelsRenderDistance)
             end
         end
     end, Config.UpdateCooldown)
@@ -180,6 +252,18 @@ RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation)
     if LocalEntities[uNetId] then
         SetEntityRotation(LocalEntities[uNetId], rotation)
     end
+end)
+
+RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, uNetId)
+    local event = nil
+    local entityIndex = nil
+
+    while not entityIndex do
+        entityIndex = GetEntityIndexByNetId(uNetId)
+        Citizen.Wait(1)
+    end
+
+    UpdateLocalEntity(uNetId, entityIndex)
 end)
 
 -- Unrender entities on resource stop
