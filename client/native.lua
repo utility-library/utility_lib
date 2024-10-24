@@ -1191,7 +1191,7 @@ end
 
 --// Other // --
     DevMode = function(state, time, format)
-        DevModeStatus = true
+        DevModeStatus = state
 
         if time == nil then time = true end
         format = format or "%s %s %s"
@@ -1214,6 +1214,38 @@ end
                     end
                 end
             end
+
+            local localEntities = {}
+            Citizen.CreateThread(function()
+                while DevModeStatus do
+                    local entities = GlobalState.Entities
+                    if #entities > 0 then
+                        localEntities = {}
+                        
+                        for i, v in pairs(entities) do
+                            local obj = UtilityNet.GetEntityFromUNetId(v.id)
+
+                            if DoesEntityExist(obj) then
+                                table.insert(localEntities, {
+                                    obj = obj,
+                                    netId = v.id
+                                })
+                            end
+                        end
+                    end
+                    Citizen.Wait(3000)
+                end
+            end)
+            Citizen.CreateThread(function()
+                while DevModeStatus do
+                    for k,v in pairs(localEntities) do
+                        local state = UtilityNet.State(v.netId)
+
+                        DrawText3Ds(GetEntityCoords(v.obj), "NetId: "..v.netId, 0.25)
+                    end
+                    Citizen.Wait(1)
+                end
+            end)
         else
             developer = function() end
         end
@@ -2957,9 +2989,11 @@ UtilityNet.CreateEntity = function(model, coords, options)
     local event = nil
     local entity = promise:new()
 
-    event = RegisterNetEvent("Utility:Net:EntityCreated"..callId, function(uNetId)
-        entity:resolve(uNetId)
-        RemoveEventHandler(event)
+    event = RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, uNetId)
+        if _callId == callId then
+            entity:resolve(uNetId)
+            RemoveEventHandler(event)
+        end
     end)
 
     options = options or {}
@@ -3067,6 +3101,27 @@ end
 
 UtilityNet.OnUnrender = function(cb)
     AddEventHandler("Utility:Net:OnUnrender", cb)
+end
+
+UtilityNet.IsReady = function(uNetId)
+    local obj = UtilityNet.GetEntityFromUNetId(uNetId)
+
+    return DoesEntityExist(obj) and UtilityNet.IsEntityRendered(obj)
+end
+
+UtilityNet.IsEntityRendered = function(obj)
+    local state = Entity(obj).state
+    return state.rendered
+end
+
+UtilityNet.DoesUNetIdExist = function(uNetId)
+    for k,v in pairs(GlobalState.Entities) do
+        if v.id == uNetId then
+            return true
+        end
+    end
+
+    return false
 end
 
 --#region State
