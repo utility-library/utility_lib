@@ -730,7 +730,24 @@ getValueAsStateTable = function(id, baseKey, depth)
         return baseTable
     end
 
-    return setmetatable({}, {
+    return setmetatable({
+        raw = function(self)
+            return getCurrentTable()
+        end
+    }, {
+        -- Iterators
+        __pairs = function(self)
+            return pairs(getCurrentTable())
+        end,
+
+        __ipairs = function(self)
+            return ipairs(getCurrentTable())
+        end,
+
+        __len = function(self)
+            return #getCurrentTable()
+        end,
+
         __index = function(_, k)
             local currentTable = getCurrentTable()
 
