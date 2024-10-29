@@ -2998,14 +2998,14 @@ UtilityNet.CreateEntity = function(model, coords, options)
 
     options = options or {}
     options.resource = GetCurrentResourceName()
-    TriggerServerEvent("Utility:Net:CreateEntity", callId, model, coords, options)
+    TriggerLatentServerEvent("Utility:Net:CreateEntity", 5120, callId, model, coords, options)
 
     local id = Citizen.Await(entity)
+
     table.insert(CreatedEntities, id)
 
     if not options.ignoreExistance then
         while not UtilityNet.DoesEntityExist(id) do
-            --print("Wait exist")
             Citizen.Wait(0)
         end
     else
@@ -3057,12 +3057,13 @@ UtilityNet.DetachEntity = function(uNetId)
     end
 end
 
+-- Using a latent event to prevent blocking the network channel
 UtilityNet.SetEntityCoords = function(uNetId, coords)
-    TriggerServerEvent("Utility:Net:SetEntityCoords", uNetId, coords)
+    TriggerLatentServerEvent("Utility:Net:SetEntityCoords", 5120, uNetId, coords)
 end
 
 UtilityNet.SetEntityRotation = function(uNetId, rot)
-    TriggerServerEvent("Utility:Net:SetEntityRotation", uNetId, rot)
+    TriggerLatentServerEvent("Utility:Net:SetEntityRotation", 5120, uNetId, rot)
 end
 
 UtilityNet.GetEntityCoords = function(uNetId)

@@ -8,7 +8,9 @@ UtilityNet = UtilityNet or {}
 --     searchDistance = number (default 5.0, replace search distance)
 -- }
 
-UtilityNet.CreateEntity = function(model, coords, options)
+UtilityNet.CreateEntity = function(model, coords, options, callId)
+    --print("Creating", model, coords)
+
     --#region Checks
     if not model or (type(model) ~= "string" and type(model) ~= "number") then
         error("Invalid model, got "..type(model).." expected string", 0)
@@ -44,13 +46,15 @@ UtilityNet.CreateEntity = function(model, coords, options)
         createdBy = options.resource or GetInvokingResource(),
     }
 
+    --print("Assigned id "..object.id, coords)
     RegisterEntityState(object.id)
     table.insert(entities, object)
     GlobalState.Entities = entities
 
     NextId = NextId + 1
 
-    TriggerClientEvent("Utility:Net:EntityCreated", -1, nil, object.id)
+    --print("Calling client event", object.id, coords)
+    TriggerLatentClientEvent("Utility:Net:EntityCreated", -1, 5120, callId, object.id)
     return object.id
 end
 
@@ -123,11 +127,12 @@ local function StartQueueUpdateLoop(bagkey)
                     end
                 end
 
-                print(bagkey, "Updated", count, "entities")
+                --print(bagkey, "Updated", count, "entities")
                 -- Refresh GlobalState
                 GlobalState[bagkey] = old
 
-                queue.updateLoop = nil
+                queues[bagkey].updateLoop = false
+                queues[bagkey] = {}
             end
             Citizen.Wait(150)
         end
@@ -162,7 +167,7 @@ UtilityNet.SetEntityRotation = function(uNetId, newRotation)
 
     InsertValueInQueue("Entities", uNetId, {rotation = newRotation})
     -- This is to refresh the rotation also for currently rendering objects
-    TriggerClientEvent("Utility:Net:RefreshRotation", -1, uNetId, newRotation)
+    TriggerLatentClientEvent("Utility:Net:RefreshRotation", -1, 5120, uNetId, newRotation)
 end
 
 UtilityNet.SetEntityCoords = function(uNetId, newCoords)
@@ -172,16 +177,13 @@ UtilityNet.SetEntityCoords = function(uNetId, newCoords)
 
     InsertValueInQueue("Entities", uNetId, {coords = newCoords, slice = GetSliceFromCoords(newCoords)})
     -- This is to refresh the coords also for currently rendering objects
-    TriggerClientEvent("Utility:Net:RefreshCoords", -1 , uNetId, newCoords)
+    TriggerLatentClientEvent("Utility:Net:RefreshCoords", -1, 5120, uNetId, newCoords)
 end
 
 --#region Events
 UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:CreateEntity", function(callId, model, coords, options)
-        local entity = UtilityNet.CreateEntity(model, coords, options)
-    
-        -- Call callback event
-        TriggerClientEvent("Utility:Net:EntityCreated", -1, callId, entity)
+        local entity = UtilityNet.CreateEntity(model, coords, options, callId)
     end)
     
     RegisterNetEvent("Utility:Net:DeleteEntity", function(uNetId)

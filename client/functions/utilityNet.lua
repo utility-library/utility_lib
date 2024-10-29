@@ -66,7 +66,7 @@ RenderLocalEntity = function(entityIndex, uNetId, coords, model, options)
     LocalEntities[uNetId] = obj
 
     TriggerServerEvent("Utility:Net:GetState", uNetId) -- Fetch initial states
-    TriggerServerEvent("Utility:Net:ListenStateUdpates", uNetId) -- Listen for future state updates
+    TriggerLatentServerEvent("Utility:Net:ListenStateUdpates", 5120, uNetId) -- Listen for future state updates
 
     local start = GetGameTimer()
     while EntitiesStates[uNetId] == nil do
@@ -136,7 +136,7 @@ UnrenderLocalEntity = function(uNetId)
 
         state.rendered = false
         EntitiesStates[uNetId] = nil
-        TriggerServerEvent("Utility:Net:RemoveStateListener", uNetId)
+        TriggerLatentServerEvent("Utility:Net:RemoveStateListener", 5120, uNetId)
     end
 
     LocalEntities[uNetId] = nil
