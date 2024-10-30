@@ -25,10 +25,10 @@ GetEntityIndexByNetId = function(netId)
     end
 end
 
-RenderLocalEntity = function(entityIndex, uNetId, coords, model, options)
+local RenderLocalEntity = function(entityIndex, uNetId, coords, model, options)
     options = options or {}
     local obj = 0
-    local state = UtilityNet.State(uNetId)
+    local stateUtility = UtilityNet.State(uNetId)
 
     if options.replace then
         local attempts = 0
@@ -50,23 +50,38 @@ RenderLocalEntity = function(entityIndex, uNetId, coords, model, options)
         obj = CreateObject(model, coords, false)
         SetEntityCoords(obj, coords) -- This is required to ignore the pivot
     end
+    
+    local state = Entity(obj).state
 
     -- "Disable" the entity
     SetEntityVisible(obj, false)
     SetEntityCollision(obj, false, false)
-
+    
     if options.rotation then
         SetEntityRotation(obj, options.rotation)
     end
     
-    if state.__attached then
-        AttachToEntity(obj, state.__attached.object, state.__attached.params)
+    if stateUtility.__attached then
+        AttachToEntity(obj, stateUtility.__attached.object, stateUtility.__attached.params)
+    else
+        state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
+            if key == "__attached" then
+    
+                if value then
+                    --print("Attach")
+                    AttachToEntity(obj, value.object, value.params)
+                else
+                    --print("Detach")
+                    DetachEntity(obj, true, true)
+                end
+            end
+        end)
     end
 
     LocalEntities[uNetId] = obj
 
+    TriggerServerEvent("Utility:Net:ListenStateUpdates", uNetId) -- Listen for future state updates
     TriggerServerEvent("Utility:Net:GetState", uNetId) -- Fetch initial states
-    TriggerLatentServerEvent("Utility:Net:ListenStateUdpates", 5120, uNetId) -- Listen for future state updates
 
     local start = GetGameTimer()
     while EntitiesStates[uNetId] == nil do
@@ -91,19 +106,7 @@ RenderLocalEntity = function(entityIndex, uNetId, coords, model, options)
     TriggerEvent("Utility:Net:OnRender", uNetId, obj, model)
 
     -- Handle attach, detach
-    local state = Entity(obj).state
     state.rendered = true
-    state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
-        if key == "__attached" then
-            if value then
-                --print("Attach")
-                AttachToEntity(obj, value.object, value.params)
-            else
-                --print("Detach")
-                DetachEntity(obj, true, true)
-            end
-        end
-    end)
 
     return obj
 end
@@ -195,14 +198,9 @@ UpdateLocalEntity = function(uNetId, entityIndex, slices, entities, modelsRender
             UnrenderLocalEntity(uNetId)
         end
 
+        --print("Render local entity", uNetId)
         entity = RenderLocalEntity(entityIndex, uNetId, entityData.coords, entityData.model, entityData.options)
     end
-
-    --[[ if state.__attached and not IsEntityAttached(entity) then
-        AttachToEntity(entity, state.__attached.object, state.__attached.params)
-    elseif not state.__attached and IsEntityAttached(entity) then
-        DetachEntity(entity, true, true)
-    end ]]
 end
 
 StartUtilityNetRenderLoop = function()
@@ -245,6 +243,8 @@ end
 RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords)
     if LocalEntities[uNetId] then
         SetEntityCoords(LocalEntities[uNetId], coords)
+    else
+        error("RefreshCoords: Entity not found", uNetId)
     end
 end)
 
@@ -268,9 +268,11 @@ end)
 
 -- Unrender entities on resource stop
 AddEventHandler("onResourceStop", function(resource)
+    local _resource = GetCurrentResourceName()
     local entities = GlobalState.Entities
+
     for k, v in pairs(entities) do
-        if v.createdBy == resource then
+        if v.createdBy == resource or resource == _resource then
             UnrenderLocalEntity(v.id)
         end
     end
