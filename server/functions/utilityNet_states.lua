@@ -74,7 +74,7 @@ end
 --#endregion
 
 --#region Net Events
-RegisterNetEvent("Utility:Net:ListenStateUdpates", function(uNetId)
+RegisterNetEvent("Utility:Net:ListenStateUpdates", function(uNetId)
     ListenStateUpdates(source, uNetId)
 end)
 
