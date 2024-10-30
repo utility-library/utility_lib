@@ -67,6 +67,7 @@ UtilityNet.DeleteEntity = function(uNetId)
 
     -- Invalid Id
     if uNetId == -1 then
+        error("Invalid uNetId, got -1", 2)
         return
     end
     --#endregion
