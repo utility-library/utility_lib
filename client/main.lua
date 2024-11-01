@@ -111,12 +111,4 @@ LoadJobsAndListenForChanges()
             Emit(name, false, value)
         end)
     end
-
-    RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId)
-        local entity = UtilityNet.GetEntityFromUNetId(uNetId)
-    
-        if entity and DoesEntityExist(entity) then
-            UnrenderLocalEntity(uNetId)
-        end
-    end)
 --#endregion

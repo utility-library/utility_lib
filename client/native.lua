@@ -1214,38 +1214,6 @@ end
                     end
                 end
             end
-
-            local localEntities = {}
-            Citizen.CreateThread(function()
-                while DevModeStatus do
-                    local entities = GlobalState.Entities
-                    if #entities > 0 then
-                        localEntities = {}
-                        
-                        for i, v in pairs(entities) do
-                            local obj = UtilityNet.GetEntityFromUNetId(v.id)
-
-                            if DoesEntityExist(obj) then
-                                table.insert(localEntities, {
-                                    obj = obj,
-                                    netId = v.id
-                                })
-                            end
-                        end
-                    end
-                    Citizen.Wait(3000)
-                end
-            end)
-            Citizen.CreateThread(function()
-                while DevModeStatus do
-                    for k,v in pairs(localEntities) do
-                        local state = UtilityNet.State(v.netId)
-
-                        DrawText3Ds(GetEntityCoords(v.obj), "NetId: "..v.netId, 0.25)
-                    end
-                    Citizen.Wait(1)
-                end
-            end)
         else
             developer = function() end
         end
@@ -2979,16 +2947,62 @@ end
 local CreatedEntities = {}
 
 --#region API
+UtilityNet.SetDebug = function(state)
+    UtilityNetDebug = state
+
+    local localEntities = {}
+    Citizen.CreateThread(function()
+        while UtilityNetDebug do
+            local entities = GlobalState.Entities
+            if #entities > 0 then
+                localEntities = {}
+                
+                for i, v in pairs(entities) do
+                    if v.createdBy == GetCurrentResourceName() then
+                        local obj = UtilityNet.GetEntityFromUNetId(v.id)
+
+                        if DoesEntityExist(obj) then
+                            table.insert(localEntities, {
+                                obj = obj,
+                                netId = v.id
+                            })
+                        end
+                    end
+                end
+            end
+            Citizen.Wait(3000)
+        end
+    end)
+    Citizen.CreateThread(function()
+        while UtilityNetDebug do
+            for k,v in pairs(localEntities) do
+                local state = UtilityNet.State(v.netId)
+
+                DrawText3Ds(GetEntityCoords(v.obj), "NetId: "..v.netId, 0.25)
+            end
+            Citizen.Wait(1)
+        end
+    end)
+end
 
 UtilityNet.SetModelRenderDistance = function(model, distance)
     TriggerServerEvent("Utility:Net:SetModelRenderDistance", model, distance)
 end
 
 UtilityNet.CreateEntity = function(model, coords, options)
+    if type(model) ~= "string" then
+        error("Invalid model, got "..type(model).." expected string", 0)
+    end
+
+    -- Set resource name in options
+    options = options or {}
+    options.resource = GetCurrentResourceName()
+
     local callId = math.random(0, 10000000)
     local event = nil
     local entity = promise:new()
 
+    -- Callback
     event = RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, uNetId)
         if _callId == callId then
             entity:resolve(uNetId)
@@ -2996,21 +3010,9 @@ UtilityNet.CreateEntity = function(model, coords, options)
         end
     end)
 
-    options = options or {}
-    options.resource = GetCurrentResourceName()
     TriggerLatentServerEvent("Utility:Net:CreateEntity", 5120, callId, model, coords, options)
-
-    local id = Citizen.Await(entity)
-
+    local id = Citizen.Await(entity) -- Wait for server response
     table.insert(CreatedEntities, id)
-
-    if not options.ignoreExistance then
-        while not UtilityNet.DoesEntityExist(id) do
-            Citizen.Wait(0)
-        end
-    else
-        options.ignoreExistance = nil
-    end
 
     return id
 end

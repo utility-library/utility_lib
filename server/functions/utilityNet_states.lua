@@ -84,11 +84,14 @@ end)
 
 RegisterNetEvent("Utility:Net:GetState", function(uNetId)
     local source = source
+
     if not EntitiesStates[uNetId] then
+        TriggerClientEvent("Utility:Net:GetState"..uNetId, source, nil)
         return
     end
 
-    TriggerClientEvent("Utility:Net:SendState", source, uNetId, EntitiesStates[uNetId].states)
+    ListenStateUpdates(source, uNetId)
+    TriggerClientEvent("Utility:Net:GetState"..uNetId, source, EntitiesStates[uNetId].states)
 end)
 --#endregion
 

@@ -9,8 +9,6 @@ UtilityNet = UtilityNet or {}
 -- }
 
 UtilityNet.CreateEntity = function(model, coords, options, callId)
-    --print("Creating", model, coords)
-
     --#region Checks
     if not model or (type(model) ~= "string" and type(model) ~= "number") then
         error("Invalid model, got "..type(model).." expected string", 0)
@@ -46,14 +44,12 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
         createdBy = options.resource or GetInvokingResource(),
     }
 
-    --print("Assigned id "..object.id, coords)
-    RegisterEntityState(object.id)
     table.insert(entities, object)
     GlobalState.Entities = entities
 
+    RegisterEntityState(object.id)
     NextId = NextId + 1
 
-    --print("Calling client event", object.id, coords)
     TriggerLatentClientEvent("Utility:Net:EntityCreated", -1, 5120, callId, object.id)
     return object.id
 end
@@ -184,7 +180,7 @@ end
 --#region Events
 UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:CreateEntity", function(callId, model, coords, options)
-        local entity = UtilityNet.CreateEntity(model, coords, options, callId)
+        UtilityNet.CreateEntity(model, coords, options, callId)
     end)
     
     RegisterNetEvent("Utility:Net:DeleteEntity", function(uNetId)
@@ -197,7 +193,7 @@ UtilityNet.RegisterEvents = function()
 
     RegisterNetEvent("Utility:Net:AttachToEntity", function(uNetId, object, params)
         local state = UtilityNet.State(uNetId)
-
+        Citizen.Wait(300) -- Wait for entity to be renderized in the client (if is doing it, this can lead to some desyncs since the time is not always the same)
         state.__attached = {
             object = object,
             params = params

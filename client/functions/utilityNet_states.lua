@@ -8,16 +8,27 @@ RegisterNetEvent("Utility:Net:UpdateStateValue", function(uNetId, key, value)
     EntitiesStates[uNetId][key] = value
 end)
 
-RegisterNetEvent("Utility:Net:SendState", function(uNetId, states)
-    EntitiesStates[uNetId] = states    
-end)
-
 GetEntityStateValue = function(uNetId, key)
     if not EntitiesStates[uNetId] then
         return
     end
 
     return EntitiesStates[uNetId][key]
+end
+
+ServerRequestEntityStates = function(uNetId)
+    local p = promise:new()
+    local event = nil
+
+    event = RegisterNetEvent("Utility:Net:GetState"..uNetId, function(states)
+        RemoveEventHandler(event)
+        p:resolve(states)
+    end)
+    
+    TriggerServerEvent("Utility:Net:GetState", uNetId)
+    local states = Citizen.Await(p)
+
+    EntitiesStates[uNetId] = states
 end
 
 exports("GetEntityStateValue", GetEntityStateValue)
