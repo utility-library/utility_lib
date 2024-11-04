@@ -840,6 +840,8 @@ end
     end
     
     function SetSliceUsed(slice, value)
+        slice = tonumber(slice)
+
         if value then
             Utility.Cache.SliceGroups[slice] = value
         else
