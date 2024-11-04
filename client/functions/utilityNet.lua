@@ -48,6 +48,7 @@ end
 
 local FindEntity = function(coords, radius, model, maxAttempts)
     local attempts = 0
+    local obj = 0
         
     while attempts < maxAttempts and not DoesEntityExist(obj) do
         obj = GetClosestObjectOfType(coords.xyz, radius or 5.0, model)
@@ -166,7 +167,6 @@ local RenderLocalEntity = function(uNetId)
             end
 
             if key == "__attached" then
-                print("Attach statebag", uNetId, key, json.encode(value))
                 if value then
                     --print("Attach")
                     AttachToEntity(obj, value.object, value.params)
