@@ -1,4 +1,4 @@
-local DebugRendering = true
+local DebugRendering = false
 
 --#region Local functions
 local GetActiveSlices = function()
