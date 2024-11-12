@@ -3139,7 +3139,9 @@ UtilityNet.AddStateBagChangeHandler = function(uNetId, func)
 end
 
 UtilityNet.RemoveStateBagChangeHandler = function(eventData)
-    RemoveEventHandler(eventData)
+    if eventData and eventData.key and eventData.name then
+        RemoveEventHandler(eventData)
+    end
 end
 
 UtilityNet.State = function(uNetId)
