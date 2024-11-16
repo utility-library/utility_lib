@@ -46,7 +46,7 @@ local AttachToEntity = function(obj, to, params)
     end
 end
 
-local FindEntity = function(coords, radius, model, maxAttempts)
+local FindEntity = function(coords, radius, model, uNetId, maxAttempts)
     local attempts = 0
     local obj = 0
         
@@ -80,16 +80,16 @@ exports("IsNetIdCreating", IsNetIdCreating)
 local UnrenderLocalEntity = function(uNetId)
     local entity = UtilityNet.GetEntityFromUNetId(uNetId)
 
-    if DoesEntityExist(LocalEntities[uNetId]) then
+    if DoesEntityExist(entity) then
         TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
         Citizen.Wait(1) -- Allow time for any other script to mark the entity as "preserved"
 
-        if not LocalEntities[uNetId] then
+        if not entity then
             warn("UnrenderLocalEntity: entity with uNetId: "..uNetId.." already unrendered, skipping this call")
             return
         end
 
-        local state = Entity(LocalEntities[uNetId]).state
+        local state = Entity(entity).state
 
         -- Remove state change handler (currently used only for attaching)
         if state.changeHandler then
@@ -97,12 +97,10 @@ local UnrenderLocalEntity = function(uNetId)
             state.changeHandler = nil
         end
 
-        if not state.keepAlive then
-            if state.preserved then
-                SetEntityAsNoLongerNeeded(LocalEntities[uNetId])
-            else
-                DeleteEntity(LocalEntities[uNetId])
-            end
+        if state.preserved then
+            SetEntityAsNoLongerNeeded(entity)
+        else
+            DeleteEntity(entity)
         end
 
         state.rendered = false
@@ -137,10 +135,16 @@ local RenderLocalEntity = function(uNetId)
     local options = entityData.options
 
     if options.replace then
-        obj = FindEntity(coords, options.searchDistance, model, 5)
+        obj = FindEntity(coords, options.searchDistance, model, uNetId, 5)
 
-        -- If found keep it alive on unrender
-        Entity(obj).state.keepAlive = true
+        -- Skip object creation if not found
+        if not DoesEntityExist(obj) then
+            SetNetIdBeignCreated(uNetId, false)
+            return
+        end
+
+        -- Preserve entity from engine deletion (since this entity was found and it is not owned by a script)
+        SetEntityAsMissionEntity(obj, true, true)
     else
         obj = CreateObject(model, coords, false)
         SetEntityCoords(obj, coords) -- This is required to ignore the pivot
@@ -209,7 +213,6 @@ local CanEntityBeRendered = function(uNetId)
     end
 
     local slices = GetActiveSlices()
-    local entity = UtilityNet.GetEntityFromUNetId(uNetId)
 
     -- Check if entity is within drawing slices
     if not slices[entityData.slice] then
