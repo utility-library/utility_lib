@@ -143,6 +143,7 @@ local RenderLocalEntity = function(uNetId)
             return
         end
 
+        Entity(obj).state.preserved = true
         -- Preserve entity from engine deletion (since this entity was found and it is not owned by a script)
         SetEntityAsMissionEntity(obj, true, true)
     else
