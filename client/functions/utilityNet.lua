@@ -97,6 +97,14 @@ local UnrenderLocalEntity = function(uNetId)
             state.changeHandler = nil
         end
 
+        if state.found then
+            local entityIndex = GetEntityIndexByNetId(uNetId)
+            local entityData = GlobalState.Entities[entityIndex]
+
+            -- Show map object
+            RemoveModelHide(GetEntityCoords(entity), entityData.options.searchDistance, entityData.model)
+        end
+
         if state.preserved then
             SetEntityAsNoLongerNeeded(entity)
         else
@@ -143,9 +151,17 @@ local RenderLocalEntity = function(uNetId)
             return
         end
 
-        Entity(obj).state.preserved = true
-        -- Preserve entity from engine deletion (since this entity was found and it is not owned by a script)
-        SetEntityAsMissionEntity(obj, false, false)
+        -- Clone object (otherwise it will be deleted when the entity is unrendered and will not respawn properly)
+        local coords = GetEntityCoords(obj)
+        local rotation = GetEntityRotation(obj)
+
+        obj = CreateObject(model, coords, false)
+        SetEntityCoords(obj, coords)
+        SetEntityRotation(obj, rotation)
+        Entity(obj).state.found = true
+
+        -- Hide map object
+        CreateModelHideExcludingScriptObjects(coords, options.searchDistance, model)
     else
         obj = CreateObject(model, coords, false)
         SetEntityCoords(obj, coords) -- This is required to ignore the pivot
