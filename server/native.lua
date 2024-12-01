@@ -611,6 +611,69 @@
     GetDataForJob = function(job)
         return exports["utility_lib"]:GetDataForJob(job)
     end
+
+    quat2euler = function(q)
+        -- roll (x-axis rotation)
+        local sinr_cosp = 2 * (q.w * q.x + q.y * q.z);
+        local cosr_cosp = 1 - 2 * (q.x * q.x + q.y * q.y);
+        local roll = math.atan2(sinr_cosp, cosr_cosp);
+    
+        -- pitch (y-axis rotation)
+        local sinp = math.sqrt(1 + 2 * (q.w * q.y - q.x * q.z));
+        local cosp = math.sqrt(1 - 2 * (q.w * q.y - q.x * q.z));
+        local pitch = 2 * math.atan2(sinp, cosp) - math.pi / 2;
+    
+        -- yaw (z-axis rotation)
+        local siny_cosp = 2 * (q.w * q.z + q.x * q.y);
+        local cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z);
+        local yaw = math.atan2(siny_cosp, cosy_cosp);
+    
+        return vec3(math.deg(roll), math.deg(pitch), math.deg(yaw));
+    end
+
+    GenerateMatrix = function(pos, rot)
+        local rx, ry, rz = math.rad(rot.x), math.rad(rot.y), math.rad(rot.z)
+    
+        -- Precompute
+        local cosX, sinX = math.cos(rx), math.sin(rx)
+        local cosY, sinY = math.cos(ry), math.sin(ry)
+        local cosZ, sinZ = math.cos(rz), math.sin(rz)
+    
+        local mrx = mat3(
+            vec3(1, 0, 0),
+            vec3(0, cosX, -sinX),
+            vec3(0, sinX, cosX)
+        )
+        
+        local mry = mat3(
+            vec3(cosY, 0, sinY),
+            vec3(0, 1, 0),
+            vec3(-sinY, 0, cosY)
+        )
+    
+        local mrz = mat3(
+            vec3(cosZ, -sinZ, 0),
+            vec3(sinZ, cosZ, 0),
+            vec3(0, 0, 1)
+        )
+    
+        local rotationMatrix = mrx * mry * mrz
+    
+        -- Construct the final transform matrix
+        local transformMatrix = mat4(
+            vec4(rotationMatrix[1].x, rotationMatrix[2].x, rotationMatrix[3].x, 0),
+            vec4(rotationMatrix[1].y, rotationMatrix[2].y, rotationMatrix[3].y, 0),
+            vec4(rotationMatrix[1].z, rotationMatrix[2].z, rotationMatrix[3].z, 0),
+            vec4(pos.x, pos.y, pos.z, 1)
+        )
+    
+        return transformMatrix
+    end
+    
+    GetOffsetFromPositionInWorldCoords = function(pos, rot, offset)
+        local m = GenerateMatrix(pos, rot)
+        return m * offset
+    end
 --// Slices //--
     local sliceSize = 100.0
     local slicesLength = 8100
