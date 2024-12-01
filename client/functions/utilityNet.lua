@@ -98,11 +98,10 @@ local UnrenderLocalEntity = function(uNetId)
         end
 
         if state.found then
-            local entityIndex = GetEntityIndexByNetId(uNetId)
-            local entityData = GlobalState.Entities[entityIndex]
+            local model = GetEntityModel(entity)
 
             -- Show map object
-            RemoveModelHide(GetEntityCoords(entity), entityData.options.searchDistance, entityData.model)
+            RemoveModelHide(GetEntityCoords(entity), 0.1, model)
         end
 
         if state.preserved then
@@ -121,7 +120,9 @@ end
 
 local RenderLocalEntity = function(uNetId)
     if IsNetIdCreating(uNetId) then
-        warn("RenderLocalEntity: entity with uNetId: "..uNetId.." is already being created, skipping this call")
+        if DebugRendering then
+            warn("RenderLocalEntity: entity with uNetId: "..uNetId.." is already being created, skipping this call")
+        end
         return
     end
 
@@ -142,78 +143,86 @@ local RenderLocalEntity = function(uNetId)
     local model = entityData.model
     local options = entityData.options
 
-    if options.replace then
-        obj = FindEntity(coords, options.searchDistance, model, uNetId, 5)
-
-        -- Skip object creation if not found
-        if not DoesEntityExist(obj) then
-            SetNetIdBeignCreated(uNetId, false)
-            return
-        end
-
-        -- Clone object (otherwise it will be deleted when the entity is unrendered and will not respawn properly)
-        local coords = GetEntityCoords(obj)
-        local rotation = GetEntityRotation(obj)
-
-        obj = CreateObject(model, coords, false)
-        SetEntityCoords(obj, coords)
-        SetEntityRotation(obj, rotation)
-        Entity(obj).state.found = true
-
-        -- Hide map object
-        CreateModelHideExcludingScriptObjects(coords, options.searchDistance, model)
-    else
-        obj = CreateObject(model, coords, false)
-        SetEntityCoords(obj, coords) -- This is required to ignore the pivot
-    end
+    Citizen.CreateThread(function()
+        if options.replace then
+            obj = FindEntity(coords, options.searchDistance, model, uNetId, 5)
     
-    local state = Entity(obj).state
-
-    -- "Disable" the entity
-    SetEntityVisible(obj, false)
-    SetEntityCollision(obj, false, false)
-    
-    if options.rotation then
-        SetEntityRotation(obj, options.rotation)
-    end
-    
-    if stateUtility.__attached then
-        AttachToEntity(obj, stateUtility.__attached.object, stateUtility.__attached.params)
-    else
-        state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
-            -- Exit if entity is no longer valid
+            -- Skip object creation if not found
             if not DoesEntityExist(obj) then
-                UtilityNet.RemoveStateBagChangeHandler(state.changeHandler)
+                SetNetIdBeignCreated(uNetId, false)
                 return
             end
-
-            if key == "__attached" then
-                if value then
-                    --print("Attach")
-                    AttachToEntity(obj, value.object, value.params)
-                else
-                    --print("Detach")
-                    DetachEntity(obj, true, true)
-                end
+    
+            -- Clone object (otherwise it will be deleted when the entity is unrendered and will not respawn properly)
+            local coords = GetEntityCoords(obj)
+            local rotation = GetEntityRotation(obj)
+    
+            local interior = GetInteriorFromEntity(obj)
+            local room = GetRoomKeyFromEntity(obj)
+    
+            obj = CreateObject(model, coords, false, false, options.door)
+            SetEntityCoords(obj, coords)
+            SetEntityRotation(obj, rotation)
+            
+            if interior ~= 0 and room ~= 0 then
+                ForceRoomForEntity(obj, interior, room)
             end
-        end)
-    end
-
-    LocalEntities[uNetId] = obj
-
-    -- Fetch initial state
-    ServerRequestEntityStates(uNetId)
-
-    -- "Enable" the entity, this is done after the state has been fetched to avoid props doing strange stuffs
-    SetEntityVisible(obj, true)
-    SetEntityCollision(obj, true, true)
-
-    TriggerEvent("Utility:Net:OnRender", uNetId, obj, model)
-
-    state.rendered = true
-    SetNetIdBeignCreated(uNetId, false)
-
-    return obj
+    
+            Entity(obj).state.found = true
+    
+            -- Hide map object
+            CreateModelHideExcludingScriptObjects(coords, 0.1, model)
+        else
+            obj = CreateObject(model, coords, false, false, options.door)
+            SetEntityCoords(obj, coords) -- This is required to ignore the pivot
+        end
+        
+        local state = Entity(obj).state
+    
+        -- "Disable" the entity
+        SetEntityVisible(obj, false)
+        SetEntityCollision(obj, false, false)
+        
+        if options.rotation then
+            SetEntityRotation(obj, options.rotation)
+        end
+        
+        if stateUtility.__attached then
+            AttachToEntity(obj, stateUtility.__attached.object, stateUtility.__attached.params)
+        else
+            state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
+                -- Exit if entity is no longer valid
+                if not DoesEntityExist(obj) then
+                    UtilityNet.RemoveStateBagChangeHandler(state.changeHandler)
+                    return
+                end
+    
+                if key == "__attached" then
+                    if value then
+                        --print("Attach")
+                        AttachToEntity(obj, value.object, value.params)
+                    else
+                        --print("Detach")
+                        DetachEntity(obj, true, true)
+                    end
+                end
+            end)
+        end
+    
+        LocalEntities[uNetId] = obj
+    
+        -- Fetch initial state
+        ServerRequestEntityStates(uNetId)
+    
+        -- "Enable" the entity, this is done after the state has been fetched to avoid props doing strange stuffs
+        SetEntityVisible(obj, true)
+        SetEntityCollision(obj, true, true)
+    
+        TriggerEvent("Utility:Net:OnRender", uNetId, obj, model)
+    
+        state.rendered = true
+        SetNetIdBeignCreated(uNetId, false)
+    end)
 end
 
 local CanEntityBeRendered = function(uNetId)
@@ -285,7 +294,7 @@ StartUtilityNetRenderLoop = function()
                                 print("RenderLocalEntity", v.id, "Loop")
                             end
 
-                            RenderLocalEntity(v.id)
+                            RenderLocalEntity(v.id)                        
                         end
                     else
                         if state.rendered then
@@ -332,16 +341,17 @@ RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId)
 end)
 
 -- Unrender entities on resource stop
-AddEventHandler("onResourceStop", function(resource)
+--[[ AddEventHandler("onResourceStop", function(resource)
     local _resource = GetCurrentResourceName()
     local entities = GlobalState.Entities
 
     for k, v in pairs(entities) do
         if v.createdBy == resource or resource == _resource then
+            print("StopResource", v.id)
             UnrenderLocalEntity(v.id)
         end
     end
-end)
+end) ]]
 
 Citizen.CreateThread(function()
     while DebugRendering do

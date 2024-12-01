@@ -6,12 +6,13 @@ UtilityNet = UtilityNet or {}
 --     resource = string (used internally)
 --     replace = boolean (replace an already existing object, without creating a new one)
 --     searchDistance = number (default 5.0, replace search distance)
+--     door = boolean (if true will spawn the entity with door flag)
 -- }
 
 UtilityNet.CreateEntity = function(model, coords, options, callId)
     --#region Checks
     if not model or (type(model) ~= "string" and type(model) ~= "number") then
-        error("Invalid model, got "..type(model).." expected string", 0)
+        error("Invalid model, got "..type(model).." expected string or number", 0)
     else
         if type(model) == "string" then
             model = GetHashKey(model)
@@ -77,6 +78,9 @@ UtilityNet.DeleteEntity = function(uNetId)
     end
     --#endregion
 
+    ClearEntityStates(uNetId)
+    TriggerClientEvent("Utility:Net:RequestDeletion", -1, uNetId)
+
     local entities = GlobalState.Entities
 
     for k,v in pairs(entities) do
@@ -87,9 +91,6 @@ UtilityNet.DeleteEntity = function(uNetId)
     end
 
     GlobalState.Entities = entities
-
-    ClearEntityStates(uNetId)
-    TriggerClientEvent("Utility:Net:RequestDeletion", -1, uNetId)
 end
 
 local queues = {
