@@ -145,20 +145,20 @@ local RenderLocalEntity = function(uNetId)
 
     Citizen.CreateThread(function()
         if options.replace then
-            obj = FindEntity(coords, options.searchDistance, model, uNetId, 5)
+            local _obj = FindEntity(coords, options.searchDistance, model, uNetId, 5)
     
             -- Skip object creation if not found
-            if not DoesEntityExist(obj) then
+            if not DoesEntityExist(_obj) then
                 SetNetIdBeignCreated(uNetId, false)
                 return
             end
     
             -- Clone object (otherwise it will be deleted when the entity is unrendered and will not respawn properly)
-            local coords = GetEntityCoords(obj)
-            local rotation = GetEntityRotation(obj)
+            local coords = GetEntityCoords(_obj)
+            local rotation = GetEntityRotation(_obj)
     
-            local interior = GetInteriorFromEntity(obj)
-            local room = GetRoomKeyFromEntity(obj)
+            local interior = GetInteriorFromEntity(_obj)
+            local room = GetRoomKeyFromEntity(_obj)
     
             obj = CreateObject(model, coords, false, false, options.door)
             SetEntityCoords(obj, coords)
@@ -171,7 +171,16 @@ local RenderLocalEntity = function(uNetId)
             Entity(obj).state.found = true
     
             -- Hide map object
-            CreateModelHideExcludingScriptObjects(coords, 0.1, model)
+            local distance = options.door and 1.5 or 0.1
+
+            if options.door and interior ~= 0 then
+                -- Doors inside interiors need to be deleted
+                -- If not deleted the game will be recreate them every time the interior is reloaded (player exit and then re-enter)
+                -- And so there will be 2 copies of the same door
+                DeleteEntity(_obj)
+            else
+                CreateModelHideExcludingScriptObjects(coords, distance, model)
+            end
         else
             obj = CreateObject(model, coords, false, false, options.door)
             SetEntityCoords(obj, coords) -- This is required to ignore the pivot
