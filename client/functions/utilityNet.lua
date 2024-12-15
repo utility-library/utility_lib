@@ -234,12 +234,10 @@ local RenderLocalEntity = function(uNetId)
     end)
 end
 
-local CanEntityBeRendered = function(uNetId)
+local CanEntityBeRendered = function(uNetId, entityIndex, entityData, slices)
     -- Default values
-    local entities = GlobalState.Entities
-    local entityIndex = GetEntityIndexByNetId(uNetId)
-
-    local entityData = entities[entityIndex]
+    local entityIndex = entityIndex or GetEntityIndexByNetId(uNetId)
+    local entityData = entityData or GlobalState.Entities[entityIndex]
 
     -- Exit if entity data is missing
     if not entityData then
@@ -247,7 +245,7 @@ local CanEntityBeRendered = function(uNetId)
         return false
     end
 
-    local slices = GetActiveSlices()
+    local slices = slices or GetActiveSlices()
 
     -- Check if entity is within drawing slices
     if not slices[entityData.slice] then
@@ -297,7 +295,7 @@ StartUtilityNetRenderLoop = function()
                     local obj = UtilityNet.GetEntityFromUNetId(v.id) or 0
                     local state = Entity(obj).state or {}
     
-                    if CanEntityBeRendered(v.id) then
+                    if CanEntityBeRendered(v.id, i, v, slices) then
                         if not state.rendered then
                             if DebugRendering then
                                 print("RenderLocalEntity", v.id, "Loop")
