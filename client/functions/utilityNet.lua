@@ -118,7 +118,7 @@ local UnrenderLocalEntity = function(uNetId)
     LocalEntities[uNetId] = nil
 end
 
-local RenderLocalEntity = function(uNetId)
+local RenderLocalEntity = function(uNetId, entityIndex, entityData)
     if IsNetIdCreating(uNetId) then
         if DebugRendering then
             warn("RenderLocalEntity: entity with uNetId: "..uNetId.." is already being created, skipping this call")
@@ -130,8 +130,8 @@ local RenderLocalEntity = function(uNetId)
 
     local obj = 0
     local stateUtility = UtilityNet.State(uNetId)
-    local entityIndex = GetEntityIndexByNetId(uNetId)
-    local entityData = GlobalState.Entities[entityIndex]
+    local entityIndex = entityIndex or GetEntityIndexByNetId(uNetId)
+    local entityData = entityData or GlobalState.Entities[entityIndex]
 
     if not entityData then
         error("RenderLocalEntity: entity with index "..entityIndex.." not found, uNetId: "..uNetId)
@@ -301,7 +301,7 @@ StartUtilityNetRenderLoop = function()
                                 print("RenderLocalEntity", v.id, "Loop")
                             end
 
-                            RenderLocalEntity(v.id)                        
+                            RenderLocalEntity(v.id, i, v)                        
                         end
                     else
                         if state.rendered then
