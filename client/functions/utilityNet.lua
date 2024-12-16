@@ -308,6 +308,10 @@ StartUtilityNetRenderLoop = function()
                             UnrenderLocalEntity(v.id)
                         end
                     end
+
+                    if i % 20 == 0 then
+                        Citizen.Wait(1)
+                    end
                 end
             end
             Citizen.Wait(Config.UpdateCooldown)
