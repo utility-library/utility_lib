@@ -324,12 +324,22 @@ StartUtilityNetRenderLoop = function()
 end
 
 RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords)
+    local start = GetGameTimer()
+    while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
+        Citizen.Wait(1)
+    end
+    
     if LocalEntities[uNetId] then
         SetEntityCoords(LocalEntities[uNetId], coords)
     end
 end)
 
 RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation)
+    local start = GetGameTimer()
+    while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
+        Citizen.Wait(1)
+    end
+
     if LocalEntities[uNetId] then
         SetEntityRotation(LocalEntities[uNetId], rotation)
     end
