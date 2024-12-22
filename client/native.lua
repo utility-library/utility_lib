@@ -1399,14 +1399,22 @@ end
         return result
     end
 
-    ---Searches a table for the given value and returns the key if found.
+    ---Searches a table for the given value and returns the key and value if found.
     ---@param t table
-    ---@param value any
+    ---@param value any|fun(value: any): boolean
     ---@return any
     table.find = function(t, value)
-        for k, v in pairs(t) do
-            if value == v then
-                return k
+        if type(value) == "function" then
+            for k, v in pairs(t) do
+                if value(v) then
+                    return k, v
+                end
+            end
+        else
+            for k, v in pairs(t) do
+                if value == v then
+                    return k, v
+                end
             end
         end
     end

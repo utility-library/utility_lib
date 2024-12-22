@@ -1,4 +1,5 @@
-local DebugRendering = false
+local DebugRendering = true
+local DeletedEntities = {}
 
 --#region Local functions
 local GetActiveSlices = function()
@@ -108,6 +109,7 @@ local UnrenderLocalEntity = function(uNetId)
             SetEntityAsNoLongerNeeded(entity)
         else
             DeleteEntity(entity)
+
         end
 
         state.rendered = false
@@ -254,6 +256,11 @@ local CanEntityBeRendered = function(uNetId, entityIndex, entityData, slices)
 
     local state = UtilityNet.State(uNetId)
 
+    if DeletedEntities[uNetId] then
+        warn("Deleted, skip")
+        return false
+    end
+
     -- Render only if within render distance
     if not state.__attached then
         local coords = GetEntityCoords(PlayerPedId())
@@ -291,6 +298,7 @@ StartUtilityNetRenderLoop = function()
                 local coords = GetEntityCoords(player)
                 local slices = GetActiveSlices()
     
+                DeletedEntities = {}
                 for i, v in pairs(entities) do
                     local obj = UtilityNet.GetEntityFromUNetId(v.id) or 0
                     local state = Entity(obj).state or {}
@@ -307,10 +315,6 @@ StartUtilityNetRenderLoop = function()
                         if state.rendered then
                             UnrenderLocalEntity(v.id)
                         end
-                    end
-
-                    if i % 20 == 0 then
-                        Citizen.Wait(1)
                     end
                 end
             end
@@ -347,6 +351,7 @@ end)
 
 RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId)
     if LocalEntities[uNetId] then
+        DeletedEntities[uNetId] = true
         UnrenderLocalEntity(uNetId)
     end
 end)

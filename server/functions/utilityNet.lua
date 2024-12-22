@@ -79,7 +79,6 @@ UtilityNet.DeleteEntity = function(uNetId)
     --#endregion
 
     ClearEntityStates(uNetId)
-    TriggerClientEvent("Utility:Net:RequestDeletion", -1, uNetId)
 
     local entities = GlobalState.Entities
 
@@ -91,6 +90,8 @@ UtilityNet.DeleteEntity = function(uNetId)
     end
 
     GlobalState.Entities = entities
+
+    TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, 5120, uNetId)
 end
 
 local queues = {
