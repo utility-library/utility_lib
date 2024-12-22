@@ -1,4 +1,4 @@
-local DebugRendering = true
+local DebugRendering = false
 local DeletedEntities = {}
 
 --#region Local functions
