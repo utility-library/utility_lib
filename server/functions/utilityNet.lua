@@ -126,7 +126,6 @@ local function StartQueueUpdateLoop(bagkey)
                     end
                 end
 
-                --print(bagkey, "Updated", count, "entities")
                 -- Refresh GlobalState
                 GlobalState[bagkey] = old
 
@@ -139,7 +138,13 @@ local function StartQueueUpdateLoop(bagkey)
 end
 
 local function InsertValueInQueue(bagkey, id, value)
-    queues[bagkey][id] = value
+    -- If it is already in the queue with some values that need to be updated, we merge the 2 updates into 1
+    if queues[bagkey][id] then
+        queues[bagkey][id] = table.merge(queues[bagkey][id], value)
+    else
+        queues[bagkey][id] = value
+    end
+
     queues[bagkey].lastInt = GetGameTimer()
 
     if not queues[bagkey].updateLoop then
@@ -195,7 +200,6 @@ UtilityNet.RegisterEvents = function()
 
     RegisterNetEvent("Utility:Net:AttachToEntity", function(uNetId, object, params)
         local state = UtilityNet.State(uNetId)
-        Citizen.Wait(300) -- Wait for entity to be renderized in the client (if is doing it, this can lead to some desyncs since the time is not always the same)
         state.__attached = {
             object = object,
             params = params
