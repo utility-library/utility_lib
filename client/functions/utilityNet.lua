@@ -44,6 +44,8 @@ local AttachToEntity = function(obj, to, params)
     if attachToObj then
         print("Attaching", obj.." ("..GetEntityArchetypeName(obj)..")", "with", tostring(attachToObj).." ("..GetEntityArchetypeName(attachToObj)..")")
         AttachEntityToEntity(obj, attachToObj, params.bone, params.pos, params.rot, false, params.useSoftPinning, params.collision, true, params.rotationOrder, params.syncRot)
+    else
+        warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination entity doesnt exist")
     end
 end
 
@@ -197,34 +199,36 @@ local RenderLocalEntity = function(uNetId, entityIndex, entityData)
         if options.rotation then
             SetEntityRotation(obj, options.rotation)
         end
-        
-        if stateUtility.__attached then
-            AttachToEntity(obj, stateUtility.__attached.object, stateUtility.__attached.params)
-        else
-            state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
-                -- Exit if entity is no longer valid
-                if not DoesEntityExist(obj) then
-                    UtilityNet.RemoveStateBagChangeHandler(state.changeHandler)
-                    return
+
+        -- Always listen for __attached changes (attach/detach)
+        state.changeHandler = UtilityNet.AddStateBagChangeHandler(uNetId, function(key, value)
+            -- Exit if entity is no longer valid
+            if not DoesEntityExist(obj) then
+                UtilityNet.RemoveStateBagChangeHandler(state.changeHandler)
+                return
+            end
+
+            if key == "__attached" then
+                if value then
+                    --print("Attach")
+                    AttachToEntity(obj, value.object, value.params)
+                else
+                    --print("Detach")
+                    DetachEntity(obj, true, true)
                 end
-    
-                if key == "__attached" then
-                    if value then
-                        --print("Attach")
-                        AttachToEntity(obj, value.object, value.params)
-                    else
-                        --print("Detach")
-                        DetachEntity(obj, true, true)
-                    end
-                end
-            end)
-        end
+            end
+        end)
     
         LocalEntities[uNetId] = obj
     
         -- Fetch initial state
         ServerRequestEntityStates(uNetId)
     
+        -- After state has been fetched, attach if needed
+        if stateUtility.__attached then
+            AttachToEntity(obj, stateUtility.__attached.object, stateUtility.__attached.params)
+        end
+
         -- "Enable" the entity, this is done after the state has been fetched to avoid props doing strange stuffs
         SetEntityVisible(obj, true)
         SetEntityCollision(obj, true, true)
