@@ -4,6 +4,7 @@ EntitiesStates = {}
 RegisterEntityState = function(uNetId)
     if not EntitiesStates[uNetId] then
         EntitiesStates[uNetId] = {
+            created = GetGameTimer(),
             listeners = {},
             states = {}
         }
@@ -72,14 +73,29 @@ RemoveStateListenerFromAll = function(source)
     end
 end
 
+CallFunctionForListeners = function(uNetId, fn)
+    if GetLifetimeOfState(uNetId) > 5000 then
+        for k,v in pairs(EntitiesStates[uNetId].listeners) do
+            fn(v)
+        end
+    else -- If entity is pretty new we call the function for every single person (since it could be still rendering for someone)
+        local players = GetPlayers()
+
+        for k,v in pairs(players) do
+            fn(v)
+        end
+    end
+end
+
 TriggerEventForListeners = function(event, uNetId, ...)
     if not EntitiesStates[uNetId] then
         return
     end
 
-    for k,v in pairs(EntitiesStates[uNetId].listeners) do
-        TriggerClientEvent(event, v, ...)
-    end
+    local args = {...}
+    CallFunctionForListeners(uNetId, function(v) 
+        TriggerClientEvent(event, v, table.unpack(args))
+    end)
 end
 
 TriggerEventForListenersExcept = function(event, uNetId, source, ...)
@@ -87,11 +103,12 @@ TriggerEventForListenersExcept = function(event, uNetId, source, ...)
         return
     end
 
-    for k,v in pairs(EntitiesStates[uNetId].listeners) do
+    local args = {...}
+    CallFunctionForListeners(uNetId, function(v)
         if v ~= source then
-            TriggerClientEvent(event, v, ...)
+            TriggerClientEvent(event, v, table.unpack(args))
         end
-    end
+    end)
 end
 
 TriggerLatentEventForListeners = function(event, uNetId, speed, ...)
@@ -99,9 +116,10 @@ TriggerLatentEventForListeners = function(event, uNetId, speed, ...)
         return
     end
 
-    for k,v in pairs(EntitiesStates[uNetId].listeners) do
-        TriggerLatentClientEvent(event, v, speed or 5120, ...)
-    end
+    local args = {...}
+    CallFunctionForListeners(uNetId, function(v)
+        TriggerLatentClientEvent(event, v, speed or 5120, table.unpack(args))
+    end)
 end
 
 TriggerLatentEventForListenersExcept = function(event, uNetId, speed, source, ...)
@@ -109,11 +127,20 @@ TriggerLatentEventForListenersExcept = function(event, uNetId, speed, source, ..
         return
     end
 
-    for k,v in pairs(EntitiesStates[uNetId].listeners) do
+    local args = {...}
+    CallFunctionForListeners(uNetId, function(v)
         if v ~= source then
-            TriggerLatentClientEvent(event, v, speed or 5120, ...)
+            TriggerLatentClientEvent(event, v, speed or 5120, table.unpack(args))
         end
+    end)
+end
+
+GetLifetimeOfState = function(uNetId)
+    if not EntitiesStates[uNetId] then
+        return 0
     end
+
+    return GetGameTimer() - EntitiesStates[uNetId].created
 end
 --#endregion
 
