@@ -78,7 +78,6 @@ UtilityNet.DeleteEntity = function(uNetId)
     end
     --#endregion
 
-    ClearEntityStates(uNetId)
 
     local entities = GlobalState.Entities
 
@@ -91,7 +90,8 @@ UtilityNet.DeleteEntity = function(uNetId)
 
     GlobalState.Entities = entities
 
-    TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, 5120, uNetId)
+    TriggerLatentEventForListeners("Utility:Net:RequestDeletion", uNetId, 5120, uNetId)
+    ClearEntityStates(uNetId) -- Clear states after trigger
 end
 
 local queues = {
@@ -165,23 +165,30 @@ UtilityNet.SetModelRenderDistance = function(model, distance)
 end
 
 UtilityNet.SetEntityRotation = function(uNetId, newRotation)
+    local source = source
+
     if type(newRotation) ~= "vector3" then
         error("Invalid rotation, got "..type(newRotation).." expected vector3", 2)
     end
 
     InsertValueInQueue("Entities", uNetId, {rotation = newRotation})
-    -- This is to refresh the rotation also for currently rendering objects
-    TriggerLatentClientEvent("Utility:Net:RefreshRotation", -1, 5120, uNetId, newRotation)
+
+    -- Except caller since it will be already updated
+    TriggerLatentEventForListenersExcept("Utility:Net:RefreshRotation", uNetId, 5120, source, uNetId, newRotation)
+
 end
 
 UtilityNet.SetEntityCoords = function(uNetId, newCoords)
+    local source = source
+
     if type(newCoords) ~= "vector3" then
         error("Invalid coords, got "..type(newCoords).." expected vector3", 2)
     end
 
     InsertValueInQueue("Entities", uNetId, {coords = newCoords, slice = GetSliceFromCoords(newCoords)})
-    -- This is to refresh the coords also for currently rendering objects
-    TriggerLatentClientEvent("Utility:Net:RefreshCoords", -1, 5120, uNetId, newCoords)
+    
+    -- Except caller since it will be already updated
+    TriggerLatentEventForListenersExcept("Utility:Net:RefreshCoords", uNetId, 5120, source, uNetId, newCoords)
 end
 
 --#region Events

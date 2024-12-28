@@ -71,6 +71,50 @@ RemoveStateListenerFromAll = function(source)
         RemoveStateListener(source, k)
     end
 end
+
+TriggerEventForListeners = function(event, uNetId, ...)
+    if not EntitiesStates[uNetId] then
+        return
+    end
+
+    for k,v in pairs(EntitiesStates[uNetId].listeners) do
+        TriggerClientEvent(event, v, ...)
+    end
+end
+
+TriggerEventForListenersExcept = function(event, uNetId, source, ...)
+    if not EntitiesStates[uNetId] then
+        return
+    end
+
+    for k,v in pairs(EntitiesStates[uNetId].listeners) do
+        if v ~= source then
+            TriggerClientEvent(event, v, ...)
+        end
+    end
+end
+
+TriggerLatentEventForListeners = function(event, uNetId, speed, ...)
+    if not EntitiesStates[uNetId] then
+        return
+    end
+
+    for k,v in pairs(EntitiesStates[uNetId].listeners) do
+        TriggerLatentClientEvent(event, v, speed or 5120, ...)
+    end
+end
+
+TriggerLatentEventForListenersExcept = function(event, uNetId, speed, source, ...)
+    if not EntitiesStates[uNetId] then
+        return
+    end
+
+    for k,v in pairs(EntitiesStates[uNetId].listeners) do
+        if v ~= source then
+            TriggerLatentClientEvent(event, v, speed or 5120, ...)
+        end
+    end
+end
 --#endregion
 
 --#region Net Events
