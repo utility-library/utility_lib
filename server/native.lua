@@ -786,6 +786,10 @@ UtilityNet.SetEntityRotation = function(uNetId, newRotation)
     return exports["utility_lib"]:SetEntityRotation(uNetId, newRotation)
 end
 
+UtilityNet.DetachEntity = function(uNetId)
+    TriggerEvent("Utility:Net:DetachEntity", uNetId)
+end
+
 local getValueAsStateTable = nil
 getValueAsStateTable = function(id, baseKey, depth)
     depth = depth or {}

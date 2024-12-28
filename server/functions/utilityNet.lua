@@ -175,7 +175,6 @@ UtilityNet.SetEntityRotation = function(uNetId, newRotation)
 
     -- Except caller since it will be already updated
     TriggerLatentEventForListenersExcept("Utility:Net:RefreshRotation", uNetId, 5120, source, uNetId, newRotation)
-
 end
 
 UtilityNet.SetEntityCoords = function(uNetId, newCoords)
@@ -218,7 +217,10 @@ UtilityNet.RegisterEvents = function()
 
         if state.__attached then
             -- Update entity coords
-            UtilityNet.SetEntityCoords(uNetId, newCoords)
+            if newCoords then
+                UtilityNet.SetEntityCoords(uNetId, newCoords)
+            end
+            
             state.__attached = nil
         end
     end)
