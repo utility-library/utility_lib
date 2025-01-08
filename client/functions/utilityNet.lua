@@ -147,6 +147,13 @@ local RenderLocalEntity = function(uNetId, entityIndex, entityData)
     local model = entityData.model
     local options = entityData.options
 
+    if not options.replace then
+        while not HasModelLoaded(model) do
+            RequestModel(model)
+            Citizen.Wait(1)
+        end
+    end
+
     Citizen.CreateThread(function()
         if options.replace then
             local _obj = FindEntity(coords, options.searchDistance, model, uNetId, 5)
