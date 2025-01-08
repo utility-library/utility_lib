@@ -13,7 +13,7 @@ client_scripts {
 }
 
 server_scripts {
-    "@mysql-async/lib/MySQL.lua",
+    "@oxmysql/lib/MySQL.lua",
     
     "config.lua",
     "server/native.lua",
@@ -23,6 +23,5 @@ server_scripts {
 }
 
 files {
-    "client/native_min.lua",
-    "client/managers/*.lua"
+    "client/native_min.lua"
 }
