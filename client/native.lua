@@ -3122,7 +3122,7 @@ end
 UtilityNet.AttachToEntity = function(uNetId, object, bone, pos, rot, useSoftPinning, collision, rotationOrder, syncRot)
     local params = {bone = bone, pos = pos, rot = rot, useSoftPinning = useSoftPinning, collision = collision, rotationOrder = rotationOrder, syncRot = syncRot}
 
-    if NetworkGetEntityIsNetworked(object) and DoesEntityExist(object) then
+    if DoesEntityExist(object) and NetworkGetEntityIsNetworked(object) then
         TriggerServerEvent("Utility:Net:AttachToEntity", uNetId, NetworkGetNetworkIdFromEntity(object), params)
     else
         params.isUtilityNet = true
