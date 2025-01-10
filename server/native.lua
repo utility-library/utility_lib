@@ -61,18 +61,30 @@
         end
 
         HaveItem = function(source, ...)
+            local item = GetItem(source, ...)
+            
+            if not item then
+                return false
+            end
+
             if ESX then
-                return GetItem(source, ...).count > 0
+                return item.count > 0
             else
-                return GetItem(source, ...).amount > 0
+                return item.amount > 0
             end
         end
 
         HaveItemQuantity = function(source, item, quantity)
+            local item = GetItem(source, item)
+            
+            if not item then
+                return false
+            end
+
             if ESX then
-                return GetItem(source, item).count > quantity 
+                return item.count > quantity 
             else
-                return GetItem(source, item).amount > quantity 
+                return item.amount > quantity 
             end
         end
 
