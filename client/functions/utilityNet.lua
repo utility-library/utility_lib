@@ -111,7 +111,6 @@ local UnrenderLocalEntity = function(uNetId)
             SetEntityAsNoLongerNeeded(entity)
         else
             DeleteEntity(entity)
-
         end
 
         state.rendered = false
@@ -357,8 +356,18 @@ RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation)
 end)
 
 RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, uNetId)
+    local attempts = 0
+
     while not UtilityNet.DoesUNetIdExist(uNetId) do
-        Citizen.Wait(1)
+        attempts = attempts + 1
+
+        if attempts > 5 then
+            if DebugRendering then
+                error("EntityCreated", uNetId, "id not found after 10 attempts")
+            end
+            return
+        end
+        Citizen.Wait(100)
     end
 
     if CanEntityBeRendered(uNetId) then
