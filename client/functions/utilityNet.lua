@@ -147,6 +147,10 @@ local RenderLocalEntity = function(uNetId, entityIndex, entityData)
     local options = entityData.options
 
     if not options.replace then
+        if not IsModelValid(model) then
+            error("RenderLocalEntity: Model "..model.." is not valid, uNetId: "..uNetId)
+        end
+
         while not HasModelLoaded(model) do
             RequestModel(model)
             Citizen.Wait(1)
