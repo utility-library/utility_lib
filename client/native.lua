@@ -1152,6 +1152,8 @@ end
             type = "Marker"
         elseif type:lower() == "object" or type:lower() == "o" then
             type = "Object"
+        elseif type:lower() == "n3d" or type:lower() == "n" then
+            type = "N3d"
         else
             return nil
         end
