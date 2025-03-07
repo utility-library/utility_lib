@@ -1314,6 +1314,8 @@ end
                     end
                 end
             end
+        else
+            return table_remove(_table)
         end
     end
 
