@@ -820,6 +820,7 @@ getValueAsStateTable = function(id, baseKey, depth)
     end
 
     return setmetatable({
+        __internal_statetable = true,
         raw = function(self)
             return getCurrentTable()
         end
@@ -882,6 +883,11 @@ UtilityNet.State = function(id)
         end,
 
         __newindex = function(_, k, v)
+            -- If the value is a state table get the raw table (without metatable)
+            if type(v) == "table" and v.__internal_statetable then
+                v = v:raw()
+            end
+
             exports["utility_lib"]:SetEntityStateValue(id, k, v)
         end
     })
