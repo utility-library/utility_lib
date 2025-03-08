@@ -3202,22 +3202,21 @@ UtilityNet.SetEntityCoords = function(uNetId, coords)
     TriggerLatentServerEvent("Utility:Net:SetEntityCoords", 5120, uNetId, coords)
 
     -- Instantly sync for local obj
-    local obj = UtilityNet.GetEntityFromUNetId(uNetId)
-
-    if DoesEntityExist(obj) then
-        SetEntityCoords(obj, coords)
-    end
+    TriggerEvent("Utility:Net:RefreshCoords", uNetId, coords)
 end
 
 UtilityNet.SetEntityRotation = function(uNetId, rot)
     TriggerLatentServerEvent("Utility:Net:SetEntityRotation", 5120, uNetId, rot)
 
     -- Instantly sync for local obj
-    local obj = UtilityNet.GetEntityFromUNetId(uNetId)
+    TriggerEvent("Utility:Net:RefreshRotation", uNetId, rot)
+end
 
-    if DoesEntityExist(obj) then
-        SetEntityRotation(obj, rot)
-    end
+UtilityNet.SetEntityModel = function(uNetId, model)
+    TriggerLatentServerEvent("Utility:Net:SetEntityModel", 5120, uNetId, model)
+
+    -- Instantly sync for local obj
+    TriggerEvent("Utility:Net:RefreshModel", uNetId, model)
 end
 
 UtilityNet.GetEntityCoords = function(uNetId)

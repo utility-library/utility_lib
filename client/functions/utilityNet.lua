@@ -337,6 +337,47 @@ StartUtilityNetRenderLoop = function()
     end)
 end
 
+RegisterNetEvent("Utility:Net:RefreshModel", function(uNetId, model)
+    local start = GetGameTimer()
+    while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
+        Citizen.Wait(1)
+    end
+
+    if LocalEntities[uNetId] then
+        -- Wait for the entity to exist and be rendered (prevent missing model replace on instant model change)
+        while not DoesEntityExist(LocalEntities[uNetId]) or not UtilityNet.IsEntityRendered(LocalEntities[uNetId]) do
+            Citizen.Wait(1)
+        end
+
+        -- Preserve the old object so that it does not flash (delete and instantly re-render)
+        local oldObj = LocalEntities[uNetId]
+        local _state = Entity(oldObj).state
+        _state.preserved = true
+
+        UnrenderLocalEntity(uNetId)
+
+        -- Tamper with the entity model and render again
+        local entityIndex = GetEntityIndexByNetId(uNetId)
+        local entityData = GlobalState.Entities[entityIndex]
+
+        if not entityData then
+            error("RefreshModel: entity with index "..tostring(entityIndex).." not found, uNetId: "..tostring(uNetId))
+            return
+        end
+
+        entityData.model = model
+        RenderLocalEntity(uNetId, entityIndex, entityData)
+
+        -- Wait for the entity to exist and be rendered
+        while not DoesEntityExist(LocalEntities[uNetId]) or not UtilityNet.IsEntityRendered(LocalEntities[uNetId]) do
+            Citizen.Wait(1)
+        end
+
+        -- Delete the old object after the new one is rendered (so that it does not flash)
+        DeleteEntity(oldObj)
+    end
+end)
+
 RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords)
     local start = GetGameTimer()
     while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do

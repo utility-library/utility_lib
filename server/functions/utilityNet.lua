@@ -123,6 +123,10 @@ local function StartQueueUpdateLoop(bagkey)
                             v.coords = queue[v.id].coords
                             v.slice = queue[v.id].slice
                         end
+
+                        if queue[v.id].model then
+                            v.model = queue[v.id].model
+                        end
                     end
                 end
 
@@ -190,6 +194,23 @@ UtilityNet.SetEntityCoords = function(uNetId, newCoords)
     TriggerLatentEventForListenersExcept("Utility:Net:RefreshCoords", uNetId, 5120, source, uNetId, newCoords)
 end
 
+UtilityNet.SetEntityModel = function(uNetId, model)
+    local source = source
+
+    if type(model) ~= "number" and type(model) ~= "string" then
+        error("Invalid model, got "..type(model).." expected string or number", 2)
+    end
+
+    if type(model) == "string" then
+        model = GetHashKey(model)
+    end
+
+    InsertValueInQueue("Entities", uNetId, {model = model})
+
+    -- Except caller since it will be already updated
+    TriggerLatentEventForListenersExcept("Utility:Net:RefreshModel", uNetId, 5120, source, uNetId, model)
+end
+
 --#region Events
 UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:CreateEntity", function(callId, model, coords, options)
@@ -226,6 +247,7 @@ UtilityNet.RegisterEvents = function()
     end)
 
     RegisterNetEvent("Utility:Net:SetEntityCoords", UtilityNet.SetEntityCoords)
+    RegisterNetEvent("Utility:Net:SetEntityModel", UtilityNet.SetEntityModel)
     RegisterNetEvent("Utility:Net:SetEntityRotation", UtilityNet.SetEntityRotation)
 
     -- Clear all entities on resource stop (this will prevent also statebag leaks)
@@ -245,5 +267,6 @@ exports("CreateEntity", UtilityNet.CreateEntity)
 exports("DeleteEntity", UtilityNet.DeleteEntity)
 exports("SetModelRenderDistance", UtilityNet.SetModelRenderDistance)
 
+exports("SetEntityModel", UtilityNet.SetEntityModel)
 exports("SetEntityCoords", UtilityNet.SetEntityCoords)
 exports("SetEntityRotation", UtilityNet.SetEntityRotation)

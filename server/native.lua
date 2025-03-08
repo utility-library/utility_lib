@@ -751,6 +751,10 @@ UtilityNet.CreateEntity = function(model, coords, options)
     return id
 end
 
+UtilityNet.SetEntityModel = function(uNetId, model)
+    return exports["utility_lib"]:SetEntityModel(uNetId, model)
+end
+
 UtilityNet.DeleteEntity = function(uNetId)
     for k, v in pairs(CreatedEntities) do
         if v == uNetId then
