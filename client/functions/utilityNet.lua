@@ -151,7 +151,12 @@ local RenderLocalEntity = function(uNetId, entityIndex, entityData)
             error("RenderLocalEntity: Model "..model.." is not valid, uNetId: "..uNetId)
         end
 
+        local start = GetGameTimer()
         while not HasModelLoaded(model) do
+            if (GetGameTimer() - start) > 5000 then
+                error("RenderLocalEntity: Model "..model.." failed to load, uNetId: "..uNetId)
+            end
+
             RequestModel(model)
             Citizen.Wait(1)
         end
