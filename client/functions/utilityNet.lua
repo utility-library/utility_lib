@@ -69,16 +69,17 @@ end
 --#endregion
 
 --#region Rendering functions
-local creatingEntities = {}
-local SetNetIdBeignCreated = function(uNetId, status)
-    creatingEntities[uNetId] = status and true or nil
+local busyEntities = {}
+local SetNetIdBeingBusy = function(uNetId, status)
+    busyEntities[uNetId] = status and true or nil
 end
 
-local IsNetIdCreating = function(uNetId)
-    return creatingEntities[uNetId]
+local IsNetIdBusy = function(uNetId)
+    return busyEntities[uNetId]
 end
 
-exports("IsNetIdCreating", IsNetIdCreating)
+exports("IsNetIdBusy", IsNetIdBusy)
+exports("IsNetIdCreating", IsNetIdBusy)
 
 local UnrenderLocalEntity = function(uNetId)
     local entity = UtilityNet.GetEntityFromUNetId(uNetId)
@@ -122,14 +123,14 @@ local UnrenderLocalEntity = function(uNetId)
 end
 
 local RenderLocalEntity = function(uNetId, entityIndex, entityData)
-    if IsNetIdCreating(uNetId) then
+    if IsNetIdBusy(uNetId) then
         if DebugRendering then
             warn("RenderLocalEntity: entity with uNetId: "..uNetId.." is already being created, skipping this call")
         end
         return
     end
 
-    SetNetIdBeignCreated(uNetId, true)
+    SetNetIdBeingBusy(uNetId, true)
 
     local obj = 0
     local stateUtility = UtilityNet.State(uNetId)
@@ -168,7 +169,7 @@ local RenderLocalEntity = function(uNetId, entityIndex, entityData)
     
             -- Skip object creation if not found
             if not DoesEntityExist(_obj) then
-                SetNetIdBeignCreated(uNetId, false)
+                SetNetIdBeingBusy(uNetId, false)
                 return
             end
     
@@ -251,7 +252,7 @@ local RenderLocalEntity = function(uNetId, entityIndex, entityData)
         TriggerEvent("Utility:Net:OnRender", uNetId, obj, model)
     
         state.rendered = true
-        SetNetIdBeignCreated(uNetId, false)
+        SetNetIdBeingBusy(uNetId, false)
     end)
 end
 
@@ -350,9 +351,10 @@ RegisterNetEvent("Utility:Net:RefreshModel", function(uNetId, model)
 
     if LocalEntities[uNetId] then
         -- Wait for the entity to exist and be rendered (prevent missing model replace on instant model change)
-        while not DoesEntityExist(LocalEntities[uNetId]) or not UtilityNet.IsEntityRendered(LocalEntities[uNetId]) do
-            Citizen.Wait(1)
+        while not DoesEntityExist(LocalEntities[uNetId]) or not UtilityNet.IsEntityRendered(LocalEntities[uNetId]) or IsNetIdBusy(uNetId) do
+            Citizen.Wait(100)
         end
+        SetNetIdBeingBusy(uNetId, true)
 
         -- Preserve the old object so that it does not flash (delete and instantly re-render)
         local oldObj = LocalEntities[uNetId]
@@ -371,6 +373,8 @@ RegisterNetEvent("Utility:Net:RefreshModel", function(uNetId, model)
         end
 
         entityData.model = model
+
+        SetNetIdBeingBusy(uNetId, false)
         RenderLocalEntity(uNetId, entityIndex, entityData)
 
         -- Wait for the entity to exist and be rendered
@@ -390,7 +394,13 @@ RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords)
     end
     
     if LocalEntities[uNetId] then
+        while not DoesEntityExist(LocalEntities[uNetId]) or not UtilityNet.IsEntityRendered(LocalEntities[uNetId]) or IsNetIdBusy(uNetId) do
+            Citizen.Wait(100)
+        end
+
+        SetNetIdBeingBusy(uNetId, true)
         SetEntityCoords(LocalEntities[uNetId], coords)
+        SetNetIdBeingBusy(uNetId, false)
     end
 end)
 
@@ -401,7 +411,13 @@ RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation)
     end
 
     if LocalEntities[uNetId] then
+        while not DoesEntityExist(LocalEntities[uNetId]) or not UtilityNet.IsEntityRendered(LocalEntities[uNetId]) or IsNetIdBusy(uNetId) do
+            Citizen.Wait(100)
+        end
+
+        SetNetIdBeingBusy(uNetId, true)
         SetEntityRotation(LocalEntities[uNetId], rotation)
+        SetNetIdBeingBusy(uNetId, false)
     end
 end)
 
@@ -451,7 +467,7 @@ end) ]]
 
 Citizen.CreateThread(function()
     while DebugRendering do
-        DrawText3Ds(GetEntityCoords(PlayerPedId()), "Rendering Requested Entities: ".. #creatingEntities)
+        DrawText3Ds(GetEntityCoords(PlayerPedId()), "Rendering Requested Entities: ".. #busyEntities)
         Citizen.Wait(1)
     end
 end)
