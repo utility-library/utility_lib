@@ -1939,19 +1939,17 @@ end
 
             if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- If some time has elapsed since the last call
                 local speed = {}
-                local progress = (timer - startTimer) / (duration)
+                local progress = (timeAccurate - startTimer) / (duration)
 
                 for k, v in pairs(axis) do
                     if startCoords[v] == destination[v] then
                         speed[v] = 0
                     else
-                        local newCoord = math.lerp(startCoords[v], destination[v], easingFunction(progress)) -- we get the new coords from lerp and the easing function for the translation progress
                         local updatedCoords = GetEntityCoords(obj)
-                        local distance = updatedCoords[v] - newCoord
+                        local newCoord = math.lerp(startCoords[v], destination[v], easingFunction(progress)) -- we get the new coords from lerp and the easing function for the translation progress
+                        local distance = math.abs(updatedCoords[v] - newCoord)
     
-                        local _speed = math.abs(distance) -- we divide for deltaTime so the translation its relative to deltaTime from last call to contrast time intervals between frames
-                        
-                        speed[v] = _speed
+                        speed[v] = distance
                     end
                 end
                 
@@ -1965,86 +1963,22 @@ end
     end
 
     TranslateObjectCoords = function(obj, destination, duration)
-        local startCoords = GetEntityCoords(obj)
-        local startTimer = GetNetworkTimeAccurate()
-        local timer = GetNetworkTimeAccurate()
-        local done = false
-        local space = destination - startCoords
-        local axis = {"x", "y", "z"}
-
-        while not done and (timer - startTimer) < duration do
-            Citizen.Wait(0) -- wait 1 tick
-            local timeAccurate = GetNetworkTimeAccurate()
-    
-            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
-                local deltaTime = (timeAccurate - timer)
-                local time = deltaTime / duration
-                local speed = {}
-
-                for k,v in pairs(axis) do
-                    if space[v] == 0 then
-                        speed[v] = 0
-                    else
-                        speed[v] = math.abs(space[v]) * time
-                    end
-                end
-
-                done = SlideObject(obj, destination, speed.x, speed.y, speed.z, false)
-            end
-            
-            timer = timeAccurate
-        end
-
-        --print(obj, "Done")
-        SetEntityCoords(obj, destination)
+        TranslateObjectCoordsCubicBezier(obj, destination, duration, {0.1, 0.1, 0.1, 0.1})
     end
     TranslateUniformRectilinearMotion = TranslateObjectCoords
-
-    TranslateObjectRotation = function(obj, destination, duration, rotationOrder)
-        local startRot = GetEntityRotation(obj, rotationOrder or 2)
-        local startTimer = GetNetworkTimeAccurate() 
-
-        local timer = GetNetworkTimeAccurate()
-        local space = destination - startRot
-        local axis = {"x", "y", "z"}
-
-        while (timer - startTimer) < duration do
-            Citizen.Wait(0) -- wait 1 tick
-            local timeAccurate = GetNetworkTimeAccurate()
-            local progress = (timer - startTimer) / (duration)
-
-            if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- if it elapsed some time from the last call
-                local rot = {}
-                
-                for k,v in pairs(axis) do
-                    rot[v] = math.lerp(startRot[v], destination[v], progress) -- we get the new coords from lerp and the easing function for the translation progress
-                end
-
-                SetEntityRotation(obj, vec3(rot.x, rot.y, rot.z), 2)
-            end
-            
-            timer = timeAccurate
-        end
-
-        SetEntityRotation(obj, destination, rotationOrder or 2)
-    end
 
     TranslateObjectRotationCubicBezier = function(obj, destination, duration, rotationOrder, cubicBezier)
         local startRotation = GetEntityRotation(obj)
         local startTimer = GetNetworkTimeAccurate()
 
         local timer = GetNetworkTimeAccurate()
-        local done = false
-        local space = destination - startRotation
-
-        -- round numbers (beyond a number of decimal places, calculations tend to fail)
-        space = {
-            tonumber(string.format("%.3f", space.x)),
-            tonumber(string.format("%.3f", space.y)),
-            tonumber(string.format("%.3f", space.z)),
-        }
-
         local axis = {"x", "y", "z"}
+        local ndestination = {}
+
+        -- Normalize destination to [-180, 180] range
+        for _, v in ipairs(axis) do
+            ndestination[v] = ((destination[v] + 180) % 360) - 180
+        end
 
         if type(cubicBezier) == "string" then
             cubicBezier = predefinedCubicBeziers[cubicBezier]
@@ -2057,21 +1991,16 @@ end
 
         local easingFunction = bezier(table.unpack(cubicBezier))
 
-        while not done and (timer - startTimer) < duration do
+        while (timer - startTimer) < duration do
             Citizen.Wait(0) -- Wait 1 tick
             local timeAccurate = GetNetworkTimeAccurate()
+            local progress = (timeAccurate - startTimer) / (duration)
 
             if timer ~= 0 and (timeAccurate - timer) ~= 0 then -- If some time has elapsed since the last call
                 local rot = {}
-                local progress = (timer - startTimer) / (duration)
 
-                for k, v in pairs(axis) do
-                    if space[v] == 0 then
-                        rot[v] = 0
-                    else
-                        local newRot = math.lerp(startRotation[v], destination[v], easingFunction(progress)) -- we get the new coords from lerp and the easing function for the translation progress
-                        rot[v] = newRot
-                    end
+                for k, v in ipairs(axis) do
+                    rot[v] = math.lerp(startRotation[v], ndestination[v], easingFunction(progress)) -- we get the new coords from lerp and the easing function for the translation progress
                 end
                 
                 SetEntityRotation(obj, rot.x, rot.y, rot.z, rotationOrder or 2)
@@ -2080,7 +2009,11 @@ end
             timer = timeAccurate
         end
 
-        SetEntityRotation(obj, destination, rotationOrder or 2)
+        SetEntityRotation(obj, ndestination.x, ndestination.y, ndestination.z, rotationOrder or 2)
+    end
+
+    TranslateObjectRotation = function(obj, destination, duration, rotationOrder)
+        TranslateObjectRotationCubicBezier(obj, destination, duration, rotationOrder, {0.1, 0.1, 0.1, 0.1})
     end
 
 --// Heists //--
