@@ -2725,9 +2725,13 @@ end
             CreatePatrolRoute()
         
             if DevModeStatus then
-                CreateLoop(function(loopId)
-                    for i=1, #debugLines do
-                        DrawLine(debugLines[i][1], debugLines[i][2], 255, 0, 0, 255)
+                Citizen.CreateThread(function()
+                    while true do
+                        for i=1, #debugLines do
+                            DrawLine(debugLines[i][1], debugLines[i][2], 255, 0, 0, 255)
+                        end
+        
+                        Citizen.Wait(0)
                     end
                 end)
             end
@@ -2761,8 +2765,11 @@ end
     end
 
     DebugCoords = function(coords)
-        CreateLoop(function(loopId)
-            DrawText3Ds(coords, "V")
+        Citizen.CreateThread(function()
+            while true do
+                DrawText3Ds(coords, "V")
+                Citizen.Wait(0)
+            end
         end)
     end
     
@@ -2971,29 +2978,84 @@ end
 local CreatedEntities = {}
 
 --#region API
+UtilityNet.ForEachEntity = function(fn, slices)
+    if slices then
+        local entities = GlobalState.Entities
+
+        for i = 1, #slices do
+            local _entities = entities[slices[i]]
+            local n = 0
+            
+            if _entities then
+                -- Manual pairs loop for performance
+                local k,v = next(_entities)
+
+                while k do
+                    n = n + 1
+                    local ret = fn(v, k)
+        
+                    if ret ~= nil then
+                        return ret
+                    end
+                    k,v = next(_entities, k)
+                end
+            end
+        end
+    else
+        local entities = GlobalState.Entities
+
+        if not entities then
+            return
+        end
+
+        -- Manual pairs loop for performance
+        local sliceI,slice = next(entities)
+
+        while sliceI do
+            local k2, v = next(slice)
+            while k2 do
+                local ret = fn(v, k2)
+
+                if ret ~= nil then
+                    return ret
+                end
+
+                k2,v = next(slice, k2)
+            end
+
+            sliceI, slice = next(entities, sliceI)
+        end
+    end
+end
+
+UtilityNet.InternalFindFromNetId = function(uNetId)
+    for sliceI, slice in pairs(GlobalState.Entities) do
+        if slice[uNetId] then
+            return slice[uNetId], sliceI
+        end
+    end
+end
+
 UtilityNet.SetDebug = function(state)
     UtilityNetDebug = state
 
     local localEntities = {}
     Citizen.CreateThread(function()
         while UtilityNetDebug do
-            local entities = GlobalState.Entities
-            if #entities > 0 then
-                localEntities = {}
-                
-                for i, v in pairs(entities) do
-                    if v.createdBy == GetCurrentResourceName() then
-                        local obj = UtilityNet.GetEntityFromUNetId(v.id)
+            localEntities = {}
+            
+            UtilityNet.ForEachEntity(function(entity)
+                if v.createdBy == GetCurrentResourceName() then
+                    local obj = UtilityNet.GetEntityFromUNetId(v.id)
 
-                        if DoesEntityExist(obj) then
-                            table.insert(localEntities, {
-                                obj = obj,
-                                netId = v.id
-                            })
-                        end
+                    if DoesEntityExist(obj) then
+                        table.insert(localEntities, {
+                            obj = obj,
+                            netId = v.id
+                        })
                     end
                 end
-            end
+            end)
             Citizen.Wait(3000)
         end
     end)
@@ -3073,23 +3135,30 @@ UtilityNet.GetClosestRenderedObjectOfType = function(coords, radius, model)
 end
 
 UtilityNet.GetClosestNetIdOfType = function(coords, radius, model)
-    local entities = GlobalState.Entities
-
     if type(model) == "string" then
         model = GetHashKey(model)
     end
 
-    if #entities == 0 then
-        return nil
+    local closest = nil
+    local minDist = math.huge
+    local slice = GetSliceFromCoords(coords)
+    local slices = GetSurroundingSlices(slice)
+
+    -- Iterate only through near slices to improve performance
+    for k, v in pairs(slices) do
+        UtilityNet.ForEachEntity(function(entity)
+            if entity.model == model then
+                local distance = #(coords - entity.coords)
+    
+                if distance < radius and distance < minDist then
+                    minDist = distance
+                    closest = entity.id
+                end
+            end
+        end, {v})
     end
 
-    for k, v in pairs(entities) do
-        local distance = #(coords - v.coords)
-
-        if distance < radius and v.model == model then
-            return v.id
-        end
-    end
+    return closest
 end
 
 UtilityNet.DeleteEntity = function(uNetId)
@@ -3153,22 +3222,18 @@ UtilityNet.SetEntityModel = function(uNetId, model)
 end
 
 UtilityNet.GetEntityCoords = function(uNetId)
-    local entities = GlobalState.Entities
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
 
-    for k, v in pairs(entities) do
-        if v.id == uNetId then
-            return v.coords
-        end
+    if entity then
+        return entity.coords
     end
 end
 
 UtilityNet.GetEntityRotation = function(uNetId)
-    local entities = GlobalState.Entities
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
 
-    for k, v in pairs(entities) do
-        if v.id == uNetId then
-            return v.options.rotation
-        end
+    if entity then
+        return entity.rotation
     end
 end
 
@@ -3202,13 +3267,8 @@ UtilityNet.IsEntityRendered = function(obj)
 end
 
 UtilityNet.DoesUNetIdExist = function(uNetId)
-    for k,v in pairs(GlobalState.Entities) do
-        if v.id == uNetId then
-            return true
-        end
-    end
-
-    return false
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
+    return entity or false
 end
 
 --#region State

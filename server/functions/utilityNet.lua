@@ -36,16 +36,22 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
     --#endregion
 
     local entities = GlobalState.Entities
+    local slice = GetSliceFromCoords(coords)
+    
     local object = {
         id = NextId,
         model = model,
         coords = coords,
-        slice = GetSliceFromCoords(coords),
+        slice = slice,
         options = options,
         createdBy = options.resource or GetInvokingResource(),
     }
 
-    table.insert(entities, object)
+    if not entities[slice] then
+        entities[slice] = {}
+    end
+
+    entities[slice][object.id] = object
     GlobalState.Entities = entities
 
     RegisterEntityState(object.id)
@@ -80,12 +86,10 @@ UtilityNet.DeleteEntity = function(uNetId)
 
 
     local entities = GlobalState.Entities
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
 
-    for k,v in pairs(entities) do
-        if v.id == uNetId then
-            table.remove(entities, k)
-            break
-        end
+    if entity then
+        entities[entity.slice][entity.id] = nil
     end
 
     GlobalState.Entities = entities
@@ -107,28 +111,48 @@ local function StartQueueUpdateLoop(bagkey)
             -- Nothing added in the last 100ms
             if (GetGameTimer() - queue.lastInt) > 200 then
                 local old = GlobalState[bagkey]
-                local count = 0
 
-                for k,v in pairs(old) do
-                    -- Net id need to be updated
-                    if queue[v.id] then
-                        count = count + 1
+                if bagkey == "Entities" then
+                    UtilityNet.ForEachEntity(function(entity)
+                        if queue[entity.id] then
+                            -- Rotation need to be handled separately
+                            if queue[entity.id].rotation then
+                                entity.options.rotation = queue[entity.id].rotation
+                                queue[entity.id].rotation = nil
+                            end
 
-                        -- Update values from queue to GlobalState
-                        if queue[v.id].rotation then
-                            v.options.rotation = queue[v.id].rotation
+                            for k,v in pairs(queue[entity.id]) do
+                                -- If slice need to be updated, move entity to new slice 
+                                if k == "slice" and v ~= entity.slice then
+                                    local newSlice = v
+
+                                    old[newSlice][entity.id] = old[entity.slice][entity.id] -- Copy to new slice
+                                    old[entity.slice][entity.id] = nil -- Remove from old
+
+                                    entity = old[newSlice][entity.id] -- Update entity variable
+                                end
+
+                                old[entity.slice][entity.id][k] = v
+                            end
                         end
-
-                        if queue[v.id].coords then
-                            v.coords = queue[v.id].coords
-                            v.slice = queue[v.id].slice
-                        end
-
-                        if queue[v.id].model then
-                            v.model = queue[v.id].model
+                    end)
+                else
+                    for k,v in pairs(old) do
+                        -- Net id need to be updated
+                        if queue[v.id] then
+                            -- Rotation need to be handled separately
+                            if queue[v.id].rotation then
+                                v.options.rotation = queue[v.id].rotation
+                                queue[v.id].rotation = nil
+                            end
+    
+                            for k2,v2 in pairs(queue[v.id]) do
+                                v[k2] = v2
+                            end
                         end
                     end
                 end
+
 
                 -- Refresh GlobalState
                 GlobalState[bagkey] = old
@@ -250,13 +274,12 @@ UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:SetEntityModel", UtilityNet.SetEntityModel)
     RegisterNetEvent("Utility:Net:SetEntityRotation", UtilityNet.SetEntityRotation)
 
-    -- Clear all entities on resource stop (this will prevent also statebag leaks)
+    -- Clear all entities on resource stop
     AddEventHandler("onResourceStop", function(resource)
         if resource == GetCurrentResourceName() then
-            for k,v in pairs(GlobalState.Entities) do
-                --print("Stopped utility deleting", v.id)
-                UtilityNet.DeleteEntity(v.id)
-            end
+            UtilityNet.ForEachEntity(function(v)
+                TriggerLatentEventForListeners("Utility:Net:RequestDeletion", v, 5120, v)
+            end)
         end
     end)
 end
