@@ -353,7 +353,9 @@ StartUtilityNetRenderLoop = function()
                 lastSlice = currentSlice
             end
 
-            print("end", GetGameTimer() - start)
+            if DebugRendering then
+                print("end", GetGameTimer() - start)
+            end
 
             lastNEntities = nEntities
             Citizen.Wait(Config.UpdateCooldown)
