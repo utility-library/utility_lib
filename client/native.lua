@@ -1973,11 +1973,15 @@ end
 
         local timer = GetNetworkTimeAccurate()
         local axis = {"x", "y", "z"}
-        local ndestination = {}
+        local deltaRotation = {}
 
-        -- Normalize destination to [-180, 180] range
+        -- Normalize destination to [-180, 180] range and compute shortest angular path
         for _, v in ipairs(axis) do
-            ndestination[v] = ((destination[v] + 180) % 360) - 180
+            local start = startRotation[v]
+            local dest = destination[v]
+            local delta = ((dest - start + 180) % 360) - 180
+
+            deltaRotation[v] = delta
         end
 
         if type(cubicBezier) == "string" then
@@ -2000,7 +2004,10 @@ end
                 local rot = {}
 
                 for k, v in ipairs(axis) do
-                    rot[v] = math.lerp(startRotation[v], ndestination[v], easingFunction(progress)) -- we get the new coords from lerp and the easing function for the translation progress
+                    local start = startRotation[v]
+                    local delta = deltaRotation[v]
+
+                    rot[v] = start + delta * easingFunction(progress)
                 end
                 
                 SetEntityRotation(obj, rot.x, rot.y, rot.z, rotationOrder or 2)
@@ -2009,7 +2016,7 @@ end
             timer = timeAccurate
         end
 
-        SetEntityRotation(obj, ndestination.x, ndestination.y, ndestination.z, rotationOrder or 2)
+        SetEntityRotation(obj, destination.x, destination.y, destination.z, rotationOrder or 2)
     end
 
     TranslateObjectRotation = function(obj, destination, duration, rotationOrder)
