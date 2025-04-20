@@ -3051,7 +3051,7 @@ UtilityNet.SetDebug = function(state)
         while UtilityNetDebug do
             localEntities = {}
             
-            UtilityNet.ForEachEntity(function(entity)
+            UtilityNet.ForEachEntity(function(v)
                 if v.createdBy == GetCurrentResourceName() then
                     local obj = UtilityNet.GetEntityFromUNetId(v.id)
 
@@ -3120,8 +3120,8 @@ UtilityNet.GetClosestRenderedNetIdOfType = function(coords, radius, model)
     local minDist = math.huge
     
     for k, v in pairs(entities) do
-        if DoesEntityExist(v) and GetEntityModel(v) == model then
-            local dist = #(coords - GetEntityCoords(v))
+        if DoesEntityExist(v.obj) and GetEntityModel(v.obj) == model then
+            local dist = #(coords - GetEntityCoords(v.obj))
 
             if dist < minDist then
                 closest = k
@@ -3240,7 +3240,7 @@ UtilityNet.GetEntityRotation = function(uNetId)
     local entity = UtilityNet.InternalFindFromNetId(uNetId)
 
     if entity then
-        return entity.rotation
+        return entity.options.rotation
     end
 end
 
