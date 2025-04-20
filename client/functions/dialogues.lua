@@ -23,18 +23,22 @@ DrawLastQuestion = function(dialogue, time)
     if dialogue.lastQuestion ~= nil then
         local startTime = GetGameTimer()
 
-        CreateLoop(function(loopId)
-            local entityCoords = GetEntityCoords(dialogue.entity) + vector3(0.0, 0.0, 1.0)
-            
-            ClearPedTasks(dialogue.entity)
-            SetEntityAsMissionEntity(dialogue.entity)
+        Citizen.CreateThread(function()
+            while true do
+                local entityCoords = GetEntityCoords(dialogue.entity) + vector3(0.0, 0.0, 1.0)
+                
+                ClearPedTasks(dialogue.entity)
+                SetEntityAsMissionEntity(dialogue.entity)
 
-            DrawText3Ds(entityCoords, dialogue.lastQuestion, nil, nil, true)
+                DrawText3Ds(entityCoords, dialogue.lastQuestion, nil, nil, true)
 
-            if (GetGameTimer() - startTime) > time then
-                SetEntityAsNoLongerNeeded(dialogue.entity)
-                Utility.Cache.LastEntityDialogued = nil
-                StopLoop(loopId)
+                if (GetGameTimer() - startTime) > time then
+                    SetEntityAsNoLongerNeeded(dialogue.entity)
+                    Utility.Cache.LastEntityDialogued = nil
+                    break
+                end
+
+                Citizen.Wait(0)
             end
         end)
     end
@@ -73,40 +77,44 @@ StopEntityWithIsTalking = function(entity)
 end
 
 StartDialoguesDrawingLoop = function()
-    CreateLoop(function(loopId)
-        local drawing = false
+    Citizen.CreateThread(function()
+        while true do
+            local drawing = false
 
-        if SliceUsed(currentSlice) then
-            for entity,v in pairs(Utility.Cache.Dialogue) do
-                if currentSlice == v.slice then
-                    local questionCoords = GetEntityCoords(entity) + vector3(0.0, 0.0, 1.0)
-                    local playerCoords = GetEntityCoords(player) + vector3(0.0, 0.0, 1.0)
+            if SliceUsed(currentSlice) then
+                for entity,v in pairs(Utility.Cache.Dialogue) do
+                    if currentSlice == v.slice then
+                        local questionCoords = GetEntityCoords(entity) + vector3(0.0, 0.0, 1.0)
+                        local playerCoords = GetEntityCoords(player) + vector3(0.0, 0.0, 1.0)
 
-                    if #(playerCoords - questionCoords) < v.distance then
-                        drawing = true
+                        if #(playerCoords - questionCoords) < v.distance then
+                            drawing = true
 
-                        if v.stopWhenTalking then
-                            StopEntityWithIsTalking(entity)
-                        end
+                            if v.stopWhenTalking then
+                                StopEntityWithIsTalking(entity)
+                            end
 
-                        if not ItsLastQuestion(v) then
-                            DrawDialogueTexts(questionCoords, playerCoords, v)
-                            CheckDialogueInteraction(v)
-                        else
-                            DrawLastQuestion(v, 3000)
+                            if not ItsLastQuestion(v) then
+                                DrawDialogueTexts(questionCoords, playerCoords, v)
+                                CheckDialogueInteraction(v)
+                            else
+                                DrawLastQuestion(v, 3000)
+                            end
                         end
                     end
                 end
             end
-        end
 
-        if not drawing then
-            if Utility.Cache.LastEntityDialogued then
-                SetEntityAsNoLongerNeeded(Utility.Cache.LastEntityDialogued)
-                Utility.Cache.LastEntityDialogued = nil
+            if not drawing then
+                if Utility.Cache.LastEntityDialogued then
+                    SetEntityAsNoLongerNeeded(Utility.Cache.LastEntityDialogued)
+                    Utility.Cache.LastEntityDialogued = nil
+                end
+                
+                Citizen.Wait(Config.UpdateCooldown)
             end
-            
-            Citizen.Wait(Config.UpdateCooldown)
+
+            Citizen.Wait(0)
         end
     end)
 end

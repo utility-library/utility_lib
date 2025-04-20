@@ -173,15 +173,19 @@ LoadJobsAndListenForChanges = function()
 end
 
 StartMarkersRenderLoop = function()
-    CreateLoop(function(loopId)
-        local drawing = false
+    Citizen.CreateThread(function()
+        while true do
+            local drawing = false
 
-        if SliceUsed(currentSlice) then
-            drawing = TryToDrawUtilityMarkers(currentSlice)
-        end
+            if SliceUsed(currentSlice) then
+                drawing = TryToDrawUtilityMarkers(currentSlice)
+            end
 
-        if not drawing then
-            Citizen.Wait(Config.UpdateCooldown)
+            if not drawing then
+                Citizen.Wait(Config.UpdateCooldown)
+            end
+
+            Citizen.Wait(0)
         end
     end)
 end

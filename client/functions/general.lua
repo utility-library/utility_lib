@@ -19,10 +19,13 @@ CreateBlip = function(name, coords, sprite, colour, scale)
 end
 
 StartCacheUpdateLoop = function()
-    CreateLoop(function(loopId)
-        currentSlice = GetSelfSlice()
-        player = PlayerPedId()
-    end, Config.UpdateCooldown)
+    Citizen.CreateThread(function()
+        while true do
+            currentSlice = GetSelfSlice()
+            player = PlayerPedId()
+            Citizen.Wait(Config.UpdateCooldown)
+        end
+    end)
 end
 
 Emit = function(type, manual, ...)

@@ -744,6 +744,36 @@
 local CreatedEntities = {}
 UtilityNet = {}
 
+UtilityNet.ForEachEntity = function(fn, slice)
+    if slice then
+        if not GlobalState.Entities[slice] then
+            return
+        end
+
+        for k,v in pairs(GlobalState.Entities[slice]) do
+            local ret = fn(v, k)
+
+            if ret ~= nil then
+                return ret
+            end
+        end
+    else
+        if not GlobalState.Entities then
+            return
+        end
+
+        for sliceI,slice in pairs(GlobalState.Entities) do
+            for k2, v in pairs(slice) do
+                local ret = fn(v, k2)
+
+                if ret ~= nil then
+                    return ret
+                end
+            end
+        end
+    end
+end
+
 UtilityNet.CreateEntity = function(model, coords, options)
     local id = exports["utility_lib"]:CreateEntity(model, coords, options)
     table.insert(CreatedEntities, id)
@@ -766,29 +796,42 @@ UtilityNet.DeleteEntity = function(uNetId)
     return exports["utility_lib"]:DeleteEntity(uNetId)
 end
 
-UtilityNet.DoesUNetIdExist = function(uNetId)
-    for k,v in pairs(GlobalState.Entities) do
-        if v.id == uNetId then
-            return true
+-- Returns the slice the entity is in
+UtilityNet.InternalFindFromNetId = function(uNetId)
+    for sliceI, slice in pairs(GlobalState.Entities) do
+        if slice[uNetId] then
+            return slice[uNetId], sliceI
         end
     end
+end
 
-    return false
+UtilityNet.DoesUNetIdExist = function(uNetId)
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
+
+    return entity or false
 end
 
 UtilityNet.GetEntityCoords = function(uNetId)
-    for k,v in pairs(GlobalState.Entities) do
-        if v.id == uNetId then
-            return v.coords
-        end
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
+
+    if entity then
+        return entity.coords
+    end
+end
+
+UtilityNet.GetEntityRotation = function(uNetId)
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
+
+    if entity then
+        return entity.options.rotation
     end
 end
 
 UtilityNet.GetEntityModel = function(uNetId)
-    for k,v in pairs(GlobalState.Entities) do
-        if v.id == uNetId then
-            return v.model
-        end
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
+
+    if entity then
+        return entity.model
     end
 end
 
@@ -875,7 +918,11 @@ getValueAsStateTable = function(id, baseKey, depth)
 end
 
 UtilityNet.State = function(id)
-    local state = setmetatable({}, {
+    local state = setmetatable({
+        raw = function(self)
+            return exports["utility_lib"]:GetEntityStateValue(id)
+        end
+    }, {
         __index = function(_, k)
             local value = exports["utility_lib"]:GetEntityStateValue(id, k)
 
