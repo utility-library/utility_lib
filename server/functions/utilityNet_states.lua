@@ -21,7 +21,11 @@ end
 -- #region Get, Set, Update
 GetEntityStateValue = function(uNetId, key)
     if EntitiesStates[uNetId] then
-        return EntitiesStates[uNetId].states[key]
+        if key then
+            return EntitiesStates[uNetId].states[key]
+        else
+            return EntitiesStates[uNetId].states
+        end
     end
 end
 
