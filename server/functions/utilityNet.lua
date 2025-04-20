@@ -117,7 +117,7 @@ local function StartQueueUpdateLoop(bagkey)
                         if queue[entity.id] then
                             -- Rotation need to be handled separately
                             if queue[entity.id].rotation then
-                                entity.options.rotation = queue[entity.id].rotation
+                                old[entity.slice][entity.id].options.rotation = queue[entity.id].rotation
                                 queue[entity.id].rotation = nil
                             end
 
