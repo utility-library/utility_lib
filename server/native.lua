@@ -910,7 +910,11 @@ getValueAsStateTable = function(id, baseKey, depth)
 end
 
 UtilityNet.State = function(id)
-    local state = setmetatable({}, {
+    local state = setmetatable({
+        raw = function(self)
+            return exports["utility_lib"]:GetEntityStateValue(id)
+        end
+    }, {
         __index = function(_, k)
             local value = exports["utility_lib"]:GetEntityStateValue(id, k)
 
