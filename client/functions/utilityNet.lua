@@ -1,6 +1,7 @@
 local Entity = Entity
 
 local DebugRendering = false
+local DebugInfos = false
 local DeletedEntities = {}
 
 --#region Local functions
@@ -23,14 +24,16 @@ local AttachToEntity = function(obj, to, params)
                 Citizen.Wait(1)
             end
         else
-            warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination netId doesnt exist")
+                warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination netId doesnt exist")
         end
 
         attachToObj = UtilityNet.GetEntityFromUNetId(to)
     end
 
     if attachToObj then
-        print("Attaching", obj.." ("..GetEntityArchetypeName(obj)..")", "with", tostring(attachToObj).." ("..GetEntityArchetypeName(attachToObj)..")")
+        if DebugInfos then
+            print("Attaching", obj.." ("..GetEntityArchetypeName(obj)..")", "with", tostring(attachToObj).." ("..GetEntityArchetypeName(attachToObj)..")")
+        end
         AttachEntityToEntity(obj, attachToObj, params.bone, params.pos, params.rot, false, params.useSoftPinning, params.collision, true, params.rotationOrder, params.syncRot)
     else
         warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination entity doesnt exist")
@@ -74,37 +77,40 @@ local UnrenderLocalEntity = function(uNetId)
 
     if DoesEntityExist(entity) then
         TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
-        Citizen.Wait(1) -- Allow time for any other script to mark the entity as "preserved"
 
-        if not entity then
-            warn("UnrenderLocalEntity: entity with uNetId: "..uNetId.." already unrendered, skipping this call")
-            return
-        end
-
-        local state = Entity(entity).state
-
-        -- Remove state change handler (currently used only for attaching)
-        if state.changeHandler then
-            UtilityNet.RemoveStateBagChangeHandler(state.changeHandler)
-            state.changeHandler = nil
-        end
-
-        if state.found then
-            local model = GetEntityModel(entity)
-
-            -- Show map object
-            RemoveModelHide(GetEntityCoords(entity), 0.1, model)
-        end
-
-        if state.preserved then
-            SetEntityAsNoLongerNeeded(entity)
-        else
-            DeleteEntity(entity)
-        end
-
-        state.rendered = false
-        EntitiesStates[uNetId] = nil
-        TriggerLatentServerEvent("Utility:Net:RemoveStateListener", 5120, uNetId)
+        Citizen.SetTimeout(1, function()
+            if not DoesEntityExist(entity) then
+                if DebugInfos then
+                    warn("UnrenderLocalEntity: entity with uNetId: "..uNetId.." already unrendered, skipping this call")
+                end
+                return
+            end
+    
+            local state = Entity(entity).state
+    
+            -- Remove state change handler (currently used only for attaching)
+            if state.changeHandler then
+                UtilityNet.RemoveStateBagChangeHandler(state.changeHandler)
+                state.changeHandler = nil
+            end
+    
+            if state.found then
+                local model = GetEntityModel(entity)
+    
+                -- Show map object
+                RemoveModelHide(GetEntityCoords(entity), 0.1, model)
+            end
+    
+            if state.preserved then
+                SetEntityAsNoLongerNeeded(entity)
+            else
+                DeleteEntity(entity)
+            end
+    
+            state.rendered = false
+            EntitiesStates[uNetId] = nil
+            TriggerLatentServerEvent("Utility:Net:RemoveStateListener", 5120, uNetId)
+        end)
     end
 
     LocalEntities[uNetId] = nil
@@ -250,7 +256,6 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
 
     -- Exit if entity data is missing
     if not entityData then
-        error("UpdateLocalEntity: entity with uNetId: "..tostring(uNetId).." cant be found")
         return false
     end
 
@@ -311,22 +316,21 @@ StartUtilityNetRenderLoop = function()
             UtilityNet.ForEachEntity(function(v)
                 nEntities = nEntities + 1
 
-                if not LocalEntities[v.id] then
-                    if CanEntityBeRendered(v.id, v) then
-                        local obj = UtilityNet.GetEntityFromUNetId(v.id) or 0
-                        local state = Entity(obj).state or {}
+                if not LocalEntities[v.id] and CanEntityBeRendered(v.id, v) then
+                    local obj = UtilityNet.GetEntityFromUNetId(v.id) or 0
+                    local state = Entity(obj).state or {}
 
-                        if not state.rendered then
-                            somethingRendered = true
-                            if DebugRendering then
-                                print("RenderLocalEntity", v.id, "Loop")
-                            end
-    
-                            RenderLocalEntity(v.id, v)                        
+                    if not state.rendered then
+                        somethingRendered = true
+                        if DebugRendering then
+                            print("RenderLocalEntity", v.id, "Loop")
                         end
-                    else
-                        UnrenderLocalEntity(v.id)
+
+                        RenderLocalEntity(v.id, v)                        
                     end
+                elseif LocalEntities[v.id] and not CanEntityBeRendered(v.id, v) then
+                    somethingRendered = true
+                    UnrenderLocalEntity(v.id)
                 end
 
                 local outOfTime = (GetGameTimer() - start) > Config.UtilityNetDynamicUpdate
