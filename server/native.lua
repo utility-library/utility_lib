@@ -819,6 +819,14 @@ UtilityNet.GetEntityCoords = function(uNetId)
     end
 end
 
+UtilityNet.GetEntityRotation = function(uNetId)
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
+
+    if entity then
+        return entity.options.rotation
+    end
+end
+
 UtilityNet.GetEntityModel = function(uNetId)
     local entity = UtilityNet.InternalFindFromNetId(uNetId)
 
