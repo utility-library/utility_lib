@@ -3071,7 +3071,9 @@ UtilityNet.SetDebug = function(state)
             for k,v in pairs(localEntities) do
                 local state = UtilityNet.State(v.netId)
 
-                DrawText3Ds(GetEntityCoords(v.obj), "NetId: "..v.netId, 0.25)
+                if DoesEntityExist(v.obj) then
+                    DrawText3Ds(GetEntityCoords(v.obj), "NetId: "..v.netId, 0.25)
+                end
             end
             Citizen.Wait(1)
         end
