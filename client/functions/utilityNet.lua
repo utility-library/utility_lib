@@ -4,6 +4,8 @@ local DebugRendering = false
 local DebugInfos = false
 local DeletedEntities = {}
 
+local Entities = {}
+
 --#region Local functions
 local GetActiveSlices = function()
     local slices = GetSurroundingSlices(currentSlice)
@@ -260,7 +262,7 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
     end
 
     -- Check if entity is within drawing slices (if provided)
-    if slices and not slices[entityData.slice] then
+    if slices and not table.find(slices, entityData.slice) then
         return false
     end
 
@@ -315,7 +317,6 @@ StartUtilityNetRenderLoop = function()
             -- Render/Unrender near slices entities
             UtilityNet.ForEachEntity(function(v)
                 nEntities = nEntities + 1
-
                 if not LocalEntities[v.id] and CanEntityBeRendered(v.id, v) then
                     local obj = UtilityNet.GetEntityFromUNetId(v.id) or 0
                     local state = Entity(obj).state or {}
@@ -342,10 +343,8 @@ StartUtilityNetRenderLoop = function()
             -- Unrender entities that are out of slice
             -- Run only if the slice has changed (so something can be out of the slice and need to be unrendered)
             if lastSlice ~= currentSlice then
-                local entities = GlobalState.Entities
-
                 for netId, data in pairs(LocalEntities) do
-                    local entityData = entities[data.slice][netId]
+                    local entityData = Entities[data.slice][netId]
                 
                     if not CanEntityBeRendered(netId, entityData) then
                         UnrenderLocalEntity(netId)
@@ -369,6 +368,12 @@ end
 
 RegisterNetEvent("Utility:Net:RefreshModel", function(uNetId, model)
     local start = GetGameTimer()
+    local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+
+    if entity and Entities[slice] then
+        Entities[slice][uNetId].model = model
+    end
+
     while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
         Citizen.Wait(1)
     end
@@ -390,13 +395,6 @@ RegisterNetEvent("Utility:Net:RefreshModel", function(uNetId, model)
         -- Tamper with the entity model and render again
         local entityData = UtilityNet.InternalFindFromNetId(uNetId)
 
-        if not entityData then
-            error("RefreshModel: entity with uNetId: "..tostring(uNetId).." cant be found")
-            return
-        end
-
-        entityData.model = model
-
         SetNetIdBeingBusy(uNetId, false)
         RenderLocalEntity(uNetId, entityData)
 
@@ -417,6 +415,13 @@ end)
 
 RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords)
     local start = GetGameTimer()
+    local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+
+    if entity and Entities[slice] then
+        Entities[slice][uNetId].coords = coords
+        Entities[slice][uNetId].slice = GetSliceFromCoords(coords)
+    end
+
     while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
         Citizen.Wait(1)
     end
@@ -434,6 +439,12 @@ end)
 
 RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation)
     local start = GetGameTimer()
+    local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+
+    if entity and Entities[slice] then
+        Entities[slice][uNetId].options.rotation = rotation
+    end
+
     while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
         Citizen.Wait(1)
     end
@@ -449,34 +460,33 @@ RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation)
     end
 end)
 
-RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, uNetId)
-    local attempts = 0
+RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, object)
+    local uNetId = object.id
+    local slices = GetActiveSlices() 
 
-    while not UtilityNet.DoesUNetIdExist(uNetId) do
-        attempts = attempts + 1
-
-        if attempts > 5 then
-            if DebugRendering then
-                error("EntityCreated", uNetId, "id not found after 10 attempts")
-            end
-            return
-        end
-        Citizen.Wait(100)
+    if not Entities[object.slice] then
+        Entities[object.slice] = {}
     end
 
-    if CanEntityBeRendered(uNetId) then
+    Entities[object.slice][object.id] = object
+
+    if CanEntityBeRendered(uNetId, object, slices) then
         if DebugRendering then
             print("RenderLocalEntity", uNetId, "EntityCreated")
         end
 
-        RenderLocalEntity(uNetId)
+        RenderLocalEntity(uNetId, object)
     end
 end)
 
 RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId)
     if LocalEntities[uNetId] then
+        local slice = LocalEntities[uNetId].slice
+
         DeletedEntities[uNetId] = true
         UnrenderLocalEntity(uNetId)
+
+        Entities[slice][uNetId] = nil
     end
 end)
 
@@ -485,6 +495,14 @@ Citizen.CreateThread(function()
         DrawText3Ds(GetEntityCoords(PlayerPedId()), "Rendering Requested Entities: ".. #busyEntities)
         Citizen.Wait(1)
     end
+end)
+
+Citizen.CreateThread(function()
+    RegisterNetEvent("Utility:Net:GetEntities", function(entities)
+        Entities = entities
+    end)
+
+    TriggerServerEvent("Utility:Net:GetEntities")
 end)
 
 -- Exports
@@ -500,6 +518,22 @@ UtilityNet.GetUNetIdFromEntity = function(entity)
     end
 end
 
+UtilityNet.InternalFindFromNetId = function(uNetId)
+    for sliceI, slice in pairs(Entities) do
+        if slice[uNetId] then
+            return slice[uNetId], sliceI
+        end
+    end
+end
+
 exports("GetEntityFromUNetId", UtilityNet.GetEntityFromUNetId)
 exports("GetUNetIdFromEntity", UtilityNet.GetUNetIdFromEntity)
 exports("GetRenderedEntities", function() return LocalEntities end)
+exports("GetEntities", function(slice)
+    if slice then
+        return Entities[slice] or {}
+    else
+        return Entities
+    end
+end)
+exports("InternalFindFromNetId", UtilityNet.InternalFindFromNetId)
