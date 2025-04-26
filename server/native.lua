@@ -744,32 +744,52 @@
 local CreatedEntities = {}
 UtilityNet = {}
 
-UtilityNet.ForEachEntity = function(fn, slice)
-    if slice then
-        if not GlobalState.Entities[slice] then
-            return
-        end
+UtilityNet.ForEachEntity = function(fn, slices)
+    if slices then
+        local entities = UtilityNet.GetEntities(slices)
 
-        for k,v in pairs(GlobalState.Entities[slice]) do
-            local ret = fn(v, k)
+        for i = 1, #slices do
+            local _entities = entities[slices[i]]
+            local n = 0
+            
+            if _entities then
+                -- Manual pairs loop for performance
+                local k,v = next(_entities)
 
-            if ret ~= nil then
-                return ret
+                while k do
+                    n = n + 1
+                    local ret = fn(v, k)
+        
+                    if ret ~= nil then
+                        return ret
+                    end
+                    k,v = next(_entities, k)
+                end
             end
         end
     else
-        if not GlobalState.Entities then
+        local entities = UtilityNet.GetEntities()
+
+        if not entities then
             return
         end
 
-        for sliceI,slice in pairs(GlobalState.Entities) do
-            for k2, v in pairs(slice) do
+        -- Manual pairs loop for performance
+        local sliceI,slice = next(entities)
+
+        while sliceI do
+            local k2, v = next(slice)
+            while k2 do
                 local ret = fn(v, k2)
 
                 if ret ~= nil then
                     return ret
                 end
+
+                k2,v = next(slice, k2)
             end
+
+            sliceI, slice = next(entities, sliceI)
         end
     end
 end
@@ -798,11 +818,7 @@ end
 
 -- Returns the slice the entity is in
 UtilityNet.InternalFindFromNetId = function(uNetId)
-    for sliceI, slice in pairs(GlobalState.Entities) do
-        if slice[uNetId] then
-            return slice[uNetId], sliceI
-        end
-    end
+    return exports["utility_lib"]:InternalFindFromNetId(uNetId)
 end
 
 UtilityNet.DoesUNetIdExist = function(uNetId)
@@ -833,6 +849,10 @@ UtilityNet.GetEntityModel = function(uNetId)
     if entity then
         return entity.model
     end
+end
+
+UtilityNet.GetEntities = function()
+    return exports["utility_lib"]:GetEntities()
 end
 
 UtilityNet.SetModelRenderDistance = function(model, distance)

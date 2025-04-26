@@ -1,5 +1,4 @@
 GlobalState.ModelsRenderDistance = {}
-GlobalState.Entities = {}
 
 LoadUtilityFrameworkIfFound()
 

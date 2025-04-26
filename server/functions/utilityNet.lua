@@ -1,4 +1,5 @@
 local NextId = 1
+local Entities = {}
 
 UtilityNet = UtilityNet or {}
 
@@ -35,7 +36,6 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
     end
     --#endregion
 
-    local entities = GlobalState.Entities
     local slice = GetSliceFromCoords(coords)
     
     local object = {
@@ -47,17 +47,16 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
         createdBy = options.resource or GetInvokingResource(),
     }
 
-    if not entities[slice] then
-        entities[slice] = {}
+    if not Entities[slice] then
+        Entities[slice] = {}
     end
 
-    entities[slice][object.id] = object
-    GlobalState.Entities = entities
+    Entities[slice][object.id] = object
 
     RegisterEntityState(object.id)
     NextId = NextId + 1
 
-    TriggerLatentClientEvent("Utility:Net:EntityCreated", -1, 5120, callId, object.id)
+    TriggerLatentClientEvent("Utility:Net:EntityCreated", -1, 5120, callId, object)
     return object.id
 end
 
@@ -85,102 +84,31 @@ UtilityNet.DeleteEntity = function(uNetId)
     --#endregion
 
 
-    local entities = GlobalState.Entities
     local entity = UtilityNet.InternalFindFromNetId(uNetId)
 
     if entity then
-        entities[entity.slice][entity.id] = nil
+        Entities[entity.slice][entity.id] = nil
     end
 
-    GlobalState.Entities = entities
-
-    TriggerLatentEventForListeners("Utility:Net:RequestDeletion", uNetId, 5120, uNetId)
+    TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, 5120, uNetId)
     ClearEntityStates(uNetId) -- Clear states after trigger
 end
 
-local queues = {
-    ModelsRenderDistance = {},
-    Entities = {},
-}
-
-local function StartQueueUpdateLoop(bagkey)
-    local queue = queues[bagkey]
-
-    Citizen.CreateThread(function()
-        while queue.updateLoop do
-            -- Nothing added in the last 100ms
-            if (GetGameTimer() - queue.lastInt) > 200 then
-                local old = GlobalState[bagkey]
-
-                if bagkey == "Entities" then
-                    UtilityNet.ForEachEntity(function(entity)
-                        if queue[entity.id] then
-                            -- Rotation need to be handled separately
-                            if queue[entity.id].rotation then
-                                old[entity.slice][entity.id].options.rotation = queue[entity.id].rotation
-                                queue[entity.id].rotation = nil
-                            end
-
-                            for k,v in pairs(queue[entity.id]) do
-                                -- If slice need to be updated, move entity to new slice 
-                                if k == "slice" and v ~= entity.slice then
-                                    local newSlice = v
-
-                                    old[newSlice][entity.id] = old[entity.slice][entity.id] -- Copy to new slice
-                                    old[entity.slice][entity.id] = nil -- Remove from old
-
-                                    entity = old[newSlice][entity.id] -- Update entity variable
-                                end
-
-                                old[entity.slice][entity.id][k] = v
-                            end
-                        end
-                    end)
-                else
-                    for k,v in pairs(old) do
-                        -- Net id need to be updated
-                        if queue[v.id] then
-                            -- Rotation need to be handled separately
-                            if queue[v.id].rotation then
-                                v.options.rotation = queue[v.id].rotation
-                                queue[v.id].rotation = nil
-                            end
-    
-                            for k2,v2 in pairs(queue[v.id]) do
-                                v[k2] = v2
-                            end
-                        end
-                    end
-                end
-
-
-                -- Refresh GlobalState
-                GlobalState[bagkey] = old
-
-                queues[bagkey].updateLoop = false
-                queues[bagkey] = {}
-            end
-            Citizen.Wait(150)
+UtilityNet.InternalFindFromNetId = function(uNetId)
+    for sliceI, slice in pairs(Entities) do
+        if slice[uNetId] then
+            return slice[uNetId], sliceI
         end
-    end)
+    end
 end
 
-local function InsertValueInQueue(bagkey, id, value)
-    -- If it is already in the queue with some values that need to be updated, we merge the 2 updates into 1
-    if queues[bagkey][id] then
-        queues[bagkey][id] = table.merge(queues[bagkey][id], value)
+UtilityNet.GetEntities = function(slice)
+    if slice then
+        return Entities[slice]
     else
-        queues[bagkey][id] = value
-    end
-
-    queues[bagkey].lastInt = GetGameTimer()
-
-    if not queues[bagkey].updateLoop then
-        queues[bagkey].updateLoop = true
-        StartQueueUpdateLoop(bagkey)
+        return Entities
     end
 end
-
 
 UtilityNet.SetModelRenderDistance = function(model, distance)
     if type(model) == "string" then
@@ -199,10 +127,12 @@ UtilityNet.SetEntityRotation = function(uNetId, newRotation)
         error("Invalid rotation, got "..type(newRotation).." expected vector3", 2)
     end
 
-    InsertValueInQueue("Entities", uNetId, {rotation = newRotation})
+    local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+
+    Entities[slice][uNetId].options.rotation = newRotation
 
     -- Except caller since it will be already updated
-    TriggerLatentEventForListenersExcept("Utility:Net:RefreshRotation", uNetId, 5120, source, uNetId, newRotation)
+    TriggerLatentClientEvent("Utility:Net:RefreshRotation", -1, 5120, uNetId, newRotation)
 end
 
 UtilityNet.SetEntityCoords = function(uNetId, newCoords)
@@ -212,10 +142,13 @@ UtilityNet.SetEntityCoords = function(uNetId, newCoords)
         error("Invalid coords, got "..type(newCoords).." expected vector3", 2)
     end
 
-    InsertValueInQueue("Entities", uNetId, {coords = newCoords, slice = GetSliceFromCoords(newCoords)})
+    local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+
+    Entities[slice][uNetId].coords = newCoords
+    Entities[slice][uNetId].slice = GetSliceFromCoords(newCoords)
     
     -- Except caller since it will be already updated
-    TriggerLatentEventForListenersExcept("Utility:Net:RefreshCoords", uNetId, 5120, source, uNetId, newCoords)
+    TriggerLatentClientEvent("Utility:Net:RefreshCoords", -1, 5120, uNetId, newCoords)
 end
 
 UtilityNet.SetEntityModel = function(uNetId, model)
@@ -229,10 +162,12 @@ UtilityNet.SetEntityModel = function(uNetId, model)
         model = GetHashKey(model)
     end
 
-    InsertValueInQueue("Entities", uNetId, {model = model})
+    local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+
+    Entities[slice][uNetId].model = model
 
     -- Except caller since it will be already updated
-    TriggerLatentEventForListenersExcept("Utility:Net:RefreshModel", uNetId, 5120, source, uNetId, model)
+    TriggerLatentClientEvent("Utility:Net:RefreshModel", -1, 5120, uNetId, model)
 end
 
 --#region Events
@@ -274,11 +209,15 @@ UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:SetEntityModel", UtilityNet.SetEntityModel)
     RegisterNetEvent("Utility:Net:SetEntityRotation", UtilityNet.SetEntityRotation)
 
+    RegisterNetEvent("Utility:Net:GetEntities", function()
+        TriggerClientEvent("Utility:Net:GetEntities", source, UtilityNet.GetEntities())
+    end)
+
     -- Clear all entities on resource stop
     AddEventHandler("onResourceStop", function(resource)
         if resource == GetCurrentResourceName() then
             UtilityNet.ForEachEntity(function(v)
-                TriggerLatentEventForListeners("Utility:Net:RequestDeletion", v, 5120, v)
+                TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, 5120, v.id)
             end)
         end
     end)
@@ -289,6 +228,8 @@ end
 exports("CreateEntity", UtilityNet.CreateEntity)
 exports("DeleteEntity", UtilityNet.DeleteEntity)
 exports("SetModelRenderDistance", UtilityNet.SetModelRenderDistance)
+exports("GetEntities", UtilityNet.GetEntities)
+exports("InternalFindFromNetId", UtilityNet.InternalFindFromNetId)
 
 exports("SetEntityModel", UtilityNet.SetEntityModel)
 exports("SetEntityCoords", UtilityNet.SetEntityCoords)

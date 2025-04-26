@@ -2987,10 +2987,8 @@ local CreatedEntities = {}
 --#region API
 UtilityNet.ForEachEntity = function(fn, slices)
     if slices then
-        local entities = GlobalState.Entities
-
         for i = 1, #slices do
-            local _entities = entities[slices[i]]
+            local _entities = UtilityNet.GetEntities(slices[i])
             local n = 0
             
             if _entities then
@@ -3009,7 +3007,7 @@ UtilityNet.ForEachEntity = function(fn, slices)
             end
         end
     else
-        local entities = GlobalState.Entities
+        local entities = UtilityNet.GetEntities()
 
         if not entities then
             return
@@ -3031,14 +3029,6 @@ UtilityNet.ForEachEntity = function(fn, slices)
             end
 
             sliceI, slice = next(entities, sliceI)
-        end
-    end
-end
-
-UtilityNet.InternalFindFromNetId = function(uNetId)
-    for sliceI, slice in pairs(GlobalState.Entities) do
-        if slice[uNetId] then
-            return slice[uNetId], sliceI
         end
     end
 end
@@ -3098,9 +3088,9 @@ UtilityNet.CreateEntity = function(model, coords, options)
     local entity = promise:new()
 
     -- Callback
-    event = RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, uNetId)
+    event = RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, object)
         if _callId == callId then
-            entity:resolve(uNetId)
+            entity:resolve(object.id)
             RemoveEventHandler(event)
         end
     end)
@@ -3323,6 +3313,14 @@ end
 
 UtilityNet.GetUNetIdFromEntity = function(entity)
     return exports["utility_lib"]:GetUNetIdFromEntity(entity)
+end
+
+UtilityNet.InternalFindFromNetId = function(uNetId)
+    return exports["utility_lib"]:InternalFindFromNetId(uNetId)
+end
+
+UtilityNet.GetEntities = function(slice)
+    return exports["utility_lib"]:GetEntities(slice)
 end
 --#endregion
 
