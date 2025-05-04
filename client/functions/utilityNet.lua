@@ -525,6 +525,16 @@ Citizen.CreateThread(function()
     TriggerServerEvent("Utility:Net:GetEntities")
 end)
 
+AddEventHandler("onResourceStop", function(resource)
+    if resource == GetCurrentResourceName() then
+        for k,v in pairs(LocalEntities) do
+            Citizen.CreateThreadNow(function()
+                UnrenderLocalEntity(k)
+            end)
+        end
+    end
+end)
+
 -- Exports
 UtilityNet.GetEntityFromUNetId = function(uNetId)
     return LocalEntities[uNetId]?.obj
