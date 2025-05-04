@@ -179,7 +179,7 @@ UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:DeleteEntity", function(uNetId)
         UtilityNet.DeleteEntity(uNetId)
     end)
-    
+
     RegisterNetEvent("Utility:Net:SetModelRenderDistance", function(model, distance)
         UtilityNet.SetModelRenderDistance(model, distance)
     end)
@@ -211,15 +211,6 @@ UtilityNet.RegisterEvents = function()
 
     RegisterNetEvent("Utility:Net:GetEntities", function()
         TriggerClientEvent("Utility:Net:GetEntities", source, UtilityNet.GetEntities())
-    end)
-
-    -- Clear all entities on resource stop
-    AddEventHandler("onResourceStop", function(resource)
-        if resource == GetCurrentResourceName() then
-            UtilityNet.ForEachEntity(function(v)
-                TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, 5120, v.id)
-            end)
-        end
     end)
 end
 --#endregion

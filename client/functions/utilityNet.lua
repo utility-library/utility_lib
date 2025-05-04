@@ -78,41 +78,58 @@ local UnrenderLocalEntity = function(uNetId)
     local entity = UtilityNet.GetEntityFromUNetId(uNetId)
 
     if DoesEntityExist(entity) then
-        TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
+        local state = Entity(entity).state
 
-        Citizen.SetTimeout(1, function()
-            if not DoesEntityExist(entity) then
-                if DebugInfos then
-                    warn("UnrenderLocalEntity: entity with uNetId: "..uNetId.." already unrendered, skipping this call")
+        if not state.preserved then
+            TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
+        end
+
+        if not DoesEntityExist(entity) then
+            if DebugInfos then
+                warn("UnrenderLocalEntity: entity with uNetId: "..uNetId.." already unrendered, skipping this call")
+            end
+            return
+        end
+
+        -- Remove state change handler (currently used only for attaching)
+        if state.changeHandler then
+            UtilityNet.RemoveStateBagChangeHandler(state.changeHandler)
+            state.changeHandler = nil
+        end
+
+        if state.found then
+            if state.door then
+                if DoesEntityExist(state.door) then
+                    SetEntityVisible(state.door, true)
+                    SetEntityCollision(state.door, true, true)
                 end
-                return
-            end
-    
-            local state = Entity(entity).state
-    
-            -- Remove state change handler (currently used only for attaching)
-            if state.changeHandler then
-                UtilityNet.RemoveStateBagChangeHandler(state.changeHandler)
-                state.changeHandler = nil
-            end
-    
-            if state.found then
+            else
                 local model = GetEntityModel(entity)
     
                 -- Show map object
                 RemoveModelHide(GetEntityCoords(entity), 0.1, model)
             end
-    
-            if state.preserved then
-                SetEntityAsNoLongerNeeded(entity)
-            else
-                DeleteEntity(entity)
-            end
-    
-            state.rendered = false
-            EntitiesStates[uNetId] = nil
-            TriggerLatentServerEvent("Utility:Net:RemoveStateListener", 5120, uNetId)
-        end)
+        end
+
+        if not state.preserved then
+            DeleteEntity(entity)
+        end
+
+        state.rendered = false
+        EntitiesStates[uNetId] = nil
+        TriggerLatentServerEvent("Utility:Net:RemoveStateListener", 5120, uNetId)
+
+        if state.preserved then
+            TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
+            
+            -- Max 5000ms for the entity to be deleted if it was preserved, if it still exists, delete it (this prevents entity leaks)
+            Citizen.SetTimeout(5000, function()
+                if DoesEntityExist(entity) then
+                    warn("UnrenderLocalEntity: entity with uNetId: "..uNetId.." was preserved for more than 5 seconds, deleting it now")
+                    DeleteEntity(entity)
+                end
+            end)
+        end
     end
 
     LocalEntities[uNetId] = nil
@@ -190,10 +207,13 @@ local RenderLocalEntity = function(uNetId, entityData)
             local distance = options.door and 1.5 or 0.1
 
             if options.door and interior ~= 0 then
+                Entity(obj).state.door = _obj
+
                 -- Doors inside interiors need to be deleted
                 -- If not deleted the game will be recreate them every time the interior is reloaded (player exit and then re-enter)
                 -- And so there will be 2 copies of the same door
-                DeleteEntity(_obj)
+                SetEntityVisible(_obj, false)
+                SetEntityCollision(_obj, false, false)
             else
                 CreateModelHideExcludingScriptObjects(coords, distance, model)
             end
@@ -503,6 +523,16 @@ Citizen.CreateThread(function()
     end)
 
     TriggerServerEvent("Utility:Net:GetEntities")
+end)
+
+AddEventHandler("onResourceStop", function(resource)
+    if resource == GetCurrentResourceName() then
+        for k,v in pairs(LocalEntities) do
+            Citizen.CreateThreadNow(function()
+                UnrenderLocalEntity(k)
+            end)
+        end
+    end
 end)
 
 -- Exports
