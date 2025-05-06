@@ -506,7 +506,18 @@ RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId)
         DeletedEntities[uNetId] = true
         UnrenderLocalEntity(uNetId)
 
-        Entities[slice][uNetId] = nil
+        if Entities[slice] then
+            Entities[slice][uNetId] = nil
+        end
+    else
+        local entityData = UtilityNet.InternalFindFromNetId(uNetId)
+        if not entityData then return end
+
+        local slice = GetSliceFromCoords(entityData.coords)
+
+        if Entities[slice] then
+            Entities[slice][uNetId] = nil
+        end
     end
 end)
 
