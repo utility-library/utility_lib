@@ -30,23 +30,23 @@
 
 --// Player //--
     -- Item
-        AddItem = function(source, ...)
+        AddItem = function(source, item, amount, metadata, slot)
             if ESX then
                 xPlayer = ESX.GetPlayerFromId(source)
-                xPlayer.addInventoryItem(...)
+                xPlayer.addInventoryItem(item, amount, metadata, slot)
             else
                 xPlayer = QBCore.Functions.GetPlayer(source)
-                xPlayer.Functions.AddItem(...)
+                xPlayer.Functions.AddItem(item, amount, slot, metadata)
             end
         end
 
-        RemoveItem = function(source, ...)
+        RemoveItem = function(source, item, amount, metadata, slot)
             if ESX then
                 xPlayer = ESX.GetPlayerFromId(source)
-                xPlayer.removeInventoryItem(...)
+                xPlayer.removeInventoryItem(item, amount, metadata, slot)
             else
                 xPlayer = QBCore.Functions.GetPlayer(source)
-                xPlayer.Functions.RemoveItem(...)
+                xPlayer.Functions.RemoveItem(item, amount, slot, metadata)
             end
         end
 
