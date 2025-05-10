@@ -2512,7 +2512,8 @@ end
                 NetworkRequestControlOfEntity(trolly)
             end
         
-            local bagObj = CreateObject("hei_p_m_bag_var22_arm_s", vector3(0.0, 0.0, 0.0), true)
+            local playerCoords = GetEntityCoords(ped)
+            local bagObj = CreateObject("hei_p_m_bag_var22_arm_s", playerCoords + vector3(0.0, 0.0, -6.0), true)
             SetEntityCollision(bagObj, false, true)
         
             -- Intro
