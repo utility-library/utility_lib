@@ -11,24 +11,25 @@ UtilityNet = UtilityNet or {}
 -- }
 
 UtilityNet.CreateEntity = function(model, coords, options, callId)
+    options = options or {}
+    local hashmodel = nil
+
     --#region Checks
     if not model or (type(model) ~= "string" and type(model) ~= "number") then
         error("Invalid model, got "..type(model).." expected string or number", 0)
     else
         if type(model) == "string" then
-            model = GetHashKey(model)
+            hashmodel = GetHashKey(model)
         end
     end
 
     if not coords or type(coords) ~= "vector3" then
         error("Invalid coords, got "..type(coords).." expected vector3", 0)
     end
-
-    options = options or {}
     --#endregion
 
     --#region Event
-    TriggerEvent("Utility:Net:EntityCreating", model, coords, options)
+    TriggerEvent("Utility:Net:EntityCreating", hashmodel, coords, options)
 
     -- EntityCreating event can be canceled, in that case we dont create the entity
     if WasEventCanceled() then 
@@ -40,7 +41,7 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
     
     local object = {
         id = NextId,
-        model = model,
+        model = options.abstract and model or hashmodel,
         coords = coords,
         slice = slice,
         options = options,

@@ -160,17 +160,44 @@ local RenderLocalEntity = function(uNetId, entityData)
     local model = entityData.model
     local options = entityData.options
 
-    if not options.replace then
-        if not IsModelValid(model) then
-            error("RenderLocalEntity: Model "..model.." is not valid, uNetId: "..uNetId)
+    if options.abstract then
+        if options.replace then
+            error("RenderLocalEntity: abstract entities can't have the \"replace\" option, uNetId: "..uNetId.." model: "..model)
         end
 
+        if not IsModelValid(model) then
+            RegisterArchetypes(function()
+                return {
+                    {
+                        flags = 139296,
+                        bbMin = vector3(-0.1, -0.1, -0.1),
+                        bbMax = vector3(0.1, 0.1, 0.1),
+                        bsCentre = vector3(0.0, 0.0, 0.0),
+                        bsRadius = 1.0,
+                        name = model,
+                        textureDictionary = '',
+                        physicsDictionary = '',
+                        assetName = model,
+                        assetType = 'ASSET_TYPE_DRAWABLE',
+                        lodDist = 999,
+                        specialAttribute = 0
+                    }
+                }
+            end)
+        end
+    end
+
+    if not IsModelValid(model) then
+        error("RenderLocalEntity: Model "..model.." is not valid, uNetId: "..uNetId)
+    end
+
+    if not options.abstract then
         local start = GetGameTimer()
         while not HasModelLoaded(model) do
             if (GetGameTimer() - start) > 5000 then
                 error("RenderLocalEntity: Model "..model.." failed to load, uNetId: "..uNetId)
             end
-
+    
             RequestModel(model)
             Citizen.Wait(1)
         end
@@ -218,7 +245,12 @@ local RenderLocalEntity = function(uNetId, entityData)
                 CreateModelHideExcludingScriptObjects(coords, distance, model)
             end
         else
-            obj = CreateObject(model, coords, false, false, options.door)
+            if options.abstract then
+                obj = old_CreateObject(model, coords, false, false, options.door)
+            else
+                obj = CreateObject(model, coords, false, false, options.door)
+            end
+
             SetEntityCoords(obj, coords) -- This is required to ignore the pivot
         end
         
@@ -230,6 +262,10 @@ local RenderLocalEntity = function(uNetId, entityData)
         
         if options.rotation then
             SetEntityRotation(obj, options.rotation)
+        end
+
+        if options.abstract then
+            Entity(obj).state.abstract_model = model
         end
 
         -- Always listen for __attached changes (attach/detach)
@@ -296,7 +332,8 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
     if not state.__attached then
         local coords = GetEntityCoords(PlayerPedId())
         local modelsRenderDistance = GlobalState.ModelsRenderDistance
-        local renderDistance = modelsRenderDistance[entityData.model] or 50.0
+        local hashmodel = type(entityData.model) == "number" and entityData.model or GetHashKey(entityData.model)
+        local renderDistance = modelsRenderDistance[hashmodel] or 50.0
 
         if #(entityData.coords - coords) > renderDistance then
             return false

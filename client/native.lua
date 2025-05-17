@@ -2985,6 +2985,17 @@ end
 --// UtilityNet //
 local CreatedEntities = {}
 
+local old_GetEntityArchetypeName = GetEntityArchetypeName
+GetEntityArchetypeName = function(entity)
+    local res = old_GetEntityArchetypeName(entity)
+
+    if res == "" then
+        return Entity(entity).state.abstract_model or res
+    else
+        return res
+    end
+end
+
 --#region API
 UtilityNet.ForEachEntity = function(fn, slices)
     if slices then
