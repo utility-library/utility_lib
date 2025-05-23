@@ -188,7 +188,7 @@ local RenderLocalEntity = function(uNetId, entityData)
     end
 
     if not IsModelValid(model) then
-        error("RenderLocalEntity: Model "..model.." is not valid, uNetId: "..uNetId)
+        error("RenderLocalEntity: Model "..tostring(model).." is not valid, uNetId: "..uNetId)
     end
 
     if not options.abstract then

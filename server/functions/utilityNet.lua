@@ -20,6 +20,8 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
     else
         if type(model) == "string" then
             hashmodel = GetHashKey(model)
+        else
+            hashmodel = model
         end
     end
 
