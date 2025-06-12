@@ -1463,7 +1463,7 @@ end
 
         for k, v in next, orig do
             if type(v) == "table" then
-                copy[k] = deepcopy_new(v, seen)
+                copy[k] = table.deepcopy(v, seen)
             end
         end
 
