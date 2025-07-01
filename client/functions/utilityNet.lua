@@ -470,7 +470,7 @@ RegisterNetEvent("Utility:Net:RefreshModel", function(uNetId, model)
     end
 end)
 
-RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords)
+RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords, skipPositionUpdate)
     local start = GetGameTimer()
     local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
 
@@ -494,22 +494,24 @@ RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords)
         Entities[slice][uNetId].slice = newSlice
     end
 
-    while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
-        Citizen.Wait(1)
-    end
-    
-    if LocalEntities[uNetId] then
-        while not UtilityNet.IsReady(uNetId) or IsNetIdBusy(uNetId) do
-            Citizen.Wait(100)
+    if not skipPositionUpdate then
+        while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
+            Citizen.Wait(1)
         end
-
-        SetNetIdBeingBusy(uNetId, true)
-        SetEntityCoords(LocalEntities[uNetId].obj, coords)
-        SetNetIdBeingBusy(uNetId, false)
+        
+        if LocalEntities[uNetId] then
+            while not UtilityNet.IsReady(uNetId) or IsNetIdBusy(uNetId) do
+                Citizen.Wait(100)
+            end
+    
+            SetNetIdBeingBusy(uNetId, true)
+            SetEntityCoords(LocalEntities[uNetId].obj, coords)
+            SetNetIdBeingBusy(uNetId, false)
+        end
     end
 end)
 
-RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation)
+RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation, skipRotationUpdate)
     local start = GetGameTimer()
     local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
 
@@ -517,18 +519,20 @@ RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation)
         Entities[slice][uNetId].options.rotation = rotation
     end
 
-    while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
-        Citizen.Wait(1)
-    end
-
-    if LocalEntities[uNetId] then
-        while not UtilityNet.IsReady(uNetId) or IsNetIdBusy(uNetId) do
-            Citizen.Wait(100)
+    if not skipRotationUpdate then
+        while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
+            Citizen.Wait(1)
         end
 
-        SetNetIdBeingBusy(uNetId, true)
-        SetEntityRotation(LocalEntities[uNetId].obj, rotation)
-        SetNetIdBeingBusy(uNetId, false)
+        if LocalEntities[uNetId] then
+            while not UtilityNet.IsReady(uNetId) or IsNetIdBusy(uNetId) do
+                Citizen.Wait(100)
+            end
+
+            SetNetIdBeingBusy(uNetId, true)
+            SetEntityRotation(LocalEntities[uNetId].obj, rotation)
+            SetNetIdBeingBusy(uNetId, false)
+        end
     end
 end)
 

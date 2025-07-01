@@ -123,7 +123,7 @@ UtilityNet.SetModelRenderDistance = function(model, distance)
     GlobalState.ModelsRenderDistance = _
 end
 
-UtilityNet.SetEntityRotation = function(uNetId, newRotation)
+UtilityNet.SetEntityRotation = function(uNetId, newRotation, skipRotationUpdate)
     local source = source
 
     if type(newRotation) ~= "vector3" then
@@ -135,10 +135,10 @@ UtilityNet.SetEntityRotation = function(uNetId, newRotation)
     Entities[slice][uNetId].options.rotation = newRotation
 
     -- Except caller since it will be already updated
-    TriggerLatentClientEvent("Utility:Net:RefreshRotation", -1, 5120, uNetId, newRotation)
+    TriggerLatentClientEvent("Utility:Net:RefreshRotation", -1, 5120, uNetId, newRotation, skipRotationUpdate)
 end
 
-UtilityNet.SetEntityCoords = function(uNetId, newCoords)
+UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
     local source = source
 
     if type(newCoords) ~= "vector3" then
@@ -151,7 +151,7 @@ UtilityNet.SetEntityCoords = function(uNetId, newCoords)
     Entities[slice][uNetId].slice = GetSliceFromCoords(newCoords)
     
     -- Except caller since it will be already updated
-    TriggerLatentClientEvent("Utility:Net:RefreshCoords", -1, 5120, uNetId, newCoords)
+    TriggerLatentClientEvent("Utility:Net:RefreshCoords", -1, 5120, uNetId, newCoords, skipPositionUpdate)
 end
 
 UtilityNet.SetEntityModel = function(uNetId, model)

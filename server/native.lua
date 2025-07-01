@@ -881,12 +881,12 @@ UtilityNet.SetModelRenderDistance = function(model, distance)
     return exports["utility_lib"]:SetModelRenderDistance(model, distance)
 end
 
-UtilityNet.SetEntityCoords = function(uNetId, newCoords)
-    return exports["utility_lib"]:SetEntityCoords(uNetId, newCoords)
+UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
+    return exports["utility_lib"]:SetEntityCoords(uNetId, newCoords, skipPositionUpdate)
 end
 
-UtilityNet.SetEntityRotation = function(uNetId, newRotation)
-    return exports["utility_lib"]:SetEntityRotation(uNetId, newRotation)
+UtilityNet.SetEntityRotation = function(uNetId, newRotation, skipRotationUpdate)
+    return exports["utility_lib"]:SetEntityRotation(uNetId, newRotation, skipRotationUpdate)
 end
 
 UtilityNet.DetachEntity = function(uNetId)

@@ -3233,18 +3233,18 @@ UtilityNet.DetachEntity = function(uNetId)
 end
 
 -- Using a latent event to prevent blocking the network channel
-UtilityNet.SetEntityCoords = function(uNetId, coords)
+UtilityNet.SetEntityCoords = function(uNetId, coords, skipPositionUpdate)
     TriggerLatentServerEvent("Utility:Net:SetEntityCoords", 5120, uNetId, coords)
 
     -- Instantly sync for local obj
-    TriggerEvent("Utility:Net:RefreshCoords", uNetId, coords)
+    TriggerEvent("Utility:Net:RefreshCoords", uNetId, coords, skipPositionUpdate)
 end
 
-UtilityNet.SetEntityRotation = function(uNetId, rot)
-    TriggerLatentServerEvent("Utility:Net:SetEntityRotation", 5120, uNetId, rot)
+UtilityNet.SetEntityRotation = function(uNetId, rot, skipRotationUpdate)
+    TriggerLatentServerEvent("Utility:Net:SetEntityRotation", 5120, uNetId, rot, skipRotationUpdate)
 
     -- Instantly sync for local obj
-    TriggerEvent("Utility:Net:RefreshRotation", uNetId, rot)
+    TriggerEvent("Utility:Net:RefreshRotation", uNetId, rot, skipRotationUpdate)
 end
 
 UtilityNet.SetEntityModel = function(uNetId, model)
