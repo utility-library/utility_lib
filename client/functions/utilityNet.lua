@@ -475,8 +475,23 @@ RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords)
     local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
 
     if entity and Entities[slice] then
+        local newSlice = GetSliceFromCoords(coords) 
+
+        if newSlice ~= slice then
+            local entity = Entities[slice][uNetId]
+            Entities[slice][uNetId] = nil
+            
+            if not Entities[newSlice] then
+                Entities[newSlice] = {}
+            end
+
+            Entities[newSlice][uNetId] = entity
+            
+            slice = newSlice
+        end
+
         Entities[slice][uNetId].coords = coords
-        Entities[slice][uNetId].slice = GetSliceFromCoords(coords)
+        Entities[slice][uNetId].slice = newSlice
     end
 
     while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
