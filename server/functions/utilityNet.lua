@@ -155,7 +155,20 @@ UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
     end
 
     local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+    local newSlice = GetSliceFromCoords(newCoords)
 
+    if newSlice ~= slice then
+        local old = Entities[slice][uNetId]
+
+        if not Entities[newSlice] then
+            Entities[newSlice] = {}
+        end
+
+        Entities[slice][uNetId] = nil
+        Entities[newSlice][uNetId] = old
+
+        slice = newSlice
+    end
     Entities[slice][uNetId].coords = newCoords
     Entities[slice][uNetId].slice = GetSliceFromCoords(newCoords)
     
