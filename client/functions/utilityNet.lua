@@ -2,6 +2,9 @@ local Entity = Entity
 
 local DebugRendering = false
 local DebugInfos = false
+
+-- Used to prevent that the main loop tries to render an entity that has/his been/being deleted 
+-- (the for each entity itearate over the old entities until next cycle and so will try to render a deleted entity)
 local DeletedEntities = {}
 
 local Entities = {}
@@ -121,7 +124,7 @@ local UnrenderLocalEntity = function(uNetId)
 
         if state.preserved then
             TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
-            
+
             -- Max 5000ms for the entity to be deleted if it was preserved, if it still exists, delete it (this prevents entity leaks)
             Citizen.SetTimeout(5000, function()
                 if DoesEntityExist(entity) then
@@ -287,7 +290,7 @@ local RenderLocalEntity = function(uNetId, entityData)
             end
         end)
     
-        LocalEntities[uNetId] = {obj=obj, slice=entityData.slice}
+        LocalEntities[uNetId] = {obj=obj, slice=entityData.slice, createdBy = entityData.createdBy}
     
         -- Fetch initial state
         ServerRequestEntityStates(uNetId)
@@ -596,8 +599,22 @@ AddEventHandler("onResourceStop", function(resource)
     if resource == GetCurrentResourceName() then
         for k,v in pairs(LocalEntities) do
             Citizen.CreateThreadNow(function()
+                DeletedEntities[k] = true
                 UnrenderLocalEntity(k)
             end)
+        end
+    else
+        for k,v in pairs(LocalEntities) do
+            if v.createdBy == resource then
+                if DebugRendering then
+                    print("Unrendering deleted entity", k)
+                end
+
+                Citizen.CreateThreadNow(function()
+                    DeletedEntities[k] = true
+                    UnrenderLocalEntity(k)
+                end)
+            end
         end
     end
 end)
