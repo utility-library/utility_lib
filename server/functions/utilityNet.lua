@@ -130,6 +130,11 @@ UtilityNet.SetEntityRotation = function(uNetId, newRotation, skipRotationUpdate)
         error("Invalid rotation, got "..type(newRotation).." expected vector3", 2)
     end
 
+    if newRotation.x ~= newRotation.x or newRotation.y ~= newRotation.y or newRotation.z ~= newRotation.z then
+        error("Invalid rotation, got "..type(newRotation).." (with NaN) expected vector3", 2)
+    end
+
+
     local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
 
     Entities[slice][uNetId].options.rotation = newRotation
@@ -143,6 +148,10 @@ UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
 
     if type(newCoords) ~= "vector3" then
         error("Invalid coords, got "..type(newCoords).." expected vector3", 2)
+    end
+
+    if newCoords.x ~= newCoords.x or newCoords.y ~= newCoords.y or newCoords.z ~= newCoords.z then
+        error("Invalid coords, got "..type(newCoords).." (with NaN) expected vector3", 2)
     end
 
     local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
