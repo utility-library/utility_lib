@@ -47,7 +47,7 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
         coords = coords,
         slice = slice,
         options = options,
-        createdBy = options.resource or GetInvokingResource(),
+        createdBy = options.createdBy or GetInvokingResource(),
     }
 
     if not Entities[slice] then
