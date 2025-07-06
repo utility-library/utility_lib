@@ -161,7 +161,7 @@ RegisterNetEvent("Utility:Net:GetState", function(uNetId)
     local source = source
 
     if not EntitiesStates[uNetId] then
-        error("GetState: No state found for "..uNetId)
+        warn("GetState: No state found for "..uNetId)
         TriggerClientEvent("Utility:Net:GetState"..uNetId, source, nil)
         return
     end
