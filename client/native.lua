@@ -3115,7 +3115,7 @@ UtilityNet.CreateEntity = function(model, coords, options)
 
     -- Set resource name in options
     options = options or {}
-    options.resource = GetCurrentResourceName()
+    options.createdBy = GetCurrentResourceName()
 
     local callId = math.random(0, 10000000)
     local event = nil
@@ -3347,6 +3347,14 @@ end
 
 UtilityNet.GetUNetIdFromEntity = function(entity)
     return exports["utility_lib"]:GetUNetIdFromEntity(entity)
+end
+
+UtilityNet.GetuNetIdCreator = function(uNetId)
+    return exports["utility_lib"]:GetuNetIdCreator(uNetId)
+end
+
+UtilityNet.GetEntityCreator = function(entity)
+    return exports["utility_lib"]:GetEntityCreator(entity)
 end
 
 UtilityNet.InternalFindFromNetId = function(uNetId)

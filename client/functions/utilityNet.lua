@@ -632,6 +632,14 @@ UtilityNet.GetUNetIdFromEntity = function(entity)
     end
 end
 
+UtilityNet.GetuNetIdCreator = function(uNetId)
+    return LocalEntities[uNetId]?.createdBy
+end
+
+UtilityNet.GetEntityCreator = function(entity)
+    return UtilityNet.GetuNetIdCreator(UtilityNet.GetUNetIdFromEntity(entity))
+end
+
 UtilityNet.InternalFindFromNetId = function(uNetId)
     for sliceI, slice in pairs(Entities) do
         if slice[uNetId] then
@@ -642,6 +650,9 @@ end
 
 exports("GetEntityFromUNetId", UtilityNet.GetEntityFromUNetId)
 exports("GetUNetIdFromEntity", UtilityNet.GetUNetIdFromEntity)
+exports("GetuNetIdCreator", UtilityNet.GetuNetIdCreator)
+exports("GetEntityCreator", UtilityNet.GetEntityCreator)
+
 exports("GetRenderedEntities", function() return LocalEntities end)
 exports("GetEntities", function(slice)
     if slice then
