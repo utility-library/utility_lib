@@ -3009,10 +3009,14 @@ local CreatedEntities = {}
 
 local old_GetEntityArchetypeName = GetEntityArchetypeName
 GetEntityArchetypeName = function(entity)
+    if not entity or not DoesEntityExist(entity) then
+        return ""
+    end
+    
     local res = old_GetEntityArchetypeName(entity)
 
     if res == "" then
-        return Entity(entity).state.abstract_model or res
+        return Entity(entity)?.state?.abstract_model or res
     else
         return res
     end
