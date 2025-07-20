@@ -287,17 +287,19 @@ local RenderLocalEntity = function(uNetId, entityData)
                     --print("Detach")
                     DetachEntity(obj, true, true)
                 end
+
+                LocalEntities[uNetId].attached = value
             end
         end)
     
-        LocalEntities[uNetId] = {obj=obj, slice=entityData.slice, createdBy = entityData.createdBy}
+        LocalEntities[uNetId] = {obj=obj, slice=entityData.slice, createdBy = entityData.createdBy, attached = state.__attached}
     
         -- Fetch initial state
         ServerRequestEntityStates(uNetId)
     
         -- After state has been fetched, attach if needed
-        if stateUtility.__attached then
-            AttachToEntity(obj, stateUtility.__attached.object, stateUtility.__attached.params)
+        if state.__attached then
+            AttachToEntity(obj, state.__attached.object, state.__attached.params)
         end
 
         -- "Enable" the entity, this is done after the state has been fetched to avoid props doing strange stuffs
@@ -325,25 +327,22 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
         return false
     end
 
-    local state = UtilityNet.State(uNetId)
-
     if DeletedEntities[uNetId] then
         return false
     end
 
     -- Render only if within render distance
-    if not state.__attached then
-        local coords = GetEntityCoords(PlayerPedId())
-        local modelsRenderDistance = GlobalState.ModelsRenderDistance
-        local hashmodel = type(entityData.model) == "number" and entityData.model or GetHashKey(entityData.model)
-        local renderDistance = modelsRenderDistance[hashmodel] or 50.0
-
-        if #(entityData.coords - coords) > renderDistance then
-            return false
-        end
+    -- Skip distance check if entity is rendered and attached (keep them alive)
+    if LocalEntities[uNetId] and LocalEntities[uNetId].attached then
+        return true
     end
 
-    return true
+    local coords = GetEntityCoords(PlayerPedId())
+    local modelsRenderDistance = GlobalState.ModelsRenderDistance
+    local hashmodel = type(entityData.model) == "number" and entityData.model or GetHashKey(entityData.model)
+    local renderDistance = modelsRenderDistance[hashmodel] or 50.0
+
+    return #(entityData.coords - coords) < renderDistance
 end
 --#endregion
 
