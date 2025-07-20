@@ -426,14 +426,35 @@ StartUtilityNetRenderLoop = function()
 end
 
 RegisterNetEvent("Utility:Net:RefreshModel", function(uNetId, model)
+    local timeout = 3000
     local start = GetGameTimer()
-    local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+    local entity, slice = nil
+
+    while not entity or not slice do
+        entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+        
+        if (GetGameTimer() - start) > timeout then
+            error("UtilityNet:RefreshModel: Entity existance check timed out for uNetId "..tostring(uNetId))
+            break
+        end
+
+        Citizen.Wait(1)
+    end
 
     if entity and Entities[slice] then
         Entities[slice][uNetId].model = model
+    else
+        error(
+            "Utility:Net:RefreshModel: Entity not found for uNetId " .. tostring(uNetId) ..
+            " setting model " .. tostring(model) ..
+            " entity: " .. tostring(entity) ..
+            ", slice: " .. tostring(slice) ..
+            ", doesExist? " .. tostring(UtilityNet.DoesUNetIdExist(uNetId))
+        )
     end
 
-    while not LocalEntities[uNetId] and (GetGameTimer() - start < 3000) do
+    start = GetGameTimer()
+    while not LocalEntities[uNetId] and (GetGameTimer() - start < timeout) do
         Citizen.Wait(1)
     end
 
