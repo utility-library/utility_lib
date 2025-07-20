@@ -1,6 +1,25 @@
 EntitiesStates = {}
 
+local function IsEntityStateLoaded(uNetId)
+    return EntitiesStates[uNetId] ~= -1
+end
+
+local function EnsureStateLoaded(uNetId)
+    if not IsEntityStateLoaded(uNetId) then
+        local start = GetGameTimer()
+        while not IsEntityStateLoaded(uNetId) do
+            if GetGameTimer() - start > 5000 then
+                error("WaitUntilStateLoaded: entity "..tostring(uNetId).." state loading timed out")
+                break
+            end
+            Citizen.Wait(1)
+        end
+    end
+end
+
 RegisterNetEvent("Utility:Net:UpdateStateValue", function(uNetId, key, value)
+    EnsureStateLoaded(uNetId)
+
     if not EntitiesStates[uNetId] then
         EntitiesStates[uNetId] = {}
     end
@@ -9,7 +28,10 @@ RegisterNetEvent("Utility:Net:UpdateStateValue", function(uNetId, key, value)
 end)
 
 GetEntityStateValue = function(uNetId, key)
+    EnsureStateLoaded(uNetId)
+
     if not EntitiesStates[uNetId] then
+        warn("GetEntityStateValue: entity "..tostring(uNetId).." has no loaded states, attempted to retrieve key: "..tostring(key))
         return
     end
 
@@ -17,6 +39,8 @@ GetEntityStateValue = function(uNetId, key)
 end
 
 ServerRequestEntityStates = function(uNetId)
+    EntitiesStates[uNetId] = -1 -- Set as loading
+    
     local p = promise:new()
     local event = nil
 
@@ -28,7 +52,7 @@ ServerRequestEntityStates = function(uNetId)
     TriggerServerEvent("Utility:Net:GetState", uNetId)
     local states = Citizen.Await(p)
 
-    EntitiesStates[uNetId] = states
+    EntitiesStates[uNetId] = states or {}
 end
 
 exports("GetEntityStateValue", GetEntityStateValue)
