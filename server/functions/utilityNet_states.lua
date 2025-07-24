@@ -169,6 +169,20 @@ RegisterNetEvent("Utility:Net:GetState", function(uNetId)
     ListenStateUpdates(source, uNetId)
     TriggerClientEvent("Utility:Net:GetState"..uNetId, source, EntitiesStates[uNetId].states)
 end)
+
+-- Single value
+RegisterNetEvent("Utility:Net:GetStateValue", function(uNetId, key)
+    local source = source
+
+    if not EntitiesStates[uNetId] then
+        warn("GetStateValue: No state found for "..uNetId)
+        TriggerClientEvent("Utility:Net:GetStateValue"..uNetId, source, nil)
+        return
+    end
+
+    ListenStateUpdates(source, uNetId)
+    TriggerClientEvent("Utility:Net:GetStateValue"..uNetId, source, EntitiesStates[uNetId].states[key])
+end)
 --#endregion
 
 -- On player disconnect remove all listeners of that player (prevent useless bandwidth usage)

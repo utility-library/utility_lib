@@ -28,14 +28,39 @@ RegisterNetEvent("Utility:Net:UpdateStateValue", function(uNetId, key, value)
 end)
 
 GetEntityStateValue = function(uNetId, key)
-    EnsureStateLoaded(uNetId)
+    if not UtilityNet.GetEntityFromUNetId(uNetId) then -- If trying to get state of entity that isnt loaded
+        local entity = UtilityNet.InternalFindFromNetId(uNetId)
 
-    if not EntitiesStates[uNetId] then
-        warn("GetEntityStateValue: entity "..tostring(uNetId).." has no loaded states, attempted to retrieve key: "..tostring(key))
-        return
+        if not entity then
+            warn("GetEntityStateValue: entity "..tostring(uNetId).." doesnt exist, attempted to retrieve key: "..tostring(key))
+            return
+        end
+
+        return ServerRequestEntityKey(uNetId, key)
+    else
+        EnsureStateLoaded(uNetId)
+    
+        if not EntitiesStates[uNetId] then
+            warn("GetEntityStateValue: entity "..tostring(uNetId).." has no loaded states, attempted to retrieve key: "..tostring(key))
+            return
+        end
+    
+        return EntitiesStates[uNetId][key]
     end
 
-    return EntitiesStates[uNetId][key]
+end
+
+ServerRequestEntityKey = function(uNetId, key)
+    local p = promise:new()
+    local event = nil
+
+    event = RegisterNetEvent("Utility:Net:GetStateValue"..uNetId, function(value)
+        RemoveEventHandler(event)
+        p:resolve(value)
+    end)
+    
+    TriggerServerEvent("Utility:Net:GetStateValue", uNetId, key)
+    return Citizen.Await(p)
 end
 
 ServerRequestEntityStates = function(uNetId)
