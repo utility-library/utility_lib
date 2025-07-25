@@ -7,6 +7,7 @@ local DebugInfos = false
 -- (the for each entity itearate over the old entities until next cycle and so will try to render a deleted entity)
 local DeletedEntities = {}
 
+local EntitiesLoaded = false
 local Entities = {}
 
 --#region Local functions
@@ -610,6 +611,7 @@ end)
 Citizen.CreateThread(function()
     RegisterNetEvent("Utility:Net:GetEntities", function(entities)
         Entities = entities
+        EntitiesLoaded = true
     end)
 
     TriggerServerEvent("Utility:Net:GetEntities")
@@ -675,6 +677,10 @@ exports("GetEntityCreator", UtilityNet.GetEntityCreator)
 
 exports("GetRenderedEntities", function() return LocalEntities end)
 exports("GetEntities", function(slice)
+    while not EntitiesLoaded do
+        Citizen.Wait(1)
+    end
+
     if slice then
         return Entities[slice] or {}
     else
