@@ -29,11 +29,16 @@ end)
 
 GetEntityStateValue = function(uNetId, key)
     if not UtilityNet.GetEntityFromUNetId(uNetId) then -- If trying to get state of entity that isnt loaded
-        local entity = UtilityNet.InternalFindFromNetId(uNetId)
+        local start = GetGameTimer()
 
-        if not entity then
-            warn("GetEntityStateValue: entity "..tostring(uNetId).." doesnt exist, attempted to retrieve key: "..tostring(key))
-            return
+        local entity = nil
+        while not entity do
+            entity = UtilityNet.InternalFindFromNetId(uNetId)
+            if GetGameTimer() - start > 2000 then
+                error("GetEntityStateValue: entity "..tostring(uNetId).." doesnt exist, attempted to retrieve key: "..tostring(key))
+                break
+            end
+            Citizen.Wait(1)
         end
 
         return ServerRequestEntityKey(uNetId, key)
