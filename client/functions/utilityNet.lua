@@ -299,8 +299,8 @@ local RenderLocalEntity = function(uNetId, entityData)
         ServerRequestEntityStates(uNetId)
     
         -- After state has been fetched, attach if needed
-        if state.__attached then
-            AttachToEntity(obj, state.__attached.object, state.__attached.params)
+        if stateUtility.__attached then
+            AttachToEntity(obj, stateUtility.__attached.object, stateUtility.__attached.params)
         end
 
         -- "Enable" the entity, this is done after the state has been fetched to avoid props doing strange stuffs

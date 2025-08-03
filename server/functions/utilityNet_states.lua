@@ -181,7 +181,6 @@ RegisterNetEvent("Utility:Net:GetStateValue", function(uNetId, key)
         return
     end
 
-    ListenStateUpdates(source, uNetId)
     TriggerClientEvent("Utility:Net:GetStateValue"..uNetId, source, EntitiesStates[uNetId].states[key])
 end)
 --#endregion
