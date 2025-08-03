@@ -44,6 +44,7 @@ UpdateStateValueForListeners = function(uNetId, key, value)
     end
 
     for k,v in pairs(EntitiesStates[uNetId].listeners) do
+        TriggerEvent("Utility:Net:UpdateStateValue", uNetId, key, value)
         TriggerClientEvent("Utility:Net:UpdateStateValue", v, uNetId, key, value)
     end
 end

@@ -959,7 +959,25 @@ getValueAsStateTable = function(id, baseKey, depth)
     })
 end
 
+UtilityNet.AddStateBagChangeHandler = function(uNetId, func)
+    return AddEventHandler("Utility:Net:UpdateStateValue", function(s_uNetId, key, value)
+        if uNetId == s_uNetId then
+            func(key, value)
+        end
+    end)
+end
+
+UtilityNet.RemoveStateBagChangeHandler = function(eventData)
+    if eventData and eventData.key and eventData.name then
+        RemoveEventHandler(eventData)
+    end
+end
+
 UtilityNet.State = function(id)
+    if not id then
+        error("UtilityNet.State: id is required, got nil", 2)
+    end
+
     local state = setmetatable({
         raw = function(self)
             return exports["utility_lib"]:GetEntityStateValue(id)
