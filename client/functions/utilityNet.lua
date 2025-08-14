@@ -306,12 +306,12 @@ local RenderLocalEntity = function(uNetId, entityData)
                 LocalEntities[uNetId].attached = value
             end
         end)
-    
-        LocalEntities[uNetId] = {obj=obj, slice=entityData.slice, createdBy = entityData.createdBy, attached = state.__attached}
-    
+        
         -- Fetch initial state
         ServerRequestEntityStates(uNetId)
-    
+
+        LocalEntities[uNetId] = {obj=obj, slice=entityData.slice, createdBy = entityData.createdBy, attached = stateUtility.__attached}
+
         -- After state has been fetched, attach if needed
         if stateUtility.__attached then
             AttachToEntity(obj, stateUtility.__attached.object, stateUtility.__attached.params)
