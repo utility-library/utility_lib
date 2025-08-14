@@ -30,7 +30,7 @@ local AttachToEntity = function(obj, to, params)
                 Citizen.Wait(1)
             end
         else
-                warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination netId doesnt exist")
+            warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination netId doesnt exist")
         end
 
         attachToObj = UtilityNet.GetEntityFromUNetId(to)
@@ -40,6 +40,20 @@ local AttachToEntity = function(obj, to, params)
         if DebugInfos then
             print("Attaching", obj.." ("..GetEntityArchetypeName(obj)..")", "with", tostring(attachToObj).." ("..GetEntityArchetypeName(attachToObj)..")")
         end
+
+        if params.boneServer and params.boneServer > 0 then
+            if IsEntityAPed(attachToObj) then
+                params.bone = GetPedBoneIndex(attachToObj, params.boneServer)
+            else
+                params.bone = GetEntityBoneIndexByName(attachToObj, params.boneServer)
+            end
+
+            if params.bone == 0 then
+                local entityType = IsEntityAPed(attachToObj) and "ped" or "entity"
+                warn("AttachToEntity: boneServer "..tostring(params.boneServer).." not found on "..entityType.." "..tostring(attachToObj).." ("..GetEntityArchetypeName(attachToObj)..")")
+            end
+        end
+
         AttachEntityToEntity(obj, attachToObj, params.bone, params.pos, params.rot, false, params.useSoftPinning, params.collision, true, params.rotationOrder, params.syncRot)
     else
         warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination entity doesnt exist")
