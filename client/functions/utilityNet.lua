@@ -376,7 +376,6 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
             entityCoords = GetEntityCoords(entity)
 
             local _slice = GetSliceFromCoords(entityCoords)
-            print(_slice, entityData.slice)
         end
     end
 

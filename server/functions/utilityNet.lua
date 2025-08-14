@@ -249,8 +249,6 @@ local StartSliceUpdateForAttachedEntities = function()
 
         while not table.empty(AttachedEntities) do
             for uNetId, __attached in pairs(AttachedEntities) do
-                print("CHECKING", uNetId)
-
                 local selfEntity, selfSlice = UtilityNet.InternalFindFromNetId(uNetId)
                 local attachedSlice, attachedCoords = GetAttachedEntitySliceAndCoords(uNetId, __attached)
                 
