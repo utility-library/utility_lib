@@ -3211,20 +3211,31 @@ end
 
 UtilityNet.AttachToEntity = function(uNetId, object, bone, pos, rot, useSoftPinning, collision, rotationOrder, syncRot)
     local params = {bone = bone, pos = pos, rot = rot, useSoftPinning = useSoftPinning, collision = collision, rotationOrder = rotationOrder, syncRot = syncRot}
+    params.isUtilityNet = true
 
-    if DoesEntityExist(object) and NetworkGetEntityIsNetworked(object) then
-        TriggerServerEvent("Utility:Net:AttachToEntity", uNetId, NetworkGetNetworkIdFromEntity(object), params)
-    else
-        params.isUtilityNet = true
-        TriggerServerEvent("Utility:Net:AttachToEntity", uNetId, object, params)
+    TriggerServerEvent("Utility:Net:AttachTo", uNetId, object, params)
+end
+
+UtilityNet.AttachToNetId = function(uNetId, netId, bone, pos, rot, useSoftPinning, collision, rotationOrder, syncRot)
+    local params = {bone = bone, pos = pos, rot = rot, useSoftPinning = useSoftPinning, collision = collision, rotationOrder = rotationOrder, syncRot = syncRot}
+
+    if not NetworkDoesNetworkIdExist(netId) then
+        error("Invalid network id", 2)
+        return
     end
+
+    TriggerServerEvent("Utility:Net:AttachTo", uNetId, netId, params)
 end
 
 UtilityNet.DetachEntity = function(uNetId)
     local obj = UtilityNet.GetEntityFromUNetId(uNetId)
-    local coords = GetEntityCoords(obj)
 
-    TriggerServerEvent("Utility:Net:DetachEntity", uNetId, coords)
+    if not IsEntityAttached(obj) then
+        error("Entity "..uNetId.." ("..obj..") is not attached to anything", 2)
+        return
+    end
+
+    TriggerServerEvent("Utility:Net:DetachEntity", uNetId)
 
     while IsEntityAttached(obj) do
         Citizen.Wait(1)
