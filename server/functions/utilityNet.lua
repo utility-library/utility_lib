@@ -1,5 +1,6 @@
 local NextId = 1
 local Entities = {}
+local AttachedEntities = {}
 
 UtilityNet = UtilityNet or {}
 
@@ -173,7 +174,13 @@ UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
     Entities[slice][uNetId].slice = GetSliceFromCoords(newCoords)
     
     -- Except caller since it will be already updated
-    TriggerLatentClientEvent("Utility:Net:RefreshCoords", -1, 5120, uNetId, newCoords, skipPositionUpdate)
+    local players = GetPlayers()
+
+    for k,v in pairs(players) do
+        if v ~= source then
+            TriggerLatentClientEvent("Utility:Net:RefreshCoords", v, 5120, uNetId, newCoords, skipPositionUpdate)
+        end
+    end
 end
 
 UtilityNet.SetEntityModel = function(uNetId, model)
@@ -192,7 +199,107 @@ UtilityNet.SetEntityModel = function(uNetId, model)
     Entities[slice][uNetId].model = model
 
     -- Except caller since it will be already updated
-    TriggerLatentClientEvent("Utility:Net:RefreshModel", -1, 5120, uNetId, model)
+    local players = GetPlayers()
+
+    for k,v in pairs(players) do
+        if v ~= source then
+            TriggerLatentClientEvent("Utility:Net:RefreshModel", v, 5120, uNetId, model)
+        end
+    end
+end
+
+local GetAttachedEntitySliceAndCoords = function(uNetId, __attached)
+    __attached = __attached or UtilityNet.State(uNetId).__attached
+
+    if __attached.params.isUtilityNet then
+        -- Get uNetId entity info
+        if not UtilityNet.DoesUNetIdExist(__attached.object) then
+            warn(uNetId.." is attached to uNetId "..__attached.object.." but it does not exist, detaching")
+            UtilityNet.DetachEntity(uNetId, true)
+            return nil
+        end
+
+        local entity, slice = UtilityNet.InternalFindFromNetId(__attached.object)
+
+        return slice, entity.coords
+    else
+        -- Get network entity info
+        local success, entity = pcall(NetworkGetEntityFromNetworkId, __attached.object)
+
+        if not success or entity == 0 then
+            warn(uNetId.." is attached to netId "..__attached.object.." but it does not exist, detaching")
+            UtilityNet.DetachEntity(uNetId, true)
+            return nil
+        end
+
+        local slice = GetSliceFromCoords(GetEntityCoords(entity))
+        local coords = GetEntityCoords(entity)
+
+        return slice, coords
+    end
+end
+
+local sliceUpdateRunning = false
+local StartSliceUpdateForAttachedEntities = function()
+    if sliceUpdateRunning then
+        return
+    end
+    Citizen.CreateThread(function()
+        sliceUpdateRunning = true
+
+        while not table.empty(AttachedEntities) do
+            for uNetId, __attached in pairs(AttachedEntities) do
+                print("CHECKING", uNetId)
+
+                local selfEntity, selfSlice = UtilityNet.InternalFindFromNetId(uNetId)
+                local attachedSlice, attachedCoords = GetAttachedEntitySliceAndCoords(uNetId, __attached)
+                
+                if not attachedSlice or not attachedCoords then
+                    goto continue
+                end
+
+                -- Need to call SetEntityCoords since it will update the slice also for loaded clients
+                -- otherwise it will be updated only on the server, and not on the clients
+                if attachedSlice ~= selfSlice then
+                    UtilityNet.SetEntityCoords(uNetId, attachedCoords, true)
+                end
+
+                ::continue::
+            end
+            Citizen.Wait(5000)
+        end
+
+        sliceUpdateRunning = false
+    end)
+end
+
+UtilityNet.AttachTo = function(uNetId, to, params)
+    local state = UtilityNet.State(uNetId)
+    local __attached = {
+        object = to,
+        params = params
+    }
+
+    state.__attached = __attached
+    AttachedEntities[uNetId] = __attached
+    StartSliceUpdateForAttachedEntities()
+end
+
+UtilityNet.DetachEntity = function(uNetId, skipPositionUpdate)
+    local state = UtilityNet.State(uNetId)
+
+    if state.__attached then
+        if not skipPositionUpdate then
+            local _slice, coords = GetAttachedEntitySliceAndCoords(uNetId, state.__attached)
+            
+            if coords then
+                UtilityNet.SetEntityCoords(uNetId, coords) -- Update last coords on detach
+            end
+        end
+
+        state.__attached = nil
+        AttachedEntities[uNetId] = nil
+    end
 end
 
 --#region Events
@@ -209,25 +316,13 @@ UtilityNet.RegisterEvents = function()
         UtilityNet.SetModelRenderDistance(model, distance)
     end)
 
-    RegisterNetEvent("Utility:Net:AttachToEntity", function(uNetId, object, params)
-        local state = UtilityNet.State(uNetId)
-        state.__attached = {
-            object = object,
-            params = params
-        }
+    RegisterNetEvent("Utility:Net:AttachTo", function(uNetId, object, params)
+        UtilityNet.AttachTo(uNetId, object, params)
     end)
 
-    RegisterNetEvent("Utility:Net:DetachEntity", function(uNetId, newCoords)
-        local state = UtilityNet.State(uNetId)
-
-        if state.__attached then
-            -- Update entity coords
-            if newCoords then
-                UtilityNet.SetEntityCoords(uNetId, newCoords)
-            end
-            
-            state.__attached = nil
-        end
+    RegisterNetEvent("Utility:Net:DetachEntity", function(uNetId)
+        source = nil -- Force update also for the caller
+        UtilityNet.DetachEntity(uNetId)
     end)
 
     RegisterNetEvent("Utility:Net:SetEntityCoords", UtilityNet.SetEntityCoords)
@@ -250,3 +345,6 @@ exports("InternalFindFromNetId", UtilityNet.InternalFindFromNetId)
 exports("SetEntityModel", UtilityNet.SetEntityModel)
 exports("SetEntityCoords", UtilityNet.SetEntityCoords)
 exports("SetEntityRotation", UtilityNet.SetEntityRotation)
+
+exports("AttachTo", UtilityNet.AttachTo)
+exports("DetachEntity", UtilityNet.DetachEntity)
