@@ -838,6 +838,24 @@ UtilityNet.DeleteEntity = function(uNetId)
     return exports["utility_lib"]:DeleteEntity(uNetId)
 end
 
+
+UtilityNet.AttachToEntity = function(uNetId, to, boneIdOrName, pos, rot, useSoftPinning, collision, rotationOrder, syncRot)
+    local params = {boneServer = boneIdOrName, pos = pos, rot = rot, useSoftPinning = useSoftPinning, collision = collision, rotationOrder = rotationOrder, syncRot = syncRot}
+    params.isUtilityNet = true
+
+    return exports["utility_lib"]:AttachTo(uNetId, to, params)
+end
+
+UtilityNet.AttachToNetId = function(uNetId, netId, bone, pos, rot, useSoftPinning, collision, rotationOrder, syncRot)
+    local params = {bone = bone, pos = pos, rot = rot, useSoftPinning = useSoftPinning, collision = collision, rotationOrder = rotationOrder, syncRot = syncRot}
+
+    return exports["utility_lib"]:AttachTo(uNetId, netId, params)
+end
+
+UtilityNet.DetachEntity = function(uNetId)
+    return exports["utility_lib"]:DetachEntity(uNetId)
+end
+
 -- Returns the slice the entity is in
 UtilityNet.InternalFindFromNetId = function(uNetId)
     return exports["utility_lib"]:InternalFindFromNetId(uNetId)
