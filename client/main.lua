@@ -105,10 +105,4 @@ LoadJobsAndListenForChanges()
     RegisterNetEvent("Utility:FakeTrigger", function(type, id)
         Emit(type, true, id)
     end)
-
-    if Config.EmitterTriggerForSyncedVariable then
-        RegisterNetEvent("Utility:SyncValue_emit", function(name, old_value, value)
-            Emit(name, false, value)
-        end)
-    end
 --#endregion
