@@ -5,10 +5,10 @@ PerformHttpRequest(versionurl, function(error, _version, header)
     _version = _version:gsub("\n", "")
 
     if version ~= _version then
-        print("^1——————————————————————| Attention |—————————————————————")
+        print("^1----------------------| Attention |---------------------")
         print("            ^0New version available [^1".._version.."^0]")
         print("     ^5https://github.com/utility-library/utility_lib")
-        print("^1——————————————————————| Attention |—————————————————————^0")
+        print("^1----------------------| Attention |---------------------^0")
     else
         print([[
 ^5,ggg,         gg                                               
@@ -23,7 +23,7 @@ PerformHttpRequest(versionurl, function(error, _version, header)
 ^5      "Y888888P"Y888P""Y888P""Y88P'"Y888P""Y888P""Y88P""Y88P"888
 ^5                                                           ,d8I'
      ^0All is updated, have a good day!^5                    ,dP'8I 
-^5    ————————————————————————————————————————————        ,8"  8I 
+^5    --------------------------------------------        ,8"  8I 
 ^5                                                        I8   8I 
 ^5                                                        `8, ,8I 
 ^5                                                         `Y8P"  ^0]])
