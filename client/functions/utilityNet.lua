@@ -347,17 +347,40 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
     end
 
     -- Render only if within render distance
-    -- Skip distance check if entity is rendered and attached (keep them alive)
-    if LocalEntities[uNetId] and LocalEntities[uNetId].attached then
-        return true
-    end
-
     local coords = GetEntityCoords(PlayerPedId())
+    local attached = LocalEntities[uNetId]?.attached
     local modelsRenderDistance = GlobalState.ModelsRenderDistance
     local hashmodel = type(entityData.model) == "number" and entityData.model or GetHashKey(entityData.model)
     local renderDistance = modelsRenderDistance[hashmodel] or 50.0
+    
+    local entityCoords = entityData.coords
 
-    return #(entityData.coords - coords) < renderDistance
+    if attached then
+        if attached.params.isUtilityNet then
+            if not UtilityNet.DoesUNetIdExist(attached.object) then
+                -- Just keep rendered, the server will detach the entity properly in the next slice update
+                return true
+            end
+
+            entityCoords = UtilityNet.GetEntityCoords(attached.object)
+        else
+            -- Networked entity which this entity is attached to does not exist
+            -- Just keep rendered, the server will detach the entity properly in the next slice update
+            if not NetworkDoesNetworkIdExist(attached.object) then 
+                return true
+            end
+
+            -- Calculate distance from networked entity
+            local entity = NetworkGetEntityFromNetworkId(attached.object)
+
+            entityCoords = GetEntityCoords(entity)
+
+            local _slice = GetSliceFromCoords(entityCoords)
+            print(_slice, entityData.slice)
+        end
+    end
+
+    return #(entityCoords - coords) < renderDistance
 end
 --#endregion
 
