@@ -7,7 +7,7 @@ local DebugInfos = false
 -- (the for each entity itearate over the old entities until next cycle and so will try to render a deleted entity)
 local DeletedEntities = {}
 
-local EntitiesLoaded = false
+local EntitiesPromise = nil
 local Entities = {}
 
 --#region Local functions
@@ -303,12 +303,14 @@ local RenderLocalEntity = function(uNetId, entityData)
                     DetachEntity(obj, true, true)
                 end
 
-                LocalEntities[uNetId].attached = value
+                LocalEntities[uNetId]?.attached = value
             end
         end)
         
-        -- Fetch initial state
-        ServerRequestEntityStates(uNetId)
+        -- Fetch initial state if needed
+        if not IsEntityStateLoaded(uNetId) then
+            ServerRequestEntityStates(uNetId)
+        end
 
         LocalEntities[uNetId] = {obj=obj, slice=entityData.slice, createdBy = entityData.createdBy, attached = stateUtility.__attached}
 
@@ -326,6 +328,25 @@ local RenderLocalEntity = function(uNetId, entityData)
         state.rendered = true
         SetNetIdBeingBusy(uNetId, false)
     end)
+end
+
+-- This function will render all the local entities 
+-- after requesting the state of all of them in one go, reducing the number of requests and so reducing overhead and improving performance.
+-- This method is more efficient than calling `RenderLocalEntity` for each entity individually, as it requires less network requests and reduces the load on the server.
+local RenderLocalEntities = function(entities)
+    if #entities > 0 then
+        local ids = {}
+
+        for _, entityData in pairs(entities) do
+            ids[#ids + 1] = entityData.id
+        end
+
+        ServerRequestEntitiesStates(ids)
+    
+        for _, entityData in pairs(entities) do
+            RenderLocalEntity(entityData.id, entityData)
+        end
+    end
 end
 
 local CanEntityBeRendered = function(uNetId, entityData, slices)
@@ -362,7 +383,11 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
                 return true
             end
 
-            entityCoords = UtilityNet.GetEntityCoords(attached.object)
+            if LocalEntities[uNetId] then
+                entityCoords = GetEntityCoords(LocalEntities[uNetId].obj)
+            else
+                entityCoords = UtilityNet.GetEntityCoords(attached.object)
+            end
         else
             -- Networked entity which this entity is attached to does not exist
             -- Just keep rendered, the server will detach the entity properly in the next slice update
@@ -411,6 +436,8 @@ StartUtilityNetRenderLoop = function()
             local sleep = (Config.UtilityNetDynamicUpdate - 700) / math.min(20, lastNEntities) -- threshold to allow a little bit of lag and split by number of entities
 
             -- Render/Unrender near slices entities
+            local needRender = {}
+
             UtilityNet.ForEachEntity(function(v)
                 nEntities = nEntities + 1
                 if not LocalEntities[v.id] and CanEntityBeRendered(v.id, v) then
@@ -423,7 +450,7 @@ StartUtilityNetRenderLoop = function()
                             print("RenderLocalEntity", v.id, "Loop")
                         end
 
-                        RenderLocalEntity(v.id, v)                        
+                        table.insert(needRender, v)
                     end
                 elseif LocalEntities[v.id] and not CanEntityBeRendered(v.id, v) then
                     somethingRendered = true
@@ -435,6 +462,8 @@ StartUtilityNetRenderLoop = function()
                     Citizen.Wait(sleep * (2/3))
                 end
             end, slices)
+
+            RenderLocalEntities(needRender)
 
             -- Unrender entities that are out of slice
             -- Run only if the slice has changed (so something can be out of the slice and need to be unrendered)
@@ -600,6 +629,7 @@ RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, object)
     local uNetId = object.id
     local slices = GetActiveSlices() 
 
+    -- Add to the slice, if not loaded it will automatically be cleared
     if not Entities[object.slice] then
         Entities[object.slice] = {}
     end
@@ -625,13 +655,13 @@ RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId)
         DeletedEntities[uNetId] = true
         UnrenderLocalEntity(uNetId)
 
-        if Entities[slice] then
+        --[[ if Entities[slice] then
             Entities[slice][uNetId] = nil
-        end
+        end ]]
     else
-        if Entities[slice] then
+        --[[ if Entities[slice] then
             Entities[slice][uNetId] = nil
-        end
+        end ]]
     end
 end)
 
@@ -642,13 +672,23 @@ Citizen.CreateThread(function()
     end
 end)
 
-Citizen.CreateThread(function()
+--[[ Citizen.CreateThread(function()
     RegisterNetEvent("Utility:Net:GetEntities", function(entities)
         Entities = entities
         EntitiesLoaded = true
     end)
 
     TriggerServerEvent("Utility:Net:GetEntities")
+end) ]]
+
+RegisterNetEvent("Utility:Net:GetEntities", function(entities)
+    -- Update cached slices
+    for slice, sentities in pairs(entities) do
+        print("Caching entities for slice", slice)
+        Entities[slice] = sentities
+    end
+
+    EntitiesPromise:resolve(true)
 end)
 
 AddEventHandler("onResourceStop", function(resource)
@@ -710,15 +750,58 @@ exports("GetuNetIdCreator", UtilityNet.GetuNetIdCreator)
 exports("GetEntityCreator", UtilityNet.GetEntityCreator)
 
 exports("GetRenderedEntities", function() return LocalEntities end)
-exports("GetEntities", function(slice)
-    while not EntitiesLoaded do
-        Citizen.Wait(1)
+exports("GetEntities", function(slices)
+    if not slices then
+        error("GetEntities: No slices provided, please provide at least one slice")
     end
 
-    if slice then
-        return Entities[slice] or {}
-    else
+    if type(slices) == "table" then
+        EntitiesPromise = promise.new()
+
+        -- Check already loaded entities first, if not found, request
+        -- This will also clear the cache of unused slices
+        for cslice, entities in pairs(Entities) do
+            local required = false
+
+            for i, slice in ipairs(slices) do
+                if slice == cslice then
+                    print("Found slice", slice)
+                    table.remove(slices, i)
+                    required = true
+                    break
+                end
+            end
+
+            if not required then
+                Entities[cslice] = nil
+            end
+        end
+
+        print(#slices, json.encode(#slices))
+        -- We still need to request some slices?
+        if #slices > 0 then
+            TriggerServerEvent("Utility:Net:GetEntities", slices)
+        else
+            EntitiesPromise:resolve(true)
+        end
+
+        Citizen.Await(EntitiesPromise)
         return Entities
+    else
+        return Entities[slice] or {}
     end
+end)
+
+exports("GetEntitiesByCreator", function(resource, getKeys)
+    local event = nil
+    local p = promise.new()
+
+    event = RegisterNetEvent("Utility:Net:GetEntitiesByCreator", function(entities)
+        p:resolve(entities)
+        RemoveEventHandler(event)
+    end)
+
+    TriggerServerEvent("Utility:Net:GetEntitiesByCreator", resource, getKeys)
+    return Citizen.Await(p)
 end)
 exports("InternalFindFromNetId", UtilityNet.InternalFindFromNetId)

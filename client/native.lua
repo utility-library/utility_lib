@@ -3025,14 +3025,16 @@ end
 --#region API
 UtilityNet.ForEachEntity = function(fn, slices)
     if slices then
-        for i = 1, #slices do
-            local _entities = UtilityNet.GetEntities(slices[i])
-            local n = 0
-            
-            if _entities then
-                -- Manual pairs loop for performance
-                local k,v = next(_entities)
+        local _entities = UtilityNet.GetEntities(slices)
+        local n = 0
+        
+        if _entities then
+            -- Manual pairs loop for performance
+            local _k, _v = next(_entities)
 
+            while _k do
+                local k,v = next(_v)
+    
                 while k do
                     n = n + 1
                     local ret = fn(v, k)
@@ -3040,8 +3042,10 @@ UtilityNet.ForEachEntity = function(fn, slices)
                     if ret ~= nil then
                         return ret
                     end
-                    k,v = next(_entities, k)
+                    k,v = next(_entities[_k], k)
                 end
+
+                _k, _v = next(_entities, _k)
             end
         end
     else
@@ -3077,8 +3081,12 @@ UtilityNet.SetDebug = function(state)
     local localEntities = {}
     Citizen.CreateThread(function()
         while UtilityNetDebug do
+            local coords = GetEntityCoords(PlayerPedId())
+            local slice = GetSliceFromCoords(coords)
+            local slices = GetSurroundingSlices(slice)
+
             localEntities = {}
-            
+
             UtilityNet.ForEachEntity(function(v)
                 if v.createdBy == GetCurrentResourceName() then
                     local obj = UtilityNet.GetEntityFromUNetId(v.id)
@@ -3090,7 +3098,7 @@ UtilityNet.SetDebug = function(state)
                         })
                     end
                 end
-            end)
+            end, {slice, table.unpack(slices)})
             Citizen.Wait(3000)
         end
     end)
@@ -3182,18 +3190,16 @@ UtilityNet.GetClosestNetIdOfType = function(coords, radius, model)
     local slices = GetSurroundingSlices(slice)
 
     -- Iterate only through near slices to improve performance
-    for k, v in pairs(slices) do
-        UtilityNet.ForEachEntity(function(entity)
-            if entity.model == model then
-                local distance = #(coords - entity.coords)
-    
-                if distance < radius and distance < minDist then
-                    minDist = distance
-                    closest = entity.id
-                end
+    UtilityNet.ForEachEntity(function(entity)
+        if entity.model == model then
+            local distance = #(coords - entity.coords)
+
+            if distance < radius and distance < minDist then
+                minDist = distance
+                closest = entity.id
             end
-        end, {v})
-    end
+        end
+    end, {slice, table.unpack(slices)})
 
     return closest
 end
@@ -3378,6 +3384,10 @@ end
 
 UtilityNet.GetEntities = function(slice)
     return exports["utility_lib"]:GetEntities(slice)
+end
+
+UtilityNet.GetEntitiesByCreator = function(resource, keys)
+    return exports["utility_lib"]:GetEntitiesByCreator(resource, keys)
 end
 --#endregion
 

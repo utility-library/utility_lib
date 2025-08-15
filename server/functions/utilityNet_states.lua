@@ -171,6 +171,24 @@ RegisterNetEvent("Utility:Net:GetState", function(uNetId)
     TriggerClientEvent("Utility:Net:GetState"..uNetId, source, EntitiesStates[uNetId].states)
 end)
 
+local _EMPTY_STATE = {}
+RegisterNetEvent("Utility:Net:GetStates", function(uNetIds)
+    local source = source
+    local states = {}
+
+    for k,v in pairs(uNetIds) do
+        if not EntitiesStates[v] then
+            warn("GetStates: No states found for "..table.concat(uNetIds, ", "))
+            states[v] = _EMPTY_STATE
+        else
+            ListenStateUpdates(source, v)
+            states[v] = EntitiesStates[v].states
+        end
+    end
+
+    TriggerClientEvent("Utility:Net:GetStates", source, states)
+end)
+
 -- Single value
 RegisterNetEvent("Utility:Net:GetStateValue", function(uNetId, key)
     local source = source

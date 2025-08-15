@@ -1,6 +1,10 @@
 EntitiesStates = {}
 
-local function IsEntityStateLoaded(uNetId)
+function IsEntityStateLoaded(uNetId)
+    if not EntitiesStates[uNetId] then
+        return false
+    end
+
     return EntitiesStates[uNetId] ~= -1
 end
 
@@ -28,18 +32,14 @@ RegisterNetEvent("Utility:Net:UpdateStateValue", function(uNetId, key, value)
 end)
 
 GetEntityStateValue = function(uNetId, key)
-    if not UtilityNet.GetEntityFromUNetId(uNetId) then -- If trying to get state of entity that isnt loaded
-        local start = GetGameTimer()
+    -- If loading wait for full load
+    while EntitiesStates[uNetId] == -1 do
+        Citizen.Wait(1)
+    end
 
-        local entity = nil
-        while not entity do
-            entity = UtilityNet.InternalFindFromNetId(uNetId)
-            if GetGameTimer() - start > 2000 then
-                error("GetEntityStateValue: entity "..tostring(uNetId).." doesnt exist, attempted to retrieve key: "..tostring(key))
-                break
-            end
-            Citizen.Wait(1)
-        end
+     -- If state is not loaded it means that the entity doesnt exist locally
+    if not EntitiesStates[uNetId] then
+        local start = GetGameTimer()
 
         return ServerRequestEntityKey(uNetId, key)
     else
@@ -83,6 +83,27 @@ ServerRequestEntityStates = function(uNetId)
     local states = Citizen.Await(p)
 
     EntitiesStates[uNetId] = states or {}
+end
+
+ServerRequestEntitiesStates = function(uNetIds)
+    for i=1, #uNetIds do
+        EntitiesStates[uNetIds[i]] = -1 -- Set as loading
+    end
+
+    local p = promise:new()
+    local event = nil
+
+    event = RegisterNetEvent("Utility:Net:GetStates", function(states)
+        RemoveEventHandler(event)
+        p:resolve(states)
+    end)
+    
+    TriggerServerEvent("Utility:Net:GetStates", uNetIds)
+    local states = Citizen.Await(p)
+
+    for uNetId, states in pairs(states) do
+        EntitiesStates[uNetId] = states
+    end
 end
 
 exports("GetEntityStateValue", GetEntityStateValue)

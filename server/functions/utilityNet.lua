@@ -11,6 +11,26 @@ UtilityNet = UtilityNet or {}
 --     door = boolean (if true will spawn the entity with door flag)
 -- }
 
+TriggerClientEventNearSlice = function(name, slice, ...)
+    local players = GetPlayers()
+
+    for k,v in pairs(players) do
+        local currentSlice = GetSliceFromCoords(GetEntityCoords(GetPlayerPed(v)))
+
+        if slice == currentSlice then
+            TriggerLatentClientEvent(name, v, -1, ...)
+        end
+
+        local slices = GetSurroundingSlices(currentSlice)
+
+        for i=1, #slices do
+            if slice == slices[i] then
+                TriggerLatentClientEvent(name, v, -1, ...)
+            end
+        end
+    end
+end
+
 UtilityNet.CreateEntity = function(model, coords, options, callId)
     options = options or {}
     local hashmodel = nil
@@ -60,7 +80,7 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
     RegisterEntityState(object.id)
     NextId = NextId + 1
 
-    TriggerLatentClientEvent("Utility:Net:EntityCreated", -1, 5120, callId, object)
+    TriggerLatentClientEvent("Utility:Net:EntityCreated", -1, -1, callId, object)
     return object.id
 end
 
@@ -94,7 +114,9 @@ UtilityNet.DeleteEntity = function(uNetId)
         Entities[entity.slice][entity.id] = nil
     end
 
-    TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, 5120, uNetId)
+    AttachedEntities[uNetId] = nil
+
+    TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, -1, uNetId)
     ClearEntityStates(uNetId) -- Clear states after trigger
 end
 
@@ -106,11 +128,22 @@ UtilityNet.InternalFindFromNetId = function(uNetId)
     end
 end
 
+local _EMPTY_ENTITIES = {}
 UtilityNet.GetEntities = function(slice)
-    if slice then
-        return Entities[slice]
+    if not slice then
+        error("GetEntities: No slices provided, please provide at least one slice")
+    end
+
+    local entities = {}
+
+    if type(slice) == "table" then
+        for i, slice in pairs(slice) do
+            entities[slice] = Entities[slice] or _EMPTY_ENTITIES
+        end
+
+        return entities
     else
-        return Entities
+        return Entities[slice]
     end
 end
 
@@ -140,8 +173,7 @@ UtilityNet.SetEntityRotation = function(uNetId, newRotation, skipRotationUpdate)
 
     Entities[slice][uNetId].options.rotation = newRotation
 
-    -- Except caller since it will be already updated
-    TriggerLatentClientEvent("Utility:Net:RefreshRotation", -1, 5120, uNetId, newRotation, skipRotationUpdate)
+    TriggerClientEventNearSlice("Utility:Net:RefreshRotation", slice, uNetId, newRotation, skipRotationUpdate)
 end
 
 UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
@@ -173,14 +205,7 @@ UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
     Entities[slice][uNetId].coords = newCoords
     Entities[slice][uNetId].slice = GetSliceFromCoords(newCoords)
     
-    -- Except caller since it will be already updated
-    local players = GetPlayers()
-
-    for k,v in pairs(players) do
-        if v ~= source then
-            TriggerLatentClientEvent("Utility:Net:RefreshCoords", v, 5120, uNetId, newCoords, skipPositionUpdate)
-        end
-    end
+    TriggerClientEventNearSlice("Utility:Net:RefreshCoords", slice, uNetId, newCoords, skipPositionUpdate)
 end
 
 UtilityNet.SetEntityModel = function(uNetId, model)
@@ -201,11 +226,7 @@ UtilityNet.SetEntityModel = function(uNetId, model)
     -- Except caller since it will be already updated
     local players = GetPlayers()
 
-    for k,v in pairs(players) do
-        if v ~= source then
-            TriggerLatentClientEvent("Utility:Net:RefreshModel", v, 5120, uNetId, model)
-        end
-    end
+    TriggerClientEventNearSlice("Utility:Net:RefreshModel", slice, uNetId, model)
 end
 
 local GetAttachedEntitySliceAndCoords = function(uNetId, __attached)
@@ -250,6 +271,13 @@ local StartSliceUpdateForAttachedEntities = function()
         while not table.empty(AttachedEntities) do
             for uNetId, __attached in pairs(AttachedEntities) do
                 local selfEntity, selfSlice = UtilityNet.InternalFindFromNetId(uNetId)
+                -- Entity not found
+                if not selfEntity or not selfSlice then
+                    warn("SliceUpdateForAttachedEntities: Entity "..tostring(uNetId).." not found, removing from attached entities")
+                    AttachedEntities[uNetId] = nil
+                    goto continue
+                end
+
                 local attachedSlice, attachedCoords = GetAttachedEntitySliceAndCoords(uNetId, __attached)
                 
                 if not attachedSlice or not attachedCoords then
@@ -259,6 +287,7 @@ local StartSliceUpdateForAttachedEntities = function()
                 -- Need to call SetEntityCoords since it will update the slice also for loaded clients
                 -- otherwise it will be updated only on the server, and not on the clients
                 if attachedSlice ~= selfSlice then
+                    print("Updating entity "..uNetId.." slice from "..selfSlice.." to "..attachedSlice)
                     UtilityNet.SetEntityCoords(uNetId, attachedCoords, true)
                 end
 
@@ -327,8 +356,32 @@ UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:SetEntityModel", UtilityNet.SetEntityModel)
     RegisterNetEvent("Utility:Net:SetEntityRotation", UtilityNet.SetEntityRotation)
 
-    RegisterNetEvent("Utility:Net:GetEntities", function()
-        TriggerClientEvent("Utility:Net:GetEntities", source, UtilityNet.GetEntities())
+    RegisterNetEvent("Utility:Net:GetEntities", function(slices)
+        TriggerLatentClientEvent("Utility:Net:GetEntities", source, -1, UtilityNet.GetEntities(slices))
+    end)
+
+    RegisterNetEvent("Utility:Net:GetEntitiesByCreator", function(resource, keys)
+        local entities = {}
+
+        for k,v in pairs(Entities) do
+            if v.createdBy == resource then
+                if keys then
+                    local _entity = {}
+                    
+                    for _, key in pairs(keys) do
+                        if v[key] then
+                            _entity[key] = v[key]
+                        end
+                    end
+
+                    table.insert(entities, _entity)
+                else
+                    table.insert(entities, entity)
+                end
+            end
+        end
+        
+        TriggerLatentClientEvent("Utility:Net:GetEntitiesByCreator", source, -1, entities)
     end)
 end
 --#endregion

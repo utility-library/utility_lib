@@ -767,51 +767,29 @@ local CreatedEntities = {}
 UtilityNet = {}
 
 UtilityNet.ForEachEntity = function(fn, slices)
-    if slices then
-        local entities = UtilityNet.GetEntities(slices)
+    if not slices then
+        error("UtilityNet.ForEachEntity requires slices", 2)
+    end
 
-        for i = 1, #slices do
-            local _entities = entities[slices[i]]
-            local n = 0
-            
-            if _entities then
-                -- Manual pairs loop for performance
-                local k,v = next(_entities)
+    local entities = UtilityNet.GetEntities(slices)
 
-                while k do
-                    n = n + 1
-                    local ret = fn(v, k)
+    for i = 1, #slices do
+        local _entities = entities[slices[i]]
+        local n = 0
         
-                    if ret ~= nil then
-                        return ret
-                    end
-                    k,v = next(_entities, k)
-                end
-            end
-        end
-    else
-        local entities = UtilityNet.GetEntities()
+        if _entities then
+            -- Manual pairs loop for performance
+            local k,v = next(_entities)
 
-        if not entities then
-            return
-        end
-
-        -- Manual pairs loop for performance
-        local sliceI,slice = next(entities)
-
-        while sliceI do
-            local k2, v = next(slice)
-            while k2 do
-                local ret = fn(v, k2)
-
+            while k do
+                n = n + 1
+                local ret = fn(v, k)
+    
                 if ret ~= nil then
                     return ret
                 end
-
-                k2,v = next(slice, k2)
+                k,v = next(_entities, k)
             end
-
-            sliceI, slice = next(entities, sliceI)
         end
     end
 end
