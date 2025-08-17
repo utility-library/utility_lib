@@ -759,7 +759,7 @@
         local bottomright = slice + sliceCollumns - 1
         local bottomleft = slice + sliceCollumns + 1
 
-        return {top, bottom, left, right, topright, topleft, bottomright, bottomleft}
+        return {math.floor(top), math.floor(bottom), math.floor(left), math.floor(right), math.floor(topright), math.floor(topleft), math.floor(bottomright), math.floor(bottomleft)}
     end
 
 --// UtilityNet //--
@@ -767,19 +767,15 @@ local CreatedEntities = {}
 UtilityNet = {}
 
 UtilityNet.ForEachEntity = function(fn, slices)
-    if not slices then
-        error("UtilityNet.ForEachEntity requires slices", 2)
-    end
+    local _entities = UtilityNet.GetEntities(slices)
+    local n = 0
+    
+    if _entities then
+        -- Manual pairs loop for performance
+        local _k, _v = next(_entities)
 
-    local entities = UtilityNet.GetEntities(slices)
-
-    for i = 1, #slices do
-        local _entities = entities[slices[i]]
-        local n = 0
-        
-        if _entities then
-            -- Manual pairs loop for performance
-            local k,v = next(_entities)
+        while _k do
+            local k,v = next(_v)
 
             while k do
                 n = n + 1
@@ -788,8 +784,10 @@ UtilityNet.ForEachEntity = function(fn, slices)
                 if ret ~= nil then
                     return ret
                 end
-                k,v = next(_entities, k)
+                k,v = next(_entities[_k], k)
             end
+
+            _k, _v = next(_entities, _k)
         end
     end
 end
@@ -869,8 +867,8 @@ UtilityNet.GetEntityModel = function(uNetId)
     end
 end
 
-UtilityNet.GetEntities = function()
-    return exports["utility_lib"]:GetEntities()
+UtilityNet.GetEntities = function(slices)
+    return exports["utility_lib"]:GetEntities(slices)
 end
 
 UtilityNet.SetModelRenderDistance = function(model, distance)

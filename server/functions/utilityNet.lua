@@ -62,6 +62,7 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
 
     local slice = GetSliceFromCoords(coords)
     
+    -- If you edit this, make sure to update also the encoder/decoder!
     local object = {
         id = NextId,
         model = options.abstract and model or hashmodel,
@@ -96,6 +97,13 @@ UtilityNet.DeleteEntity = function(uNetId)
         error("Invalid uNetId, got -1", 2)
         return
     end
+
+    -- Exist?
+    local entity = UtilityNet.InternalFindFromNetId(uNetId)
+
+    if not entity then
+        return
+    end
     --#endregion
 
     --#region Event
@@ -107,16 +115,10 @@ UtilityNet.DeleteEntity = function(uNetId)
     end
     --#endregion
 
-
-    local entity = UtilityNet.InternalFindFromNetId(uNetId)
-
-    if entity then
-        Entities[entity.slice][entity.id] = nil
-    end
-
+    Entities[entity.slice][entity.id] = nil
     AttachedEntities[uNetId] = nil
 
-    TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, -1, uNetId)
+    TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, -1, uNetId, entity.model, entity.coords, entity.options.rotation)
     ClearEntityStates(uNetId) -- Clear states after trigger
 end
 
@@ -128,22 +130,21 @@ UtilityNet.InternalFindFromNetId = function(uNetId)
     end
 end
 
-local _EMPTY_ENTITIES = {}
 UtilityNet.GetEntities = function(slice)
-    if not slice then
-        error("GetEntities: No slices provided, please provide at least one slice")
-    end
-
     local entities = {}
 
-    if type(slice) == "table" then
-        for i, slice in pairs(slice) do
-            entities[slice] = Entities[slice] or _EMPTY_ENTITIES
+    if slice then
+        if type(slice) == "table" then
+            for i, slice in pairs(slice) do
+                entities[slice] = Entities[slice]
+            end
+    
+            return entities
+        else
+            return Entities[slice]
         end
-
-        return entities
     else
-        return Entities[slice]
+        return Entities
     end
 end
 
@@ -287,7 +288,7 @@ local StartSliceUpdateForAttachedEntities = function()
                 -- Need to call SetEntityCoords since it will update the slice also for loaded clients
                 -- otherwise it will be updated only on the server, and not on the clients
                 if attachedSlice ~= selfSlice then
-                    print("Updating entity "..uNetId.." slice from "..selfSlice.." to "..attachedSlice)
+                    --print("Updating entity "..uNetId.." slice from "..selfSlice.." to "..attachedSlice)
                     UtilityNet.SetEntityCoords(uNetId, attachedCoords, true)
                 end
 
@@ -329,6 +330,47 @@ UtilityNet.DetachEntity = function(uNetId, skipPositionUpdate)
     end
 end
 
+local EncodeEntitiesForClient = function(entities)
+    if table.empty(entities) then
+        return {}
+    end
+
+    local createdBy = {}
+    local encoded = {
+        groups = { -- groups
+            createdBy = createdBy
+        },
+        entities = {} -- entities
+    }
+
+    for slice, entities in pairs(entities) do
+        encoded.entities[slice] = {}
+
+        for uNetId, entity in pairs(entities) do
+            -- Group entities createdBy based on indexes
+            local index, v = table.find(createdBy, entity.createdBy)
+            local createdByIndex = nil
+
+            if index then
+                createdByIndex = index
+            else
+                table.insert(createdBy, entity.createdBy)
+                createdByIndex = #createdBy
+            end
+
+            table.insert(encoded.entities[slice], {
+                entity.id or -1,
+                entity.model or -1,
+                createdByIndex or -1,
+                {entity.coords.x, entity.coords.y, entity.coords.z},
+                entity.options or {}
+            })
+        end
+    end
+
+    return encoded
+end
+
 --#region Events
 UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:CreateEntity", function(callId, model, coords, options)
@@ -357,31 +399,36 @@ UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:SetEntityRotation", UtilityNet.SetEntityRotation)
 
     RegisterNetEvent("Utility:Net:GetEntities", function(slices)
-        TriggerLatentClientEvent("Utility:Net:GetEntities", source, -1, UtilityNet.GetEntities(slices))
+        local source = source
+        TriggerLatentClientEvent("Utility:Net:GetEntities", source, -1, EncodeEntitiesForClient(UtilityNet.GetEntities(slices)))
     end)
 
-    RegisterNetEvent("Utility:Net:GetEntitiesByCreator", function(resource, keys)
+    RegisterNetEvent("Utility:Net:GetServerEntities", function(_filter)
         local entities = {}
 
-        for k,v in pairs(Entities) do
-            if v.createdBy == resource then
-                if keys then
-                    local _entity = {}
-                    
-                    for _, key in pairs(keys) do
-                        if v[key] then
-                            _entity[key] = v[key]
-                        end
+        UtilityNet.ForEachEntity(function(entity)
+            if _filter.where then
+                for k,v in pairs(_filter.where) do
+                    if entity[k] ~= v then
+                        return
                     end
-
-                    table.insert(entities, _entity)
-                else
-                    table.insert(entities, entity)
                 end
             end
-        end
+
+            if _filter.select then
+                local _entity = {}
+                
+                for _, key in ipairs(_filter.select) do
+                    _entity[_] = entity[key]
+                end
+
+                table.insert(entities, _entity)
+            else
+                table.insert(entities, entity)
+            end
+        end)
         
-        TriggerLatentClientEvent("Utility:Net:GetEntitiesByCreator", source, -1, entities)
+        TriggerLatentClientEvent("Utility:Net:GetServerEntities", source, -1, entities)
     end)
 end
 --#endregion

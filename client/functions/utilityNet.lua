@@ -18,6 +18,18 @@ local GetActiveSlices = function()
     return slices
 end
 
+local CollectInactiveSlicesEntities = function(slices)
+    slices = slices or GetActiveSlices()
+
+    for slice, data in pairs(Entities) do
+        local keep = table.find(slices, slice)
+
+        if not keep then
+            Entities[slice] = nil
+        end
+    end
+end
+
 local AttachToEntity = function(obj, to, params)
     local attachToObj = nil
 
@@ -308,7 +320,7 @@ local RenderLocalEntity = function(uNetId, entityData)
         end)
         
         -- Fetch initial state if needed
-        if not IsEntityStateLoaded(uNetId) then
+        if not IsEntityStateLoaded(uNetId) and not IsEntityStateLoading(uNetId) then
             ServerRequestEntityStates(uNetId)
         end
 
@@ -330,9 +342,10 @@ local RenderLocalEntity = function(uNetId, entityData)
     end)
 end
 
--- This function will render all the local entities 
--- after requesting the state of all of them in one go, reducing the number of requests and so reducing overhead and improving performance.
--- This method is more efficient than calling `RenderLocalEntity` for each entity individually, as it requires less network requests and reduces the load on the server.
+-- When rendering multiple entities at once, this function requests the state of all entities in one go, 
+-- reducing the number of network requests and overhead on the server. This results in improved performance. 
+-- This method is more efficient than calling 'RenderLocalEntity' for each entity individually, 
+-- as it requires fewer requests and reduces the servers load.
 local RenderLocalEntities = function(entities)
     if #entities > 0 then
         local ids = {}
@@ -430,35 +443,36 @@ StartUtilityNetRenderLoop = function()
             local slices = GetActiveSlices()
             local start = GetGameTimer()
 
-            local somethingRendered = false -- If something has been rendered, speed up the whole loop to avoid a ugly effect where everything loads slowly
             local nEntities = 0
 
             local sleep = (Config.UtilityNetDynamicUpdate - 700) / math.min(20, lastNEntities) -- threshold to allow a little bit of lag and split by number of entities
+
+            CollectInactiveSlicesEntities(slices)
 
             -- Render/Unrender near slices entities
             local needRender = {}
 
             UtilityNet.ForEachEntity(function(v)
                 nEntities = nEntities + 1
-                if not LocalEntities[v.id] and CanEntityBeRendered(v.id, v) then
+                local canRender = CanEntityBeRendered(v.id, v)
+
+                if not LocalEntities[v.id] and canRender then
                     local obj = UtilityNet.GetEntityFromUNetId(v.id) or 0
                     local state = Entity(obj).state or {}
 
-                    if not state.rendered then
-                        somethingRendered = true
+                    if not state.rendered and not IsNetIdBusy(v.id) then
                         if DebugRendering then
                             print("RenderLocalEntity", v.id, "Loop")
                         end
 
-                        table.insert(needRender, v)
+                        needRender[#needRender + 1] = v
                     end
-                elseif LocalEntities[v.id] and not CanEntityBeRendered(v.id, v) then
-                    somethingRendered = true
+                elseif LocalEntities[v.id] and not canRender then
                     UnrenderLocalEntity(v.id)
                 end
 
                 local outOfTime = (GetGameTimer() - start) > Config.UtilityNetDynamicUpdate
-                if not somethingRendered or outOfTime then
+                if outOfTime then
                     Citizen.Wait(sleep * (2/3))
                 end
             end, slices)
@@ -469,20 +483,18 @@ StartUtilityNetRenderLoop = function()
             -- Run only if the slice has changed (so something can be out of the slice and need to be unrendered)
             if lastSlice ~= currentSlice then
                 for netId, data in pairs(LocalEntities) do
-                    local entityData = Entities[data.slice][netId]
+                    local entityData = Entities[data.slice] and Entities[data.slice][netId]
                 
-                    if not CanEntityBeRendered(netId, entityData) then
+                    if not entityData or not CanEntityBeRendered(netId, entityData) then
                         UnrenderLocalEntity(netId)
                     end
-    
-                    Citizen.Wait(sleep * (1/3))
                 end
 
                 lastSlice = currentSlice
             end
 
             if DebugRendering then
-                print("end", GetGameTimer() - start)
+                print("RENDER LOOP FINISHED", (GetGameTimer() - start))
             end
 
             lastNEntities = nEntities
@@ -626,42 +638,22 @@ RegisterNetEvent("Utility:Net:RefreshRotation", function(uNetId, rotation, skipR
 end)
 
 RegisterNetEvent("Utility:Net:EntityCreated", function(_callId, object)
-    local uNetId = object.id
-    local slices = GetActiveSlices() 
-
-    -- Add to the slice, if not loaded it will automatically be cleared
-    if not Entities[object.slice] then
-        Entities[object.slice] = {}
-    end
-
-    Entities[object.slice][object.id] = object
-
-    if CanEntityBeRendered(uNetId, object, slices) then
-        if DebugRendering then
-            print("RenderLocalEntity", uNetId, "EntityCreated")
-        end
-
-        RenderLocalEntity(uNetId, object)
+    -- If slice is loaded add to it
+    if Entities[object.slice] then
+        Entities[object.slice][object.id] = object
     end
 end)
 
-RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId)
-    local entityData = UtilityNet.InternalFindFromNetId(uNetId)
-    if not entityData then return end
-
-    local slice = GetSliceFromCoords(entityData.coords)
+RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId, model, coords, rotation)
+    local slice = GetSliceFromCoords(coords)
 
     if LocalEntities[uNetId] then
         DeletedEntities[uNetId] = true
         UnrenderLocalEntity(uNetId)
+    end
 
-        --[[ if Entities[slice] then
-            Entities[slice][uNetId] = nil
-        end ]]
-    else
-        --[[ if Entities[slice] then
-            Entities[slice][uNetId] = nil
-        end ]]
+    if Entities[slice] then
+        Entities[slice][uNetId] = nil
     end
 end)
 
@@ -672,20 +664,82 @@ Citizen.CreateThread(function()
     end
 end)
 
---[[ Citizen.CreateThread(function()
-    RegisterNetEvent("Utility:Net:GetEntities", function(entities)
-        Entities = entities
-        EntitiesLoaded = true
-    end)
+-- Inverse of EncodeEntitiesForClient
+-- encoded schema:
+-- {
+--   groups = { createdBy = { "creatorA", "creatorB", ... } },
+--   entities = {
+--     { id, model, createdByIndex, {x,y,z}, options },
+--     ...
+--   }
+-- }
+--
+-- Returns:
+-- {
+--   [tostring(slice)] = {
+--     {
+--       id = <number>,
+--       model = <number>,
+--       createdBy = <string>,
+--       coords = { x = <num>, y = <num>, z = <num> },
+--       options = <table>,
+--       slice = <slice>
+--     }, ...
+--   }
+-- }
 
-    TriggerServerEvent("Utility:Net:GetEntities")
-end) ]]
+local DecodeEntitiesFromServer = function(encoded)
+    assert(type(encoded) == "table", "encoded must be a table")
+    assert(encoded.groups and encoded.groups.createdBy, "encoded.groups.createdBy missing")
+    assert(encoded.entities and type(encoded.entities) == "table", "encoded.entities missing")
+
+    local createdByList = encoded.groups.createdBy
+    local entities = {}
+
+    for slice, enc_entities in pairs(encoded.entities) do
+        entities[slice] = {}
+
+        for _, enc_entity in pairs(enc_entities) do
+            -- layout: { id, model, createdByIndex, {x,y,z}, options }
+            local id = enc_entity[1]
+            local model = enc_entity[2]
+            local cbindex = enc_entity[3]
+            local pos = enc_entity[4]
+            local opts = enc_entity[5]
+
+            if id == -1 or model == -1 or cbindex == -1 then
+                warn("DecodeEntitiesFromServer: Got invalid entity: id="..id..", model="..model..", cbindex="..cbindex)
+            end
+
+            if not createdByList[cbindex] then
+                warn("DecodeEntitiesFromServer: Something has gone wrong, no creator found for index "..cbindex..", list: "..json.encode(createdByList))
+            end
+
+            local ent = {
+                id = id,
+                model = model,
+                coords = vec3(pos[1] or 0.0, pos[2] or 0.0, pos[3] or 0.0),
+                slice = slice,
+                options = opts,
+                createdBy = createdByList[cbindex], -- restore string from index
+            }
+
+            table.insert(entities[slice], ent)
+        end
+    end
+
+    return entities
+end
 
 RegisterNetEvent("Utility:Net:GetEntities", function(entities)
-    -- Update cached slices
-    for slice, sentities in pairs(entities) do
-        print("Caching entities for slice", slice)
-        Entities[slice] = sentities
+    if entities and not table.empty(entities) then
+        entities = DecodeEntitiesFromServer(entities)
+    
+        -- Update cached slices
+        for slice, sentities in pairs(entities) do
+            --print("Caching entities for slice", slice)
+            Entities[slice] = sentities
+        end
     end
 
     EntitiesPromise:resolve(true)
@@ -751,57 +805,76 @@ exports("GetEntityCreator", UtilityNet.GetEntityCreator)
 
 exports("GetRenderedEntities", function() return LocalEntities end)
 exports("GetEntities", function(slices)
-    if not slices then
-        error("GetEntities: No slices provided, please provide at least one slice")
-    end
-
-    if type(slices) == "table" then
-        EntitiesPromise = promise.new()
-
-        -- Check already loaded entities first, if not found, request
-        -- This will also clear the cache of unused slices
-        for cslice, entities in pairs(Entities) do
-            local required = false
-
+    if slices then
+        if type(slices) == "table" then
+            -- Check already loaded entities first, if found remove from the list of slices to request
             for i, slice in ipairs(slices) do
-                if slice == cslice then
-                    print("Found slice", slice)
+                if Entities[slice] then
                     table.remove(slices, i)
-                    required = true
                     break
                 end
             end
-
-            if not required then
-                Entities[cslice] = nil
+    
+            EntitiesPromise = promise.new()
+            
+            -- We still need to request some slices?
+            if #slices > 0 then
+                TriggerServerEvent("Utility:Net:GetEntities", slices)
+            else
+                EntitiesPromise:resolve(true)
             end
-        end
+    
+            Citizen.Await(EntitiesPromise)
 
-        print(#slices, json.encode(#slices))
-        -- We still need to request some slices?
-        if #slices > 0 then
-            TriggerServerEvent("Utility:Net:GetEntities", slices)
+            -- Ensure cache exist also for empty slices
+            if #slices > 0 then
+                for _, slice in ipairs(slices) do
+                    Entities[slice] = Entities[slice] or {}
+                end
+            end
+
+            return Entities
         else
-            EntitiesPromise:resolve(true)
+            return Entities[slice] or {}
         end
-
-        Citizen.Await(EntitiesPromise)
-        return Entities
     else
-        return Entities[slice] or {}
+        return Entities
     end
 end)
 
-exports("GetEntitiesByCreator", function(resource, getKeys)
+exports("GetServerEntities", function(_filter)
     local event = nil
     local p = promise.new()
 
-    event = RegisterNetEvent("Utility:Net:GetEntitiesByCreator", function(entities)
-        p:resolve(entities)
+    event = RegisterNetEvent("Utility:Net:GetServerEntities", function(entities)
+        local _entities = nil
+
+        -- Resolve keys from indices
+        if _filter.select then
+            _entities = {}
+
+            for _, entity in ipairs(entities) do
+                local _entity = {}
+                for _, key in ipairs(_filter.select) do
+                    _entity[key] = entity[_]
+                end
+
+                table.insert(_entities, _entity)
+            end
+        else
+            _entities = entities
+        end
+
+        p:resolve(_entities)
         RemoveEventHandler(event)
     end)
 
-    TriggerServerEvent("Utility:Net:GetEntitiesByCreator", resource, getKeys)
+    TriggerServerEvent("Utility:Net:GetServerEntities", _filter)
     return Citizen.Await(p)
 end)
+
+exports("CanEntityBeRendered", function(uNetId, object, slices)
+    return CanEntityBeRendered(uNetId, object, slices or GetActiveSlices())
+end)
+
 exports("InternalFindFromNetId", UtilityNet.InternalFindFromNetId)

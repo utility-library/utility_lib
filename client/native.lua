@@ -800,7 +800,7 @@ end
         local bottomright = slice + sliceCollumns - 1
         local bottomleft = slice + sliceCollumns + 1
     
-        return {top, bottom, left, right, topright, topleft, bottomright, bottomleft}
+        return {math.floor(top), math.floor(bottom), math.floor(left), math.floor(right), math.floor(topright), math.floor(topleft), math.floor(bottomright), math.floor(bottomleft)}
     end
 
     function DrawDebugSlice(slice, drawSorroundings, zOffset)
@@ -3024,53 +3024,27 @@ end
 
 --#region API
 UtilityNet.ForEachEntity = function(fn, slices)
-    if slices then
-        local _entities = UtilityNet.GetEntities(slices)
-        local n = 0
-        
-        if _entities then
-            -- Manual pairs loop for performance
-            local _k, _v = next(_entities)
-
-            while _k do
-                local k,v = next(_v)
+    local _entities = UtilityNet.GetEntities(slices)
+    local n = 0
     
-                while k do
-                    n = n + 1
-                    local ret = fn(v, k)
-        
-                    if ret ~= nil then
-                        return ret
-                    end
-                    k,v = next(_entities[_k], k)
-                end
-
-                _k, _v = next(_entities, _k)
-            end
-        end
-    else
-        local entities = UtilityNet.GetEntities()
-
-        if not entities then
-            return
-        end
-
+    if _entities then
         -- Manual pairs loop for performance
-        local sliceI,slice = next(entities)
+        local _k, _v = next(_entities)
 
-        while sliceI do
-            local k2, v = next(slice)
-            while k2 do
-                local ret = fn(v, k2)
+        while _k do
+            local k,v = next(_v)
 
+            while k do
+                n = n + 1
+                local ret = fn(v, k)
+    
                 if ret ~= nil then
                     return ret
                 end
-
-                k2,v = next(slice, k2)
+                k,v = next(_entities[_k], k)
             end
 
-            sliceI, slice = next(entities, sliceI)
+            _k, _v = next(_entities, _k)
         end
     end
 end
@@ -3098,7 +3072,7 @@ UtilityNet.SetDebug = function(state)
                         })
                     end
                 end
-            end, {slice, table.unpack(slices)})
+            end)
             Citizen.Wait(3000)
         end
     end)
@@ -3382,12 +3356,28 @@ UtilityNet.InternalFindFromNetId = function(uNetId)
     return exports["utility_lib"]:InternalFindFromNetId(uNetId)
 end
 
-UtilityNet.GetEntities = function(slice)
-    return exports["utility_lib"]:GetEntities(slice)
+UtilityNet.GetEntities = function(slices)
+    return exports["utility_lib"]:GetEntities(slices)
 end
 
-UtilityNet.GetEntitiesByCreator = function(resource, keys)
-    return exports["utility_lib"]:GetEntitiesByCreator(resource, keys)
+-- Filter is a table that can have:
+-- where: table(key, value)
+-- select: table(key)
+--
+-- example:
+--[[
+{
+    where = {
+        ["createdBy"] = "utility_something",
+    },
+    select = {
+        "id",
+        "model",
+    }            
+}   
+]]
+UtilityNet.GetServerEntities = function(_filter)
+    return exports["utility_lib"]:GetServerEntities(_filter)
 end
 --#endregion
 

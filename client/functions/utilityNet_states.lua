@@ -8,6 +8,10 @@ function IsEntityStateLoaded(uNetId)
     return EntitiesStates[uNetId] ~= -1
 end
 
+function IsEntityStateLoading(uNetId)
+    return EntitiesStates[uNetId] == -1
+end
+
 local function EnsureStateLoaded(uNetId)
     if not IsEntityStateLoaded(uNetId) then
         local start = GetGameTimer()
