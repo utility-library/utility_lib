@@ -37,12 +37,13 @@ local AttachToEntity = function(obj, to, params)
         attachToObj = NetworkGetEntityFromNetworkId(to)
     else
         -- Ensure that the entity is fully ready
-        if UtilityNet.DoesUNetIdExist(to) then
-            while not UtilityNet.IsReady(to) do
-                Citizen.Wait(1)
+        local start = GetGameTimer()
+        while not UtilityNet.IsReady(to) do
+            if (GetGameTimer() - start) > 3000 then
+                error("AttachToEntity: Entity existance check timed out for uNetId "..tostring(to))
+                return
             end
-        else
-            warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination netId doesnt exist")
+            Citizen.Wait(1)
         end
 
         attachToObj = UtilityNet.GetEntityFromUNetId(to)
@@ -320,8 +321,10 @@ local RenderLocalEntity = function(uNetId, entityData)
         end)
         
         -- Fetch initial state if needed
-        if not IsEntityStateLoaded(uNetId) and not IsEntityStateLoading(uNetId) then
+        if not IsEntityStateExist(uNetId) then
             ServerRequestEntityStates(uNetId)
+        elseif IsEntityStateLoading(uNetId) then
+            EnsureStateLoaded(uNetId)
         end
 
         LocalEntities[uNetId] = {obj=obj, slice=entityData.slice, createdBy = entityData.createdBy, attached = stateUtility.__attached}
@@ -391,15 +394,12 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
 
     if attached then
         if attached.params.isUtilityNet then
-            if not UtilityNet.DoesUNetIdExist(attached.object) then
-                -- Just keep rendered, the server will detach the entity properly in the next slice update
-                return true
-            end
-
             if LocalEntities[uNetId] then
                 entityCoords = GetEntityCoords(LocalEntities[uNetId].obj)
             else
-                entityCoords = UtilityNet.GetEntityCoords(attached.object)
+                if UtilityNet.DoesUNetIdExist(attached.object) then
+                    entityCoords = UtilityNet.GetEntityCoords(attached.object)
+                end
             end
         else
             -- Networked entity which this entity is attached to does not exist
@@ -808,10 +808,11 @@ exports("GetEntities", function(slices)
     if slices then
         if type(slices) == "table" then
             -- Check already loaded entities first, if found remove from the list of slices to request
-            for i, slice in ipairs(slices) do
+            for i = #slices, 1, -1 do
+                local slice = slices[i]
+
                 if Entities[slice] then
                     table.remove(slices, i)
-                    break
                 end
             end
     
