@@ -3300,17 +3300,46 @@ UtilityNet.DoesUNetIdExist = function(uNetId)
 end
 
 --#region State
+local changeHandlers = {}
+local changeEventHandler = nil
+
 UtilityNet.AddStateBagChangeHandler = function(uNetId, func)
-    return RegisterNetEvent("Utility:Net:UpdateStateValue", function(s_uNetId, key, value)
-        if uNetId == s_uNetId then
-            func(key, value)
-        end
-    end)
+    if not changeHandlers[uNetId] then
+        changeHandlers[uNetId] = {}
+    end
+
+    table.insert(changeHandlers[uNetId], func)
+
+    if not changeEventHandler then
+        changeEventHandler = RegisterNetEvent("Utility:Net:UpdateStateValue", function(s_uNetId, key, value)
+            local handlers = changeHandlers[s_uNetId]
+
+            if not handlers then
+                return
+            end
+
+            for _, handler in pairs(handlers) do
+                handler(key, value)
+            end
+        end)
+    end
+
+    return func
 end
 
-UtilityNet.RemoveStateBagChangeHandler = function(eventData)
-    if eventData and eventData.key and eventData.name then
-        RemoveEventHandler(eventData)
+UtilityNet.RemoveStateBagChangeHandler = function(handler)
+    for uNetId, handlers in pairs(changeHandlers) do
+        for i, h in pairs(handlers) do
+            if h == handler then
+                table.remove(handlers, i)
+                return
+            end
+        end
+    end
+
+    if not next(changeHandlers) then
+        RemoveEventHandler(changeEventHandler)
+        changeEventHandler = nil
     end
 end
 
