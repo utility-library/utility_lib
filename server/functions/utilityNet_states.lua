@@ -168,7 +168,7 @@ RegisterNetEvent("Utility:Net:GetState", function(uNetId)
     end
 
     ListenStateUpdates(source, uNetId)
-    TriggerClientEvent("Utility:Net:GetState"..uNetId, source, EntitiesStates[uNetId].states)
+    TriggerLatentClientEvent("Utility:Net:GetState"..uNetId, source, -1, EntitiesStates[uNetId].states)
 end)
 
 local _EMPTY_STATE = {}
@@ -178,7 +178,6 @@ RegisterNetEvent("Utility:Net:GetStates", function(uNetIds)
 
     for k,v in pairs(uNetIds) do
         if not EntitiesStates[v] then
-            warn("GetStates: No states found for "..table.concat(uNetIds, ", "))
             states[v] = _EMPTY_STATE
         else
             ListenStateUpdates(source, v)
@@ -186,7 +185,7 @@ RegisterNetEvent("Utility:Net:GetStates", function(uNetIds)
         end
     end
 
-    TriggerClientEvent("Utility:Net:GetStates", source, states)
+    TriggerLatentClientEvent("Utility:Net:GetStates", source, -1, states)
 end)
 
 -- Single value
@@ -199,7 +198,7 @@ RegisterNetEvent("Utility:Net:GetStateValue", function(uNetId, key)
         return
     end
 
-    TriggerClientEvent("Utility:Net:GetStateValue"..uNetId, source, EntitiesStates[uNetId].states[key])
+    TriggerLatentClientEvent("Utility:Net:GetStateValue"..uNetId, source, -1, EntitiesStates[uNetId].states[key])
 end)
 --#endregion
 
