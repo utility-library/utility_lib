@@ -1,6 +1,6 @@
 EntitiesStates = {}
 
-function IsEntityStateExist(uNetId)
+function DoesEntityStateExist(uNetId)
     return EntitiesStates[uNetId] ~= nil
 end
 
@@ -12,8 +12,8 @@ function IsEntityStateLoading(uNetId)
     return EntitiesStates[uNetId].__promise
 end
 
-local function EnsureStateLoaded(uNetId)
-    if not IsEntityStateExist(uNetId) then
+function EnsureStateLoaded(uNetId)
+    if not DoesEntityStateExist(uNetId) then
         return
     end
 
@@ -34,7 +34,7 @@ end)
 
 GetEntityStateValue = function(uNetId, key)
      -- If state is not loaded it means that the entity doesnt exist locally
-    if not IsEntityStateExist(uNetId) then
+    if not DoesEntityStateExist(uNetId) then
         return ServerRequestEntityKey(uNetId, key)
     else
         EnsureStateLoaded(uNetId)

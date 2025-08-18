@@ -105,7 +105,7 @@ end
 exports("IsNetIdBusy", IsNetIdBusy)
 exports("IsNetIdCreating", IsNetIdBusy)
 
-local UnrenderLocalEntity = function(uNetId)
+local UnrenderLocalEntity = function(uNetId, keepStates)
     local entity = UtilityNet.GetEntityFromUNetId(uNetId)
 
     if DoesEntityExist(entity) then
@@ -147,8 +147,11 @@ local UnrenderLocalEntity = function(uNetId)
         end
 
         state.rendered = false
-        EntitiesStates[uNetId] = nil
-        TriggerLatentServerEvent("Utility:Net:RemoveStateListener", 5120, uNetId)
+
+        if not keepStates then
+            EntitiesStates[uNetId] = nil
+            TriggerLatentServerEvent("Utility:Net:RemoveStateListener", 5120, uNetId)
+        end
 
         if state.preserved then
             TriggerEvent("Utility:Net:OnUnrender", uNetId, entity, GetEntityModel(entity))
@@ -321,13 +324,13 @@ local RenderLocalEntity = function(uNetId, entityData)
         end)
         
         -- Fetch initial state if needed
-        if not IsEntityStateExist(uNetId) then
+        if not DoesEntityStateExist(uNetId) then
             ServerRequestEntityStates(uNetId)
-        elseif IsEntityStateLoading(uNetId) then
+        else
             EnsureStateLoaded(uNetId)
         end
 
-        LocalEntities[uNetId] = {obj=obj, slice=entityData.slice, createdBy = entityData.createdBy, attached = stateUtility.__attached}
+        LocalEntities[uNetId] = {obj=obj, renderTime = GetGameTimer(), slice=entityData.slice, createdBy = entityData.createdBy, attached = stateUtility.__attached}
 
         -- After state has been fetched, attach if needed
         if stateUtility.__attached then
@@ -468,6 +471,10 @@ StartUtilityNetRenderLoop = function()
                         needRender[#needRender + 1] = v
                     end
                 elseif LocalEntities[v.id] and not canRender then
+                    if DebugRendering then
+                        print("UnrenderLocalEntity", v.id, "Loop")
+                    end
+
                     UnrenderLocalEntity(v.id)
                 end
 
@@ -484,8 +491,12 @@ StartUtilityNetRenderLoop = function()
             if lastSlice ~= currentSlice then
                 for netId, data in pairs(LocalEntities) do
                     local entityData = Entities[data.slice] and Entities[data.slice][netId]
-                
-                    if not entityData or not CanEntityBeRendered(netId, entityData) then
+                    local age = (GetGameTimer() - data.renderTime)
+
+                    if (age > 1000) and (not entityData or not CanEntityBeRendered(netId, entityData)) then
+                        if DebugRendering then
+                            print("UnrenderLocalEntity", netId, "Slice change")
+                        end
                         UnrenderLocalEntity(netId)
                     end
                 end
@@ -548,7 +559,7 @@ RegisterNetEvent("Utility:Net:RefreshModel", function(uNetId, model)
         local _state = Entity(oldObj).state
         _state.preserved = true
 
-        UnrenderLocalEntity(uNetId)
+        UnrenderLocalEntity(uNetId, true)
 
         -- Tamper with the entity model and render again
         local entityData = UtilityNet.InternalFindFromNetId(uNetId)
