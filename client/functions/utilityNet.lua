@@ -325,9 +325,12 @@ local RenderLocalEntity = function(uNetId, entityData)
         
         -- Fetch initial state if needed
         if not DoesEntityStateExist(uNetId) then
+            --print("REQUEUST STATE", uNetId)
             ServerRequestEntityStates(uNetId)
         else
+            --print("WAIT STATE", uNetId)
             EnsureStateLoaded(uNetId)
+            --print("STATE LOADED", uNetId)
         end
 
         LocalEntities[uNetId] = {obj=obj, renderTime = GetGameTimer(), slice=entityData.slice, createdBy = entityData.createdBy, attached = stateUtility.__attached}
@@ -658,13 +661,13 @@ end)
 RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId, model, coords, rotation)
     local slice = GetSliceFromCoords(coords)
 
+    if Entities[slice] then
+        Entities[slice][uNetId] = nil
+    end
+
     if LocalEntities[uNetId] then
         DeletedEntities[uNetId] = true
         UnrenderLocalEntity(uNetId)
-    end
-
-    if Entities[slice] then
-        Entities[slice][uNetId] = nil
     end
 end)
 
@@ -735,7 +738,7 @@ local DecodeEntitiesFromServer = function(encoded)
                 createdBy = createdByList[cbindex], -- restore string from index
             }
 
-            table.insert(entities[slice], ent)
+            entities[slice][id] = ent
         end
     end
 

@@ -35,10 +35,12 @@ end)
 GetEntityStateValue = function(uNetId, key)
      -- If state is not loaded it means that the entity doesnt exist locally
     if not DoesEntityStateExist(uNetId) then
+        --print("DONT EXIST REQUEST KEY", uNetId, key)
         return ServerRequestEntityKey(uNetId, key)
     else
         EnsureStateLoaded(uNetId)
 
+        --print("EXISTS", uNetId, EntitiesStates[uNetId], EntitiesStates[uNetId][key])
         return EntitiesStates[uNetId][key]
     end
 end
