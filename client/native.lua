@@ -800,7 +800,7 @@ end
         local bottomright = slice + sliceCollumns - 1
         local bottomleft = slice + sliceCollumns + 1
     
-        return {top, bottom, left, right, topright, topleft, bottomright, bottomleft}
+        return {math.floor(top), math.floor(bottom), math.floor(left), math.floor(right), math.floor(topright), math.floor(topleft), math.floor(bottomright), math.floor(bottomleft)}
     end
 
     function DrawDebugSlice(slice, drawSorroundings, zOffset)
@@ -3024,49 +3024,27 @@ end
 
 --#region API
 UtilityNet.ForEachEntity = function(fn, slices)
-    if slices then
-        for i = 1, #slices do
-            local _entities = UtilityNet.GetEntities(slices[i])
-            local n = 0
-            
-            if _entities then
-                -- Manual pairs loop for performance
-                local k,v = next(_entities)
-
-                while k do
-                    n = n + 1
-                    local ret = fn(v, k)
-        
-                    if ret ~= nil then
-                        return ret
-                    end
-                    k,v = next(_entities, k)
-                end
-            end
-        end
-    else
-        local entities = UtilityNet.GetEntities()
-
-        if not entities then
-            return
-        end
-
+    local _entities = UtilityNet.GetEntities(slices)
+    local n = 0
+    
+    if _entities then
         -- Manual pairs loop for performance
-        local sliceI,slice = next(entities)
+        local _k, _v = next(_entities)
 
-        while sliceI do
-            local k2, v = next(slice)
-            while k2 do
-                local ret = fn(v, k2)
+        while _k do
+            local k,v = next(_v)
 
+            while k do
+                n = n + 1
+                local ret = fn(v, k)
+    
                 if ret ~= nil then
                     return ret
                 end
-
-                k2,v = next(slice, k2)
+                k,v = next(_entities[_k], k)
             end
 
-            sliceI, slice = next(entities, sliceI)
+            _k, _v = next(_entities, _k)
         end
     end
 end
@@ -3077,8 +3055,12 @@ UtilityNet.SetDebug = function(state)
     local localEntities = {}
     Citizen.CreateThread(function()
         while UtilityNetDebug do
+            local coords = GetEntityCoords(PlayerPedId())
+            local slice = GetSliceFromCoords(coords)
+            local slices = GetSurroundingSlices(slice)
+
             localEntities = {}
-            
+
             UtilityNet.ForEachEntity(function(v)
                 if v.createdBy == GetCurrentResourceName() then
                     local obj = UtilityNet.GetEntityFromUNetId(v.id)
@@ -3182,18 +3164,16 @@ UtilityNet.GetClosestNetIdOfType = function(coords, radius, model)
     local slices = GetSurroundingSlices(slice)
 
     -- Iterate only through near slices to improve performance
-    for k, v in pairs(slices) do
-        UtilityNet.ForEachEntity(function(entity)
-            if entity.model == model then
-                local distance = #(coords - entity.coords)
-    
-                if distance < radius and distance < minDist then
-                    minDist = distance
-                    closest = entity.id
-                end
+    UtilityNet.ForEachEntity(function(entity)
+        if entity.model == model then
+            local distance = #(coords - entity.coords)
+
+            if distance < radius and distance < minDist then
+                minDist = distance
+                closest = entity.id
             end
-        end, {v})
-    end
+        end
+    end, {slice, table.unpack(slices)})
 
     return closest
 end
@@ -3320,17 +3300,46 @@ UtilityNet.DoesUNetIdExist = function(uNetId)
 end
 
 --#region State
+local changeHandlers = {}
+local changeEventHandler = nil
+
 UtilityNet.AddStateBagChangeHandler = function(uNetId, func)
-    return RegisterNetEvent("Utility:Net:UpdateStateValue", function(s_uNetId, key, value)
-        if uNetId == s_uNetId then
-            func(key, value)
-        end
-    end)
+    if not changeHandlers[uNetId] then
+        changeHandlers[uNetId] = {}
+    end
+
+    table.insert(changeHandlers[uNetId], func)
+
+    if not changeEventHandler then
+        changeEventHandler = RegisterNetEvent("Utility:Net:UpdateStateValue", function(s_uNetId, key, value)
+            local handlers = changeHandlers[s_uNetId]
+
+            if not handlers then
+                return
+            end
+
+            for _, handler in pairs(handlers) do
+                handler(key, value)
+            end
+        end)
+    end
+
+    return func
 end
 
-UtilityNet.RemoveStateBagChangeHandler = function(eventData)
-    if eventData and eventData.key and eventData.name then
-        RemoveEventHandler(eventData)
+UtilityNet.RemoveStateBagChangeHandler = function(handler)
+    for uNetId, handlers in pairs(changeHandlers) do
+        for i, h in pairs(handlers) do
+            if h == handler then
+                table.remove(handlers, i)
+                return
+            end
+        end
+    end
+
+    if not next(changeHandlers) then
+        RemoveEventHandler(changeEventHandler)
+        changeEventHandler = nil
     end
 end
 
@@ -3376,8 +3385,28 @@ UtilityNet.InternalFindFromNetId = function(uNetId)
     return exports["utility_lib"]:InternalFindFromNetId(uNetId)
 end
 
-UtilityNet.GetEntities = function(slice)
-    return exports["utility_lib"]:GetEntities(slice)
+UtilityNet.GetEntities = function(slices)
+    return exports["utility_lib"]:GetEntities(slices)
+end
+
+-- Filter is a table that can have:
+-- where: table(key, value)
+-- select: table(key)
+--
+-- example:
+--[[
+{
+    where = {
+        ["createdBy"] = "utility_something",
+    },
+    select = {
+        "id",
+        "model",
+    }            
+}   
+]]
+UtilityNet.GetServerEntities = function(_filter)
+    return exports["utility_lib"]:GetServerEntities(_filter)
 end
 --#endregion
 
