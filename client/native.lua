@@ -126,7 +126,7 @@ end
 
         if key:find("mouse_") then
             input = "mouse_button"
-        if key:find("iom_wheel") then
+        elseif key:find("iom_wheel") then
             input = "mouse_wheel"
         elseif key:find("_index") then
             input = "pad_digitalbutton"
