@@ -85,8 +85,18 @@ end
         disable = disable ~= nil and disable or true
 
         if Keys[string.upper(group)] then
+            if control == nil then
+                control = true
+            end
+
             return old_DisableControlAction(0, Keys[string.upper(group)], control)
         else
+            if group > 2 then
+                disable = control
+                control = group
+                group = 0
+            end
+
             return old_DisableControlAction(group, control, disable) -- Retro compatibility
         end
     end
@@ -152,7 +162,7 @@ end
         _DrawNotification(false, true)
     end
 
-    ButtonNotification = function(msg)
+    ButtonNotification = function(msg, beep)
         if string.match(msg, "{.*}") then
             msg = string.multigsub(msg, 
                 {"{A}", "{B}", "{C}", "{D}", "{E}", "{F}", "{G}", "{H}", "{L}", "{M}", "{N}", "{O}", "{P}", "{Q}", "{R}",
@@ -166,9 +176,13 @@ end
             )
         end
             
+        if not beep then
+            beep = true
+        end
+
         _AddTextEntry('ButtonNotification'..string.len(msg), msg)
         _BeginTextCommandDisplayHelp('ButtonNotification'..string.len(msg))
-        _EndTextCommandDisplayHelp(0, false, true, -1)
+        _EndTextCommandDisplayHelp(0, false, beep, -1)
     end
 
     ButtonFor = function(msg, ms)
