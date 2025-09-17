@@ -1,4 +1,5 @@
 local Entity = Entity
+local _currentSlice = nil -- We need to have always the currentSlice in sync with render loop
 
 local DebugRendering = false
 local DebugInfos = true
@@ -12,8 +13,10 @@ local Entities = {}
 
 --#region Local functions
 local GetActiveSlices = function()
-    local slices = GetSurroundingSlices(currentSlice)
-    table.insert(slices, currentSlice)
+    _currentSlice = GetSelfSlice()
+
+    local slices = GetSurroundingSlices(_currentSlice)
+    table.insert(slices, _currentSlice)
 
     return slices
 end
@@ -478,7 +481,7 @@ StartUtilityNetRenderLoop = function()
 
     Citizen.CreateThread(function()
         local lastNEntities = 0 -- Used for managing the speed of the loop based on the number of entities
-        local lastSlice = currentSlice
+        local lastSlice = _currentSlice
         
         while true do
             DeletedEntities = {}
@@ -531,7 +534,7 @@ StartUtilityNetRenderLoop = function()
 
             -- Unrender entities that are out of slice
             -- Run only if the slice has changed (so something can be out of the slice and need to be unrendered)
-            if lastSlice ~= currentSlice then
+            if lastSlice ~= _currentSlice then
                 for netId, data in pairs(LocalEntities) do
                     local entityData = Entities[data.slice] and Entities[data.slice][netId]
 
@@ -550,7 +553,7 @@ StartUtilityNetRenderLoop = function()
                     end
                 end
 
-                lastSlice = currentSlice
+                lastSlice = _currentSlice
             end
 
             if DebugRendering then
