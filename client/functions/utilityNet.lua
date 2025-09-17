@@ -1,7 +1,7 @@
 local Entity = Entity
 
 local DebugRendering = false
-local DebugInfos = true
+local DebugInfos = false
 
 -- Used to prevent that the main loop tries to render an entity that has/his been/being deleted 
 -- (the for each entity itearate over the old entities until next cycle and so will try to render a deleted entity)
