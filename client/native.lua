@@ -791,8 +791,8 @@ end
         return GetSliceIdFromColRow(col, row)
     end
 
-    function GetEntitySlice(ped)
-        return GetSliceFromCoords(GetEntityCoords(ped))
+    function GetEntitySlice(entity)
+        return GetSliceFromCoords(GetEntityCoords(entity))
     end
 
     function GetPlayerSlice(player)

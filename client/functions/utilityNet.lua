@@ -1,7 +1,7 @@
 local Entity = Entity
 
 local DebugRendering = false
-local DebugInfos = false
+local DebugInfos = true
 
 -- Used to prevent that the main loop tries to render an entity that has/his been/being deleted 
 -- (the for each entity itearate over the old entities until next cycle and so will try to render a deleted entity)
@@ -18,11 +18,47 @@ local GetActiveSlices = function()
     return slices
 end
 
+local ShouldKeepSlice = function(slices, slice)
+    local keep = table.find(slices, slice)
+
+    if keep then
+        return true
+    end
+
+    -- Is slice empty
+    if not next(Entities[slice]) then
+        return false
+    end
+
+    for netId, entity in pairs(Entities[slice]) do
+        local attached = LocalEntities[netId]?.attached
+
+        -- Is entity attached to an entity that is in a slice that is active? 
+        -- If so, keep slice to allow the server to move the entity
+        if attached then
+            if attached.params.isUtilityNet then
+                local entityData, slice = UtilityNet.InternalFindFromNetId(attached.object)
+
+                if table.find(slices, slice) then
+                    return true
+                end
+            else
+                local entity = NetworkGetEntityFromNetworkId(attached.object)
+                local slice = GetEntitySlice(entity)
+
+                if table.find(slices, slice) then
+                    return true
+                end
+            end
+        end
+    end
+end
+
 local CollectInactiveSlicesEntities = function(slices)
     slices = slices or GetActiveSlices()
 
     for slice, data in pairs(Entities) do
-        local keep = table.find(slices, slice)
+        local keep = ShouldKeepSlice(slices, slice)
 
         if not keep then
             Entities[slice] = nil
@@ -196,7 +232,7 @@ local RenderLocalEntity = function(uNetId, entityData)
 
     if options.abstract then
         if options.replace then
-            error("RenderLocalEntity: abstract entities can't have the \"replace\" option, uNetId: "..uNetId.." model: "..model)
+            error("RenderLocalEntity: abstract entities can't have the \"replace\" option, uNetId: "..uNetId.." model: "..model.." Creator: "..tostring(entityData.createdBy))
         end
 
         if not IsModelValid(model) then
@@ -222,14 +258,14 @@ local RenderLocalEntity = function(uNetId, entityData)
     end
 
     if not IsModelValid(model) then
-        error("RenderLocalEntity: Model "..tostring(model).." is not valid, uNetId: "..uNetId)
+        error("RenderLocalEntity: Model "..tostring(model).." is not valid, uNetId: "..uNetId.." createdBy: "..tostring(entityData.createdBy))
     end
 
     if not options.abstract then
         local start = GetGameTimer()
         while not HasModelLoaded(model) do
             if (GetGameTimer() - start) > 5000 then
-                error("RenderLocalEntity: Model "..model.." failed to load, uNetId: "..uNetId)
+                error("RenderLocalEntity: Model "..model.." failed to load, uNetId: "..uNetId.." createdBy: "..tostring(entityData.createdBy))
             end
     
             RequestModel(model)
@@ -487,13 +523,23 @@ StartUtilityNetRenderLoop = function()
                 end
             end, slices)
 
-            RenderLocalEntities(needRender)
+            local ok, err = pcall(RenderLocalEntities, needRender)
+
+            if not ok then
+                print("^1" .. err .. "^0")
+            end
 
             -- Unrender entities that are out of slice
             -- Run only if the slice has changed (so something can be out of the slice and need to be unrendered)
             if lastSlice ~= currentSlice then
                 for netId, data in pairs(LocalEntities) do
                     local entityData = Entities[data.slice] and Entities[data.slice][netId]
+
+                    -- If not found, try to find from netId, last resort
+                    if not entityData then
+                        entityData = UtilityNet.InternalFindFromNetId(netId)
+                    end
+
                     local age = (GetGameTimer() - data.renderTime)
 
                     if (age > 1000) and (not entityData or not CanEntityBeRendered(netId, entityData)) then
