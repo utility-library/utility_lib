@@ -524,7 +524,7 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
         end
     end
 
-    print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." coords "..tostring(entityCoords).." distance "..tostring(#(entityCoords - coords)))
+    --print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." coords "..tostring(entityCoords).." distance "..tostring(#(entityCoords - coords)))
     return #(entityCoords - coords) < renderDistance
 end
 --#endregion
