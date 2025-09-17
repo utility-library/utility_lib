@@ -287,7 +287,7 @@ local StartSliceUpdateForAttachedEntities = function()
 
                 -- Need to call SetEntityCoords since it will update the slice also for loaded clients
                 -- otherwise it will be updated only on the server, and not on the clients
-                if attachedSlice ~= selfSlice then
+                if attachedSlice ~= selfSlice or #(attachedCoords - selfEntity.coords) > 10.0 then
                     --print("Updating entity "..uNetId.." slice from "..selfSlice.." to "..attachedSlice)
                     UtilityNet.SetEntityCoords(uNetId, attachedCoords, true)
                 end

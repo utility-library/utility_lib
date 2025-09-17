@@ -34,7 +34,7 @@ local ShouldKeepSlice = function(slices, slice)
     end
 
     for netId, entity in pairs(Entities[slice]) do
-        local attached = LocalEntities[netId]?.attached
+        local attached = entity.attached
 
         -- Is entity attached to an entity that is in a slice that is active? 
         -- If so, keep slice to allow the server to move the entity
@@ -358,7 +358,8 @@ local RenderLocalEntity = function(uNetId, entityData)
                     DetachEntity(obj, true, true)
                 end
 
-                LocalEntities[uNetId]?.attached = value
+                local slice = GetEntitySlice(obj)
+                Entities[slice][uNetId] = value
             end
         end)
         
@@ -372,7 +373,8 @@ local RenderLocalEntity = function(uNetId, entityData)
             --print("STATE LOADED", uNetId)
         end
 
-        LocalEntities[uNetId] = {obj=obj, renderTime = GetGameTimer(), slice=entityData.slice, createdBy = entityData.createdBy, attached = stateUtility.__attached}
+        Entities[entityData.slice][uNetId].attached = stateUtility.__attached
+        LocalEntities[uNetId] = {obj=obj, renderTime = GetGameTimer(), slice=entityData.slice, createdBy = entityData.createdBy}
 
         -- After state has been fetched, attach if needed
         if stateUtility.__attached then
@@ -416,21 +418,30 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
 
     -- Exit if entity data is missing
     if not entityData then
+        if DebugInfos then
+            print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." cant be found")
+        end
         return false
     end
 
     -- Check if entity is within drawing slices (if provided)
     if slices and not table.find(slices, entityData.slice) then
+        if DebugInfos then
+            print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." is not in drawing slices")
+        end
         return false
     end
 
     if DeletedEntities[uNetId] then
+        if DebugInfos then
+            print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." is marked as deleted")
+        end
         return false
     end
 
     -- Render only if within render distance
     local coords = GetEntityCoords(PlayerPedId())
-    local attached = LocalEntities[uNetId]?.attached
+    local attached = entityData.attached
     local modelsRenderDistance = GlobalState.ModelsRenderDistance
     local hashmodel = type(entityData.model) == "number" and entityData.model or GetHashKey(entityData.model)
     local renderDistance = modelsRenderDistance[hashmodel] or 50.0
@@ -449,16 +460,25 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
         else
             -- Networked entity which this entity is attached to does not exist
             -- Just keep rendered, the server will detach the entity properly in the next slice update
-            if not NetworkDoesNetworkIdExist(attached.object) then 
+            if not NetworkDoesNetworkIdExist(attached.object) then
                 return true
             end
 
             -- Calculate distance from networked entity
             local entity = NetworkGetEntityFromNetworkId(attached.object)
 
-            entityCoords = GetEntityCoords(entity)
+            if DoesEntityExist(entity) then
+                entityCoords = GetEntityCoords(entity)
+    
+                if DebugInfos then
+                    print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." was attached to netId "..tostring(attached.object).." at "..tostring(entityCoords))
+                end
+            end
 
-            local _slice = GetSliceFromCoords(entityCoords)
+        end
+    else
+        if DebugInfos then
+            print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." was not attached")
         end
     end
 
@@ -557,7 +577,7 @@ StartUtilityNetRenderLoop = function()
             end
 
             if DebugRendering then
-                print("RENDER LOOP FINISHED", (GetGameTimer() - start))
+                --print("RENDER LOOP FINISHED", (GetGameTimer() - start))
             end
 
             lastNEntities = nEntities
