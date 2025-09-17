@@ -2,7 +2,7 @@ local Entity = Entity
 local _currentSlice = nil -- We need to have always the currentSlice in sync with render loop
 
 local DebugRendering = false
-local DebugInfos = true
+local DebugInfos = false
 
 -- Used to prevent that the main loop tries to render an entity that has/his been/being deleted 
 -- (the for each entity itearate over the old entities until next cycle and so will try to render a deleted entity)
