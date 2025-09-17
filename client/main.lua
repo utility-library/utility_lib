@@ -1,5 +1,4 @@
 player = PlayerPedId()
-LocalEntities = {} -- UtilityNet
 
 LoadUtilityFrameworkIfFound()
 LoadJobsAndListenForChanges()

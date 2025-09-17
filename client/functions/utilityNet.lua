@@ -1,17 +1,59 @@
 local Entity = Entity
-local _currentSlice = nil -- We need to have always the currentSlice in sync with render loop
 
 local DebugRendering = false
-local DebugInfos = false
+local DebugInfos = true
 
 -- Used to prevent that the main loop tries to render an entity that has/his been/being deleted 
 -- (the for each entity itearate over the old entities until next cycle and so will try to render a deleted entity)
 local DeletedEntities = {}
+local LocalEntities = {}
+local busyEntities = {}
+
+local _currentSlice = nil -- We need to have always the currentSlice in sync with render loop
 
 local EntitiesPromise = nil
 local Entities = {}
 
---#region Local functions
+--#region Helpers
+local GetEntitiesAndCache = function(slices)
+    if slices then
+        if type(slices) == "table" then
+            -- Check already loaded entities first, if found remove from the list of slices to request
+            for i = #slices, 1, -1 do
+                local slice = slices[i]
+
+                if Entities[slice] then
+                    table.remove(slices, i)
+                end
+            end
+    
+            EntitiesPromise = promise.new()
+            
+            -- We still need to request some slices?
+            if #slices > 0 then
+                TriggerServerEvent("Utility:Net:GetEntities", slices)
+            else
+                EntitiesPromise:resolve(true)
+            end
+    
+            Citizen.Await(EntitiesPromise)
+
+            -- Ensure cache exist also for empty slices
+            if #slices > 0 then
+                for _, slice in ipairs(slices) do
+                    Entities[slice] = Entities[slice] or {}
+                end
+            end
+
+            return Entities
+        else
+            return Entities[slice] or {}
+        end
+    else
+        return Entities
+    end
+end
+
 local GetActiveSlices = function()
     _currentSlice = GetSelfSlice()
 
@@ -19,6 +61,24 @@ local GetActiveSlices = function()
     table.insert(slices, _currentSlice)
 
     return slices
+end
+
+local FindGameLocalEntity = function(coords, radius, model, uNetId, maxAttempts)
+    local attempts = 0
+    local obj = 0
+        
+    while attempts < maxAttempts and not DoesEntityExist(obj) do
+        obj = GetClosestObjectOfType(coords.xyz, radius or 5.0, model)
+        attempts = attempts + 1
+        Citizen.Wait(500)
+    end
+
+    if attempts >= maxAttempts and not DoesEntityExist(obj) then
+        warn("Failed to find object to replace, model: "..model.." coords: "..coords.." uNetId:"..uNetId)
+        return
+    end
+
+    return obj
 end
 
 local ShouldKeepSlice = function(slices, slice)
@@ -46,11 +106,13 @@ local ShouldKeepSlice = function(slices, slice)
                     return true
                 end
             else
-                local entity = NetworkGetEntityFromNetworkId(attached.object)
-                local slice = GetEntitySlice(entity)
-
-                if table.find(slices, slice) then
-                    return true
+                if NetworkDoesNetworkIdExist(attached.object) then
+                    local entity = NetworkGetEntityFromNetworkId(attached.object)
+                    local slice = GetEntitySlice(entity)
+    
+                    if table.find(slices, slice) then
+                        return true
+                    end
                 end
             end
         end
@@ -111,28 +173,9 @@ local AttachToEntity = function(obj, to, params)
         warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination entity doesnt exist")
     end
 end
-
-local FindEntity = function(coords, radius, model, uNetId, maxAttempts)
-    local attempts = 0
-    local obj = 0
-        
-    while attempts < maxAttempts and not DoesEntityExist(obj) do
-        obj = GetClosestObjectOfType(coords.xyz, radius or 5.0, model)
-        attempts = attempts + 1
-        Citizen.Wait(500)
-    end
-
-    if attempts >= maxAttempts and not DoesEntityExist(obj) then
-        warn("Failed to find object to replace, model: "..model.." coords: "..coords.." uNetId:"..uNetId)
-        return
-    end
-
-    return obj
-end
 --#endregion
 
---#region Rendering functions
-local busyEntities = {}
+--#region Mutex
 local SetNetIdBeingBusy = function(uNetId, status)
     busyEntities[uNetId] = status and true or nil
 end
@@ -143,7 +186,9 @@ end
 
 exports("IsNetIdBusy", IsNetIdBusy)
 exports("IsNetIdCreating", IsNetIdBusy)
+--#endregion
 
+--#region Rendering functions
 local UnrenderLocalEntity = function(uNetId, keepStates)
     local entity = UtilityNet.GetEntityFromUNetId(uNetId)
 
@@ -202,6 +247,10 @@ local UnrenderLocalEntity = function(uNetId, keepStates)
                     DeleteEntity(entity)
                 end
             end)
+        end
+    else
+        if DebugInfos then
+            warn("UnrenderLocalEntity: entity with uNetId: "..uNetId.." already unrendered, skipping this call")
         end
     end
 
@@ -278,7 +327,7 @@ local RenderLocalEntity = function(uNetId, entityData)
 
     Citizen.CreateThread(function()
         if options.replace then
-            local _obj = FindEntity(coords, options.searchDistance, model, uNetId, 5)
+            local _obj = FindGameLocalEntity(coords, options.searchDistance, model, uNetId, 5)
     
             -- Skip object creation if not found
             if not DoesEntityExist(_obj) then
@@ -309,9 +358,6 @@ local RenderLocalEntity = function(uNetId, entityData)
             if options.door and interior ~= 0 then
                 Entity(obj).state.door = _obj
 
-                -- Doors inside interiors need to be deleted
-                -- If not deleted the game will be recreate them every time the interior is reloaded (player exit and then re-enter)
-                -- And so there will be 2 copies of the same door
                 SetEntityVisible(_obj, false)
                 SetEntityCollision(_obj, false, false)
             else
@@ -359,18 +405,15 @@ local RenderLocalEntity = function(uNetId, entityData)
                 end
 
                 local slice = GetEntitySlice(obj)
-                Entities[slice][uNetId] = value
+                Entities[slice][uNetId].attached = value
             end
         end)
         
         -- Fetch initial state if needed
         if not DoesEntityStateExist(uNetId) then
-            --print("REQUEUST STATE", uNetId)
             ServerRequestEntityStates(uNetId)
         else
-            --print("WAIT STATE", uNetId)
             EnsureStateLoaded(uNetId)
-            --print("STATE LOADED", uNetId)
         end
 
         Entities[entityData.slice][uNetId].attached = stateUtility.__attached
@@ -442,9 +485,7 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
     -- Render only if within render distance
     local coords = GetEntityCoords(PlayerPedId())
     local attached = entityData.attached
-    local modelsRenderDistance = GlobalState.ModelsRenderDistance
-    local hashmodel = type(entityData.model) == "number" and entityData.model or GetHashKey(entityData.model)
-    local renderDistance = modelsRenderDistance[hashmodel] or 50.0
+    local renderDistance = GlobalState.ModelsRenderDistance[entityData.model] or 50.0
     
     local entityCoords = entityData.coords
 
@@ -459,22 +500,23 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
             end
         else
             -- Networked entity which this entity is attached to does not exist
-            -- Just keep rendered, the server will detach the entity properly in the next slice update
-            if not NetworkDoesNetworkIdExist(attached.object) then
+            -- Just keep rendered, if it has been deleted, the server will detach the entity properly in the next slice update
+            if LocalEntities[uNetId] and not NetworkDoesNetworkIdExist(attached.object) then
                 return true
             end
 
-            -- Calculate distance from networked entity
-            local entity = NetworkGetEntityFromNetworkId(attached.object)
-
-            if DoesEntityExist(entity) then
-                entityCoords = GetEntityCoords(entity)
+            if NetworkDoesNetworkIdExist(attached.object) then
+                -- Calculate distance from networked entity
+                local entity = NetworkGetEntityFromNetworkId(attached.object)
     
-                if DebugInfos then
-                    print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." was attached to netId "..tostring(attached.object).." at "..tostring(entityCoords))
+                if DoesEntityExist(entity) then
+                    entityCoords = GetEntityCoords(entity)
+        
+                    if DebugInfos then
+                        print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." was attached to netId "..tostring(attached.object).." at "..tostring(entityCoords))
+                    end
                 end
             end
-
         end
     else
         if DebugInfos then
@@ -482,6 +524,7 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
         end
     end
 
+    print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." coords "..tostring(entityCoords).." distance "..tostring(#(entityCoords - coords)))
     return #(entityCoords - coords) < renderDistance
 end
 --#endregion
@@ -658,7 +701,7 @@ RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords, skipPosit
     local start = GetGameTimer()
     local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
 
-    if entity and Entities[slice] then
+    if Entities[slice] then
         local newSlice = GetSliceFromCoords(coords) 
 
         if newSlice ~= slice then
@@ -676,6 +719,12 @@ RegisterNetEvent("Utility:Net:RefreshCoords", function(uNetId, coords, skipPosit
 
         Entities[slice][uNetId].coords = coords
         Entities[slice][uNetId].slice = newSlice
+    else 
+        -- Entity doesnt exist, try to refetch slice from server
+        local slice = GetSliceFromCoords(coords)
+        Entities[slice] = nil
+        
+        GetEntitiesAndCache({slice})
     end
 
     if not skipPositionUpdate then
@@ -887,44 +936,7 @@ exports("GetuNetIdCreator", UtilityNet.GetuNetIdCreator)
 exports("GetEntityCreator", UtilityNet.GetEntityCreator)
 
 exports("GetRenderedEntities", function() return LocalEntities end)
-exports("GetEntities", function(slices)
-    if slices then
-        if type(slices) == "table" then
-            -- Check already loaded entities first, if found remove from the list of slices to request
-            for i = #slices, 1, -1 do
-                local slice = slices[i]
-
-                if Entities[slice] then
-                    table.remove(slices, i)
-                end
-            end
-    
-            EntitiesPromise = promise.new()
-            
-            -- We still need to request some slices?
-            if #slices > 0 then
-                TriggerServerEvent("Utility:Net:GetEntities", slices)
-            else
-                EntitiesPromise:resolve(true)
-            end
-    
-            Citizen.Await(EntitiesPromise)
-
-            -- Ensure cache exist also for empty slices
-            if #slices > 0 then
-                for _, slice in ipairs(slices) do
-                    Entities[slice] = Entities[slice] or {}
-                end
-            end
-
-            return Entities
-        else
-            return Entities[slice] or {}
-        end
-    else
-        return Entities
-    end
-end)
+exports("GetEntities", GetEntitiesAndCache)
 
 exports("GetServerEntities", function(_filter)
     local event = nil
