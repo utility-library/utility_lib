@@ -120,6 +120,8 @@ UtilityNet.DeleteEntity = function(uNetId)
 
     TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, -1, uNetId, entity.model, entity.coords, entity.options.rotation)
     ClearEntityStates(uNetId) -- Clear states after trigger
+    
+    TriggerEvent("Utility:Net:EntityDeleted", uNetId)
 end
 
 UtilityNet.InternalFindFromNetId = function(uNetId)
