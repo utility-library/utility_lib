@@ -207,6 +207,11 @@ AddEventHandler("playerDropped", function(reason)
     RemoveStateListenerFromAll(source)
 end)
 
+exports("GetEntityListeners", function(uNetId)
+    return EntitiesStates[uNetId]?.listeners    
+end)
+exports("TriggerEventForListeners", TriggerEventForListeners)
+
 exports("GetEntityStateValue", GetEntityStateValue)
 exports("SetEntityStateValue", SetEntityStateValue)
 
