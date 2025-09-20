@@ -416,7 +416,10 @@ local RenderLocalEntity = function(uNetId, entityData)
             EnsureStateLoaded(uNetId)
         end
 
-        Entities[entityData.slice][uNetId].attached = stateUtility.__attached
+        if Entities[entityData.slice][uNetId] then
+            Entities[entityData.slice][uNetId].attached = stateUtility.__attached
+        end
+
         LocalEntities[uNetId] = {obj=obj, renderTime = GetGameTimer(), slice=entityData.slice, createdBy = entityData.createdBy}
 
         -- After state has been fetched, attach if needed
