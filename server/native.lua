@@ -840,7 +840,7 @@ end
 UtilityNet.DoesUNetIdExist = function(uNetId)
     local entity = UtilityNet.InternalFindFromNetId(uNetId)
 
-    return entity or false
+    return entity ~= nil
 end
 
 UtilityNet.GetEntityCoords = function(uNetId)
