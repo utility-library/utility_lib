@@ -74,7 +74,7 @@ end
 
 RemoveStateListenerFromAll = function(source)
     for k,v in pairs(EntitiesStates) do
-        RemoveStateListener(source, k)
+        TriggerEvent("Utility:Net:RemoveStateListener", k, source)
     end
 end
 
@@ -154,7 +154,11 @@ RegisterNetEvent("Utility:Net:ListenStateUpdates", function(uNetId)
     ListenStateUpdates(source, uNetId)
 end)
 
-RegisterNetEvent("Utility:Net:RemoveStateListener", function(uNetId)
+RegisterNetEvent("Utility:Net:RemoveStateListener", function(uNetId, __source)
+    if not source then
+        source = __source
+    end
+
     RemoveStateListener(source, uNetId)
 end)
 
