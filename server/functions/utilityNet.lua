@@ -350,7 +350,7 @@ local EncodeEntitiesForClient = function(entities)
 
         for uNetId, entity in pairs(entities) do
             -- Group entities createdBy based on indexes
-            local index, v = table.find(createdBy, entity.createdBy)
+            local v, index = table.find(createdBy, entity.createdBy)
             local createdByIndex = nil
 
             if index then
