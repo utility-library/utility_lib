@@ -1436,13 +1436,13 @@ end
         if type(value) == "function" then
             for k, v in pairs(t) do
                 if value(v) then
-                    return k, v
+                    return v, k
                 end
             end
         else
             for k, v in pairs(t) do
                 if value == v then
-                    return k, v
+                    return v, k
                 end
             end
         end
