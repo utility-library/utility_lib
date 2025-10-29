@@ -2346,7 +2346,7 @@ end
             return "utility_heist:"..type.."_trolly:"..math.random(1, 10000) -- example: utility_heist:cash_trolly:3910
         end
         
-        CreateTrolly = function(type, coords, giveCash, notify, repeatedlyPress, minSpeed, maxSpeed, networked)
+        CreateTrolly = function(trollyType, coords, giveCash, notify, repeatedlyPress, minSpeed, maxSpeed, networked)
             if type(repeatedlyPress) == "number" then -- For backwards compatibility
                 networked = maxSpeed
                 maxSpeed = minSpeed
@@ -2354,14 +2354,14 @@ end
             end
 
             local obj = nil
-            local id = GenerateTrollyId(type) -- Pseudo random id
+            local id = GenerateTrollyId(trollyType) -- Pseudo random id
         
             -- Object creation
-            if type == "cash" then
+            if trollyType == "cash" then
                 obj = CreateObject("hei_prop_hei_cash_trolly_01", coords, networked)
-            elseif type == "gold" then
+            elseif trollyType == "gold" then
                 obj = CreateObject("ch_prop_gold_trolly_01a", coords, networked)
-            elseif type == "diamond" then
+            elseif trollyType == "diamond" then
                 obj = CreateObject("ch_prop_diamond_trolly_01a", coords, networked)
             end
             
