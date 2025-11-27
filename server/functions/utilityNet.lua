@@ -155,7 +155,7 @@ UtilityNet.SetModelRenderDistance = function(model, distance)
         model = GetHashKey(model)
     end
 
-    local _ = GlobalState.ModelsRenderDistance
+    local _ = GlobalState.ModelsRenderDistance or {}
     _[model] = distance
     GlobalState.ModelsRenderDistance = _
 end
