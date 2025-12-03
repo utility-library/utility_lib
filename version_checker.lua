@@ -1,4 +1,4 @@
-local version = '1.4.2'
+local version = '1.4.3'
 local versionurl = "https://raw.githubusercontent.com/utility-library/utility_lib/master/version"
 
 PerformHttpRequest(versionurl, function(error, _version, header)
