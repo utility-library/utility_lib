@@ -518,11 +518,7 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
                     if DebugInfos then
                         print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." was attached to netId "..tostring(attached.object).." at "..tostring(entityCoords))
                     end
-                else
-                    return false
                 end
-            else
-                return false
             end
         end
     else
