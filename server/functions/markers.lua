@@ -49,7 +49,7 @@ LoadJobsAndRegisterCallbacks = function()
             local Player = QBCore.Functions.GetPlayer(playerId)
                 
             if Player then
-                AddToJob(playerId, Player.job.name)     
+                AddToJob(playerId, Player.PlayerData.job.name)     
             end
         end
     elseif GetResourceState("es_extended") == "started" then
@@ -98,14 +98,14 @@ ListenForJobsChanges = function()
     elseif GetResourceState("qb-core") == "started" then
         AddEventHandler("QBCore:Client:OnPlayerUnload", function()
             local Player = QBCore.Functions.GetPlayer(source)
-            RemoveFromJob(source, Player.job.name)
+            RemoveFromJob(source, Player.PlayerData.job.name)
         end)
 
         AddEventHandler("QBCore:Server:PlayerLoaded", function()
             local Player = QBCore.Functions.GetPlayer(source)
             
             if Player then
-                AddToJob(source, Player.job.name)
+                AddToJob(source, Player.PlayerData.job.name)
             end
         end)
 
