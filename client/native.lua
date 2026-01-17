@@ -2131,7 +2131,7 @@ end
             end
 
             developer("^3Scenes^0", "Adding ped", ped, "to scene", scene, "[", dict, name, "]")
-            NetworkAddPedToSynchronisedScene(ped, scene, dict, name, blendIn or 1.5, blendOut or -4.0, duration or 1, flag or 16, 0, 0)
+            NetworkAddPedToSynchronisedScene(ped, scene, dict, name, blendIn or 1.5, blendOut or -4.0, duration or 1, flag or 16, 1000.0, 0)
             table.insert(Utility.Cache.Scenes[scene].dicts, dict)
         end
 
