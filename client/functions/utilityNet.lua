@@ -15,6 +15,14 @@ local EntitiesPromise = nil
 local Entities = {}
 
 --#region Helpers
+local EnsureModelHash = function(model)
+    if type(model) == "string" then
+        model = GetHashKey(model)
+    end
+
+    return model
+end
+
 local GetEntitiesAndCache = function(slices)
     if slices then
         if type(slices) == "table" then
@@ -488,7 +496,9 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
     -- Render only if within render distance
     local coords = GetEntityCoords(PlayerPedId())
     local attached = entityData.attached
-    local renderDistance = GlobalState.ModelsRenderDistance[entityData.model] or 50.0
+    local model = EnsureModelHash(entityData.model)
+
+    local renderDistance = GlobalState.ModelsRenderDistance[model] or 50.0
     
     local entityCoords = entityData.coords
 
