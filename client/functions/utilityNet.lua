@@ -493,6 +493,13 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
         return false
     end
 
+    if entityData.createdBy and GetResourceState(entityData.createdBy) ~= 'started' then
+        if DebugInfos then
+            print("CanEntityBeRendered: entity with uNetId: "..tostring(uNetId).." is not loaded")
+        end
+        return false
+    end
+
     -- Render only if within render distance
     local coords = GetEntityCoords(PlayerPedId())
     local attached = entityData.attached
