@@ -8,6 +8,7 @@ local DebugInfos = false
 local DeletedEntities = {}
 local LocalEntities = {}
 local busyEntities = {}
+local localRenderDistances = {}
 
 local _currentSlice = nil -- We need to have always the currentSlice in sync with render loop
 
@@ -16,8 +17,8 @@ local Entities = {}
 
 --#region Helpers
 local EnsureModelHash = function(model)
-    if type(model) == "string" then
-        model = GetHashKey(model)
+    if not tonumber(model) then
+        model = joaat(model)
     end
 
     return model
@@ -466,7 +467,7 @@ local RenderLocalEntities = function(entities)
     end
 end
 
-local CanEntityBeRendered = function(uNetId, entityData, slices)
+local CanEntityBeRendered = function(uNetId, entityData, slices, playerCoords)
     -- Default values
     local entityData = entityData or UtilityNet.InternalFindFromNetId(uNetId)
 
@@ -501,12 +502,15 @@ local CanEntityBeRendered = function(uNetId, entityData, slices)
     end
 
     -- Render only if within render distance
-    local coords = GetEntityCoords(PlayerPedId())
+    local coords = playerCoords or GetEntityCoords(PlayerPedId())
     local attached = entityData.attached
     local model = EnsureModelHash(entityData.model)
 
-    local renderDistance = GlobalState.ModelsRenderDistance[model] or 50.0
-    
+    if not localRenderDistances[model] then
+        localRenderDistances[model] = GlobalState.ModelsRenderDistance[model] or 50.0
+    end
+
+    local renderDistance = localRenderDistances[model]
     local entityCoords = entityData.coords
 
     if attached then
@@ -921,6 +925,15 @@ AddEventHandler("onResourceStop", function(resource)
                     UnrenderLocalEntity(k)
                 end)
             end
+        end
+    end
+end)
+
+-- Update render distances cache
+AddStateBagChangeHandler("ModelsRenderDistance", nil, function(bagName, key, value)
+    for model, dist in pairs(value) do
+        if localRenderDistances[model] then
+            localRenderDistances[model] = dist
         end
     end
 end)
