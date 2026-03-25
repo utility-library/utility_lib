@@ -587,35 +587,67 @@ StartUtilityNetRenderLoop = function()
 
             -- Render/Unrender near slices entities
             local needRender = {}
+            local playerCoords = GetEntityCoords(PlayerPedId())
 
-            UtilityNet.ForEachEntity(function(v)
-                nEntities = nEntities + 1
-                local canRender = CanEntityBeRendered(v.id, v)
 
-                if not LocalEntities[v.id] and canRender then
-                    local obj = UtilityNet.GetEntityFromUNetId(v.id) or 0
-                    local state = Entity(obj).state or {}
+            ---------------------------------------------
+            -- INLINE CODE OF UtilityNet.ForEachEntity --
+            ---------------------------------------------
+            -- This has been done for performance, its a lot faster (0.10ms vs 0.01ms),
+            -- since it reduce functions calls and overhead provided by stack allocations
 
-                    if not state.rendered and not IsNetIdBusy(v.id) then
-                        if DebugRendering then
-                            print("RenderLocalEntity", v.id, "Loop")
+            -- This code can be read as:
+            --      UtilityNet.ForEachEntity(function(entity)
+            --          -- Render loop
+            --      end, slices)
+
+            local n = 0
+            local _entities = GetEntitiesAndCache(slices)
+
+            if _entities then
+                -- Manual pairs loop for performance
+                local _k, _v = next(_entities)
+
+                while _k do
+                    local k,v = next(_v)
+
+                    while k do
+                        n = n + 1
+
+                        -- Render loop
+                        nEntities = nEntities + 1
+                        local canRender = CanEntityBeRendered(v.id, v, nil, playerCoords)
+
+                        if not LocalEntities[v.id] and canRender then
+                            local obj = UtilityNet.GetEntityFromUNetId(v.id) or 0
+                            local state = Entity(obj).state or {}
+
+                            if not state.rendered and not IsNetIdBusy(v.id) then
+                                if DebugRendering then
+                                    print("RenderLocalEntity", v.id, "Loop")
+                                end
+
+                                needRender[#needRender + 1] = v
+                            end
+                        elseif LocalEntities[v.id] and not canRender then
+                            if DebugRendering then
+                                print("UnrenderLocalEntity", v.id, "Loop")
+                            end
+
+                            UnrenderLocalEntity(v.id)
                         end
 
-                        needRender[#needRender + 1] = v
-                    end
-                elseif LocalEntities[v.id] and not canRender then
-                    if DebugRendering then
-                        print("UnrenderLocalEntity", v.id, "Loop")
+            
+                        k,v = next(_entities[_k], k)
                     end
 
-                    UnrenderLocalEntity(v.id)
+                    _k, _v = next(_entities, _k)
                 end
+            end
 
-                local outOfTime = (GetGameTimer() - start) > Config.UtilityNetDynamicUpdate
-                if outOfTime then
-                    Citizen.Wait(sleep * (2/3))
-                end
-            end, slices)
+            ------------------------------------------
+            -- END CODE OF UtilityNet.ForEachEntity --
+            ------------------------------------------
 
             local ok, err = pcall(RenderLocalEntities, needRender)
 
