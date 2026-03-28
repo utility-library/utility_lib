@@ -162,21 +162,21 @@ RegisterNetEvent("Utility:Net:RemoveStateListener", function(uNetId, __source)
     RemoveStateListener(source, uNetId)
 end)
 
-RegisterNetEvent("Utility:Net:GetState", function(uNetId)
+RegisterNetEvent("Utility:Net:GetState", function(requestId, uNetId)
     local source = source
 
     if not EntitiesStates[uNetId] then
         warn("GetState: No state found for "..uNetId)
-        TriggerClientEvent("Utility:Net:GetState"..uNetId, source, nil)
+        TriggerClientEvent("Utility:Net:GetState:Response", source, requestId, nil)
         return
     end
 
     ListenStateUpdates(source, uNetId)
-    TriggerLatentClientEvent("Utility:Net:GetState"..uNetId, source, -1, EntitiesStates[uNetId].states)
+    TriggerLatentClientEvent("Utility:Net:GetState:Response", source, -1, requestId, EntitiesStates[uNetId].states)
 end)
 
 local _EMPTY_STATE = {}
-RegisterNetEvent("Utility:Net:GetStates", function(uNetIds)
+RegisterNetEvent("Utility:Net:GetStates", function(requestId, uNetIds)
     local source = source
     local states = {}
 
@@ -189,20 +189,20 @@ RegisterNetEvent("Utility:Net:GetStates", function(uNetIds)
         end
     end
 
-    TriggerLatentClientEvent("Utility:Net:GetStates", source, -1, states)
+    TriggerLatentClientEvent("Utility:Net:GetStates:Response", source, -1, requestId, states)
 end)
 
 -- Single value
-RegisterNetEvent("Utility:Net:GetStateValue", function(uNetId, key)
+RegisterNetEvent("Utility:Net:GetStateValue", function(requestId, uNetId, key)
     local source = source
 
     if not EntitiesStates[uNetId] then
         warn("GetStateValue: No state found for "..uNetId)
-        TriggerClientEvent("Utility:Net:GetStateValue"..uNetId, source, nil)
+        TriggerClientEvent("Utility:Net:GetStateValue:Response", source, requestId, nil)
         return
     end
 
-    TriggerLatentClientEvent("Utility:Net:GetStateValue"..uNetId, source, -1, EntitiesStates[uNetId].states[key])
+    TriggerLatentClientEvent("Utility:Net:GetStateValue:Response", source, -1, requestId, EntitiesStates[uNetId].states[key])
 end)
 --#endregion
 

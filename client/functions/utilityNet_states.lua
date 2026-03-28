@@ -1,5 +1,20 @@
 EntitiesStates = {}
 
+local PendingStateValueRequests = {}
+local PendingStateRequests = {}
+local PendingStatesRequests = {}
+
+local __requestId = 0
+local function NextRequestId()
+    __requestId = __requestId + 1
+
+    if __requestId >= 2147483647 then
+        __requestId = 1
+    end
+
+    return tostring(__requestId)
+end
+
 function DoesEntityStateExist(uNetId)
     return EntitiesStates[uNetId] ~= nil
 end
@@ -35,42 +50,34 @@ end)
 GetEntityStateValue = function(uNetId, key)
      -- If state is not loaded it means that the entity doesnt exist locally
     if not DoesEntityStateExist(uNetId) then
-        --print("DONT EXIST REQUEST KEY", uNetId, key)
         return ServerRequestEntityKey(uNetId, key)
     else
         EnsureStateLoaded(uNetId)
 
-        --print("EXISTS", uNetId, EntitiesStates[uNetId], EntitiesStates[uNetId][key])
         return EntitiesStates[uNetId][key]
     end
 end
 
 ServerRequestEntityKey = function(uNetId, key)
     local p = promise:new()
-    local event = nil
-
-    event = RegisterNetEvent("Utility:Net:GetStateValue"..uNetId, function(value)
-        RemoveEventHandler(event)
-        p:resolve(value)
-    end)
+    local requestId = NextRequestId()
+    PendingStateValueRequests[requestId] = p
     
-    TriggerServerEvent("Utility:Net:GetStateValue", uNetId, key)
+    TriggerServerEvent("Utility:Net:GetStateValue", requestId, uNetId, key)
+
     return Citizen.Await(p)
 end
 
 ServerRequestEntityStates = function(uNetId)
     EntitiesStates[uNetId] = promise:new() -- Set as loading
     EntitiesStates[uNetId].__promise = true
-    
-    local p = promise:new()
-    local event = nil
 
-    event = RegisterNetEvent("Utility:Net:GetState"..uNetId, function(states)
-        RemoveEventHandler(event)
-        p:resolve(states)
-    end)
-    
-    TriggerServerEvent("Utility:Net:GetState", uNetId)
+    local p = promise:new()
+    local requestId = NextRequestId()
+    PendingStateRequests[requestId] = p
+
+    TriggerServerEvent("Utility:Net:GetState", requestId, uNetId)
+
     local states = Citizen.Await(p)
 
     EntitiesStates[uNetId]:resolve(true)
@@ -84,23 +91,55 @@ ServerRequestEntitiesStates = function(uNetIds)
     end
 
     local p = promise:new()
-    local event = nil
+    local requestId = NextRequestId()
+    PendingStatesRequests[requestId] = p
 
-    event = RegisterNetEvent("Utility:Net:GetStates", function(states)
-        RemoveEventHandler(event)
-        p:resolve(states)
-    end)
-    
-    TriggerServerEvent("Utility:Net:GetStates", uNetIds)
-    local states = Citizen.Await(p)
+    TriggerServerEvent("Utility:Net:GetStates", requestId, uNetIds)
+    local states = Citizen.Await(p) or {}
 
-    for uNetId, states in pairs(states) do
+    for i = 1, #uNetIds do
+        local uNetId = uNetIds[i]
+
         EntitiesStates[uNetId]:resolve(true)
-        EntitiesStates[uNetId] = states
+        EntitiesStates[uNetId] = states[uNetId] or {}
     end
 end
 
 exports("GetEntityStateValue", GetEntityStateValue)
+
+
+----
+
+RegisterNetEvent("Utility:Net:GetStateValue:Response", function(requestId, value)
+    local p = PendingStateValueRequests[requestId]
+    if not p then
+        return
+    end
+
+    PendingStateValueRequests[requestId] = nil
+    p:resolve(value)
+end)
+
+RegisterNetEvent("Utility:Net:GetState:Response", function(requestId, states)
+    local p = PendingStateRequests[requestId]
+    if not p then
+        return
+    end
+
+    PendingStateRequests[requestId] = nil
+    p:resolve(states)
+end)
+
+RegisterNetEvent("Utility:Net:GetStates:Response", function(requestId, states)
+    local p = PendingStatesRequests[requestId]
+    if not p then
+        return
+    end
+
+    PendingStatesRequests[requestId] = nil
+    p:resolve(states)
+end)
+
 
 
 
