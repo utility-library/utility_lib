@@ -967,35 +967,38 @@ UtilityNet.RemoveStateBagChangeHandler = function(eventData)
     end
 end
 
+local state_mt = {
+    __index = function(_, k)
+        local value = exports["utility_lib"]:GetEntityStateValue(_.id, k)
+
+        if type(value) == "table" then
+            return getValueAsStateTable(_.id, k, {})
+        else
+            return value
+        end
+    end,
+
+    __newindex = function(_, k, v)
+        -- If the value is a state table get the raw table (without metatable)
+        if type(v) == "table" and v.__internal_statetable then
+            v = v:raw()
+        end
+
+        exports["utility_lib"]:SetEntityStateValue(_.id, k, v)
+    end
+}
+
 UtilityNet.State = function(id)
     if not id then
         error("UtilityNet.State: id is required, got nil", 2)
     end
 
     local state = setmetatable({
+        id = id,
         raw = function(self)
             return exports["utility_lib"]:GetEntityStateValue(id)
         end
-    }, {
-        __index = function(_, k)
-            local value = exports["utility_lib"]:GetEntityStateValue(id, k)
-
-            if type(value) == "table" then
-                return getValueAsStateTable(id, k, {})
-            else
-                return value
-            end
-        end,
-
-        __newindex = function(_, k, v)
-            -- If the value is a state table get the raw table (without metatable)
-            if type(v) == "table" and v.__internal_statetable then
-                v = v:raw()
-            end
-
-            exports["utility_lib"]:SetEntityStateValue(id, k, v)
-        end
-    })
+    }, state_mt)
 
     return state
 end
