@@ -969,10 +969,10 @@ end
 
 local state_mt = {
     __index = function(_, k)
-        local value = exports["utility_lib"]:GetEntityStateValue(_.id, k)
+        local value = exports["utility_lib"]:GetEntityStateValue(_.__id, k)
 
         if type(value) == "table" then
-            return getValueAsStateTable(_.id, k, {})
+            return getValueAsStateTable(_.__id, k, {})
         else
             return value
         end
@@ -984,7 +984,7 @@ local state_mt = {
             v = v:raw()
         end
 
-        exports["utility_lib"]:SetEntityStateValue(_.id, k, v)
+        exports["utility_lib"]:SetEntityStateValue(_.__id, k, v)
     end
 }
 
@@ -994,7 +994,7 @@ UtilityNet.State = function(id)
     end
 
     local state = setmetatable({
-        id = id,
+        __id = id,
         raw = function(self)
             return exports["utility_lib"]:GetEntityStateValue(id)
         end
