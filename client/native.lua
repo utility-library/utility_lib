@@ -1324,6 +1324,10 @@ end
     end
 
     table.fexist = function(_table, field)
+        if type(_table) ~= "table" then
+            return false
+        end
+
         return _table[field] ~= nil
     end
 
@@ -1350,6 +1354,10 @@ end
     ---@param t table
     ---@return boolean
     table.empty = function(t)
+        if type(t) ~= "table" then
+            error("table.empty needs a table, got "..type(t).." instead", 2)
+        end
+
         return next(t) == nil
     end
 
@@ -1358,6 +1366,10 @@ end
     ---@param k any
     ---@param v any
     local table_insert = function(t, k, v)
+        if type(t) ~= "table" then
+            error("table.insert needs a table, got "..type(t).." instead", 2)
+        end
+
         if type(k) == "number" then
             table.insert(t, v)
         else
@@ -1370,6 +1382,10 @@ end
     ---@param t2 table
     ---@return table
     table.merge = function(t1, t2)
+        if type(t1) ~= "table" or type(t2) ~= "table" then
+            error("table.merge needs two tables, got "..type(t1).." and "..type(t2).." instead", 2)
+        end
+
         ---@type table
         local result = table.clone(t1)
 
@@ -1386,6 +1402,10 @@ end
     ---@param value any|fun(value: any): boolean
     ---@return boolean
     table.includes = function(t, value)
+        if type(t) ~= "table" then
+            error("table.includes needs a table, got "..type(t).." instead", 2)
+        end
+
         if type(value) == "function" then
             for _, v in pairs(t) do
                 if value(v) then
@@ -1408,6 +1428,10 @@ end
     ---@param filter table|fun(k: any, v: any): boolean
     ---@return table
     table.filter = function(t, filter)
+        if type(t) ~= "table" then
+            error("table.filter needs a table, got "..type(t).." instead", 2)
+        end
+
         local result = {}
 
         if type(filter) == "function" then
@@ -1423,6 +1447,8 @@ end
                     table_insert(result, k, v)
                 end
             end
+        else
+            error("table.filter needs a filter (table or function), got "..type(filter).." instead", 2)
         end
 
         return result
@@ -1433,6 +1459,10 @@ end
     ---@param value any|fun(value: any): boolean
     ---@return any
     table.find = function(t, value)
+        if table.empty(t) or type(value) ~= "table" then
+            error("table.find needs a NON empty table, got "..type(value).." instead", 2)
+        end
+
         if type(value) == "function" then
             for k, v in pairs(t) do
                 if value(v) then
@@ -1452,6 +1482,10 @@ end
     ---@param t table
     ---@return table
     table.keys = function(t)
+        if type(t) ~= "table" then
+            error("table.keys needs a table, got "..type(t).." instead", 2)
+        end
+
         local keys = {}    
         for k, _ in pairs(t) do
             table.insert(keys, k)
@@ -1464,6 +1498,10 @@ end
     ---@param t table
     ---@return table
     table.values = function(t)
+        if type(t) ~= "table" then
+            error("table.values needs a table, got "..type(t).." instead", 2)
+        end
+
         local values = {}
         
         for _, v in pairs(t) do
@@ -1496,6 +1534,18 @@ end
     end
 
     math.round = function(number, decimals)
+        if type(number) ~= "number" then
+            error("math.round needs a number, got "..type(number).." instead", 2)
+        end
+
+        if decimals == nil then
+            decimals = 0
+        end
+
+        if decimals < 0 then
+            decimals = 0
+        end
+
         local _ = 10 ^ decimals
         return math.floor((number * _) + 0.5) / (_)
     end
@@ -2914,6 +2964,10 @@ end
     end
 
     GetRandom = function(table)
+        if not table or type(table) ~= "table" then
+            error("table expected, got "..type(table).." instead", 2)
+        end
+
         local random = math.random(1, #table)
         return table[random]
     end
