@@ -1459,7 +1459,7 @@ end
     ---@param value any|fun(value: any): boolean
     ---@return any
     table.find = function(t, value)
-        if type(value) ~= "table" then
+        if type(t) ~= "table" then
             error("table.find needs a table, got "..type(value).." instead", 2)
         end
         if table.empty(t) then
