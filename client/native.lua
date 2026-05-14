@@ -1459,8 +1459,11 @@ end
     ---@param value any|fun(value: any): boolean
     ---@return any
     table.find = function(t, value)
-        if table.empty(t) or type(value) ~= "table" then
-            error("table.find needs a NON empty table, got "..type(value).." instead", 2)
+        if type(value) ~= "table" then
+            error("table.find needs a table, got "..type(value).." instead", 2)
+        end
+        if table.empty(t) then
+            return nil
         end
 
         if type(value) == "function" then
