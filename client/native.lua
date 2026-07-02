@@ -176,7 +176,7 @@ end
             )
         end
             
-        if not beep then
+        if beep == nil then
             beep = true
         end
 
