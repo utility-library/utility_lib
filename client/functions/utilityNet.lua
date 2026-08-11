@@ -10,6 +10,9 @@ local LocalEntities = {}
 local busyEntities = {}
 local localRenderDistances = {}
 
+-- Entities that are currently being reattached by the render loop, prevents stacking threads
+local reattachingEntities = {}
+
 local _currentSlice = nil -- We need to have always the currentSlice in sync with render loop
 
 local EntitiesPromise = nil
@@ -264,6 +267,7 @@ local UnrenderLocalEntity = function(uNetId, keepStates)
     end
 
     LocalEntities[uNetId] = nil
+    reattachingEntities[uNetId] = nil
 end
 
 local RenderLocalEntity = function(uNetId, entityData)
@@ -635,6 +639,38 @@ StartUtilityNetRenderLoop = function()
                             end
 
                             UnrenderLocalEntity(v.id)
+                        elseif LocalEntities[v.id] and v.attached and not reattachingEntities[v.id] then
+                            -- The state says the entity is attached, but the game says it is not.
+                            --
+                            -- This happens when the entity it is attached to gets recreated instead of
+                            -- moved, the clearest case being SetPlayerModel: it destroys the old ped and
+                            -- builds a new one, so the game drops the attachment, but the network id is
+                            -- preserved and the state never changes. Since nothing changed, the
+                            -- __attached state bag handler never fires and the attachment is never
+                            -- reapplied, leaving the prop floating in mid air forever.
+                            --
+                            -- Reapply it here, the same way it is applied when the entity is rendered.
+                            local obj = LocalEntities[v.id].obj
+
+                            if DoesEntityExist(obj) and not IsEntityAttached(obj) then
+                                local uNetId, attached = v.id, v.attached
+
+                                reattachingEntities[uNetId] = true
+
+                                -- In a thread because AttachToEntity waits for the destination
+                                -- entity to be ready when it is a UtilityNet entity
+                                Citizen.CreateThread(function()
+                                    local ok, err = pcall(AttachToEntity, obj, attached.object, attached.params)
+
+                                    if not ok then
+                                        warn("Reattach failed for uNetId "..tostring(uNetId)..": "..tostring(err))
+                                    elseif DebugInfos then
+                                        print("Reattached uNetId "..tostring(uNetId).." to "..tostring(attached.object))
+                                    end
+
+                                    reattachingEntities[uNetId] = nil
+                                end)
+                            end
                         end
 
             
