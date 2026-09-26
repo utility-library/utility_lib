@@ -4,6 +4,11 @@ local PendingStateValueRequests = {}
 local PendingStateRequests = {}
 local PendingStatesRequests = {}
 
+-- add a small cache for state values of entity not yet rendered
+local STATE_VALUE_CACHE_TTL = 250
+local StateValueCache = {}
+local NIL_VALUE = {} -- sentinel so a cached "no value" is distinguishable from "not cached"
+
 local __requestId = 0
 local function NextRequestId()
     __requestId = __requestId + 1
@@ -45,12 +50,35 @@ RegisterNetEvent("Utility:Net:UpdateStateValue", function(uNetId, key, value)
     end
 
     EntitiesStates[uNetId][key] = value
+    StateValueCache[uNetId] = nil
 end)
 
 GetEntityStateValue = function(uNetId, key)
-     -- If state is not loaded it means that the entity doesnt exist locally
+    if DeletedEntities[uNetId] then
+        warn("GetEntityStateValue: requested key '"..tostring(key).."' of deleted entity "..tostring(uNetId))
+        return nil
+    end
+
     if not DoesEntityStateExist(uNetId) then
-        return ServerRequestEntityKey(uNetId, key)
+        local cached = StateValueCache[uNetId] and StateValueCache[uNetId][key]
+
+        if cached and cached.expires > GetGameTimer() then
+            if cached.value == NIL_VALUE then
+                return nil
+            end
+
+            return cached.value
+        end
+
+        local value = ServerRequestEntityKey(uNetId, key)
+
+        StateValueCache[uNetId] = StateValueCache[uNetId] or {}
+        StateValueCache[uNetId][key] = {
+            value = value == nil and NIL_VALUE or value,
+            expires = GetGameTimer() + STATE_VALUE_CACHE_TTL
+        }
+
+        return value
     else
         EnsureStateLoaded(uNetId)
 
@@ -82,6 +110,7 @@ ServerRequestEntityStates = function(uNetId)
 
     EntitiesStates[uNetId]:resolve(true)
     EntitiesStates[uNetId] = states or {}
+    StateValueCache[uNetId] = nil
 end
 
 ServerRequestEntitiesStates = function(uNetIds)
@@ -102,6 +131,7 @@ ServerRequestEntitiesStates = function(uNetIds)
 
         EntitiesStates[uNetId]:resolve(true)
         EntitiesStates[uNetId] = states[uNetId] or {}
+        StateValueCache[uNetId] = nil
     end
 end
 

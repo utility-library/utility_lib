@@ -747,7 +747,7 @@
         return GetSliceIdFromColRow(col, row)
     end
 
-    function GetSurroundingSlices(slice)
+    function GetSurroundingSlices(slice, out)
         local top = slice - sliceCollumns
         local bottom = slice + sliceCollumns
 
@@ -759,7 +759,11 @@
         local bottomright = slice + sliceCollumns - 1
         local bottomleft = slice + sliceCollumns + 1
 
-        return {math.floor(top), math.floor(bottom), math.floor(left), math.floor(right), math.floor(topright), math.floor(topleft), math.floor(bottomright), math.floor(bottomleft)}
+        out = out or {}
+        out[1], out[2], out[3], out[4], out[5], out[6], out[7], out[8] =
+            math.floor(top), math.floor(bottom), math.floor(left), math.floor(right), math.floor(topright), math.floor(topleft), math.floor(bottomright), math.floor(bottomleft)
+
+        return out
     end
 
 --// UtilityNet //--

@@ -5,7 +5,7 @@ local DebugInfos = false
 
 -- Used to prevent that the main loop tries to render an entity that has/his been/being deleted 
 -- (the for each entity itearate over the old entities until next cycle and so will try to render a deleted entity)
-local DeletedEntities = {}
+DeletedEntities = {}
 local LocalEntities = {}
 local busyEntities = {}
 local localRenderDistances = {}
@@ -63,13 +63,15 @@ local GetEntitiesAndCache = function(slices)
     end
 end
 
+local activeSlicesBuffer = {}
+
 local GetActiveSlices = function()
     _currentSlice = GetSelfSlice()
 
-    local slices = GetSurroundingSlices(_currentSlice)
-    table.insert(slices, _currentSlice)
+    GetSurroundingSlices(_currentSlice, activeSlicesBuffer)
+    activeSlicesBuffer[9] = _currentSlice
 
-    return slices
+    return activeSlicesBuffer
 end
 
 local FindGameLocalEntity = function(coords, radius, model, uNetId, maxAttempts)
@@ -413,8 +415,13 @@ local RenderLocalEntity = function(uNetId, entityData)
                     DetachEntity(obj, true, true)
                 end
 
-                local slice = GetEntitySlice(obj)
-                Entities[slice][uNetId].attached = value
+                local entity, slice = UtilityNet.InternalFindFromNetId(uNetId)
+
+                if Entities[slice] and Entities[slice][uNetId] then
+                    Entities[slice][uNetId].attached = value
+                else
+                    warn("RenderLocalEntity(__attached change): entity with uNetId: "..tostring(uNetId).." not found in slice: "..tostring(slice)..", skipping attachment to "..tostring(value))
+                end
             end
         end)
         
@@ -571,19 +578,18 @@ StartUtilityNetRenderLoop = function()
     end
 
     Citizen.CreateThread(function()
-        local lastNEntities = 0 -- Used for managing the speed of the loop based on the number of entities
         local lastSlice = _currentSlice
-        
+
         while true do
-            DeletedEntities = {}
             local slices = GetActiveSlices()
             local start = GetGameTimer()
 
             local nEntities = 0
 
-            local sleep = (Config.UtilityNetDynamicUpdate - 700) / math.min(20, lastNEntities) -- threshold to allow a little bit of lag and split by number of entities
-
-            CollectInactiveSlicesEntities(slices)
+            -- Only worth recomputing when the active slice window actually changed
+            if lastSlice ~= _currentSlice then
+                CollectInactiveSlicesEntities(slices)
+            end
 
             -- Render/Unrender near slices entities
             local needRender = {}
@@ -683,8 +689,12 @@ StartUtilityNetRenderLoop = function()
                 --print("RENDER LOOP FINISHED", (GetGameTimer() - start))
             end
 
-            lastNEntities = nEntities
-            Citizen.Wait(Config.UpdateCooldown)
+            -- Fewer nearby entities means less to sweep next tick, so its safe to wait longer
+            -- Never wait less than the baseline cooldown
+            local divisor = math.max(1, math.min(20, nEntities))
+            local sleep = math.max(Config.UpdateCooldown, (Config.UtilityNetDynamicUpdate - 700) / divisor)
+
+            Citizen.Wait(sleep)
         end
     end)
 end
@@ -843,8 +853,9 @@ RegisterNetEvent("Utility:Net:RequestDeletion", function(uNetId, model, coords, 
         Entities[slice][uNetId] = nil
     end
 
+    DeletedEntities[uNetId] = true
+
     if LocalEntities[uNetId] then
-        DeletedEntities[uNetId] = true
         UnrenderLocalEntity(uNetId)
     end
 end)

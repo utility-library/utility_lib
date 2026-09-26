@@ -11,6 +11,8 @@ UtilityNet = UtilityNet or {}
 --     door = boolean (if true will spawn the entity with door flag)
 -- }
 
+local nearSliceBuffer = {}
+
 TriggerClientEventNearSlice = function(name, slice, ...)
     local players = GetPlayers()
 
@@ -21,10 +23,10 @@ TriggerClientEventNearSlice = function(name, slice, ...)
             TriggerLatentClientEvent(name, v, -1, ...)
         end
 
-        local slices = GetSurroundingSlices(currentSlice)
+        GetSurroundingSlices(currentSlice, nearSliceBuffer)
 
-        for i=1, #slices do
-            if slice == slices[i] then
+        for i=1, #nearSliceBuffer do
+            if slice == nearSliceBuffer[i] then
                 TriggerLatentClientEvent(name, v, -1, ...)
             end
         end
