@@ -245,7 +245,7 @@ local UnrenderLocalEntity = function(uNetId, keepStates)
 
         if not keepStates then
             EntitiesStates[uNetId] = nil
-            TriggerLatentServerEvent("Utility:Net:RemoveStateListener", 5120, uNetId)
+            TriggerServerEvent("Utility:Net:RemoveStateListener", uNetId)
         end
 
         if state.preserved then

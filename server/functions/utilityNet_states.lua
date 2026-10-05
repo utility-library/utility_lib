@@ -155,11 +155,16 @@ RegisterNetEvent("Utility:Net:ListenStateUpdates", function(uNetId)
 end)
 
 RegisterNetEvent("Utility:Net:RemoveStateListener", function(uNetId, __source)
-    if not source then
-        source = __source
+    local player = nil 
+    
+    -- source is "" (not nil) when triggered server side
+    if source == "" or not source then
+        player = __source
+    else
+        player = source
     end
 
-    RemoveStateListener(source, uNetId)
+    RemoveStateListener(player, uNetId)
 end)
 
 RegisterNetEvent("Utility:Net:GetState", function(requestId, uNetId)
