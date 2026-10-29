@@ -179,7 +179,7 @@ local AttachToEntity = function(obj, to, params)
             end
         end
 
-        AttachEntityToEntity(obj, attachToObj, params.bone, params.pos, params.rot, false, params.useSoftPinning, params.collision, true, params.rotationOrder, params.syncRot)
+        AttachEntityToEntity(obj, attachToObj, params.bone or 0, params.pos, params.rot, false, params.useSoftPinning, params.collision, true, params.rotationOrder, params.syncRot)
     else
         warn("AttachToEntity: trying to attach "..obj.." to "..to.." but the destination entity doesnt exist")
     end

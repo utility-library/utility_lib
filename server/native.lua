@@ -827,7 +827,7 @@ UtilityNet.AttachToEntity = function(uNetId, to, boneIdOrName, pos, rot, useSoft
 end
 
 UtilityNet.AttachToNetId = function(uNetId, netId, bone, pos, rot, useSoftPinning, collision, rotationOrder, syncRot)
-    local params = {bone = bone, pos = pos, rot = rot, useSoftPinning = useSoftPinning, collision = collision, rotationOrder = rotationOrder, syncRot = syncRot}
+    local params = {boneServer = bone, pos = pos, rot = rot, useSoftPinning = useSoftPinning, collision = collision, rotationOrder = rotationOrder, syncRot = syncRot}
 
     return exports["utility_lib"]:AttachTo(uNetId, netId, params)
 end
