@@ -3124,6 +3124,11 @@ UtilityNet.SetModelRenderDistance = function(model, distance)
     TriggerServerEvent("Utility:Net:SetModelRenderDistance", model, distance)
 end
 
+-- Entities of this model will notify (created/deleted) every player instead of only the ones near the entity
+UtilityNet.SetModelGlobalEvents = function(model)
+    TriggerServerEvent("Utility:Net:SetModelGlobalEvents", model)
+end
+
 UtilityNet.CreateEntity = function(model, coords, options)
     if type(model) ~= "string" then
         error("Invalid model, got "..type(model).." expected string", 0)

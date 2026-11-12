@@ -879,6 +879,11 @@ UtilityNet.SetModelRenderDistance = function(model, distance)
     return exports["utility_lib"]:SetModelRenderDistance(model, distance)
 end
 
+-- Entities of this model will notify (created/deleted) every player instead of only the ones near the entity
+UtilityNet.SetModelGlobalEvents = function(model, toggle)
+    return exports["utility_lib"]:SetModelGlobalEvents(model, toggle)
+end
+
 UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
     return exports["utility_lib"]:SetEntityCoords(uNetId, newCoords, skipPositionUpdate)
 end

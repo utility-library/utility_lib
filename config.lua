@@ -4,3 +4,8 @@ Config.UpdateCooldown = 500 -- (default: 500ms) This is the time when every loop
 
 -- Used for utility net dynamic update based on workload/number of entities, this is the timeout of a single loop in performance-saving mode
 Config.UtilityNetDynamicUpdate = 3000
+
+Config.UtilityNetBatch = {
+    interval = 10, -- ms
+    latentSize = 8192, -- bytes
+}

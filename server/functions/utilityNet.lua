@@ -13,27 +13,79 @@ UtilityNet = UtilityNet or {}
 
 local nearSliceBuffer = {}
 
-TriggerClientEventNearSlice = function(name, slice, ...)
-    local players = GetPlayers()
+-- Models whose EntityCreated/RequestDeletion must reach every player (ex: scripts using OnRegister/OnUnregister)
+local GlobalEventModels = {}
 
-    for k,v in pairs(players) do
-        local currentSlice = GetSliceFromCoords(GetEntityCoords(GetPlayerPed(v)))
+local NormalizeModelHash = function(model)
+    if type(model) == "string" then
+        model = GetHashKey(model)
+    end
 
-        if slice == currentSlice then
-            TriggerLatentClientEvent(name, v, -1, ...)
-        end
+    local hash = math.tointeger(model)
 
-        GetSurroundingSlices(currentSlice, nearSliceBuffer)
-
-        for i=1, #nearSliceBuffer do
-            if slice == nearSliceBuffer[i] then
-                TriggerLatentClientEvent(name, v, -1, ...)
-            end
-        end
+    if hash then
+        return hash & 0xFFFFFFFF
     end
 end
 
-UtilityNet.CreateEntity = function(model, coords, options, callId)
+local IsSliceNearPlayer = function(slice, player)
+    local currentSlice = GetSliceFromCoords(GetEntityCoords(GetPlayerPed(player)))
+
+    if slice == currentSlice then
+        return true
+    end
+
+    GetSurroundingSlices(currentSlice, nearSliceBuffer)
+
+    for i=1, #nearSliceBuffer do
+        if slice == nearSliceBuffer[i] then
+            return true
+        end
+    end
+
+    return false
+end
+
+local GetPlayersNearSlice = function(slice, alwaysTarget)
+    local players = {}
+
+    for _, player in ipairs(GetPlayers()) do
+        if tostring(player) == tostring(alwaysTarget) or IsSliceNearPlayer(slice, player) then
+            players[#players + 1] = player
+        end
+    end
+
+    return players
+end
+
+TriggerClientEventNearSlice = function(name, slice, ...)
+    QueueClientEvent(GetPlayersNearSlice(slice), name, ...)
+end
+
+local TriggerCoalescedClientEventNearSlice = function(name, slice, uNetId, ...)
+    QueueCoalescedClientEvent(GetPlayersNearSlice(slice), name, uNetId, uNetId, ...)
+end
+
+-- Sends to every player if the model is flagged as global, otherwise only to the players in (or near) the slice, plus alwaysTarget if any
+local TriggerClientEventForModel = function(name, model, slice, alwaysTarget, ...)
+    if GlobalEventModels[NormalizeModelHash(model)] then
+        QueueClientEvent(GetPlayers(), name, ...)
+    else
+        QueueClientEvent(GetPlayersNearSlice(slice, alwaysTarget), name, ...)
+    end
+end
+
+UtilityNet.SetModelGlobalEvents = function(model, toggle)
+    local hash = NormalizeModelHash(model)
+
+    if not hash then
+        error("Invalid model, got "..type(model).." expected string or number", 2)
+    end
+
+    GlobalEventModels[hash] = toggle ~= false or nil
+end
+
+UtilityNet.CreateEntity = function(model, coords, options, callId, creator)
     options = options or {}
     local hashmodel = nil
 
@@ -83,7 +135,8 @@ UtilityNet.CreateEntity = function(model, coords, options, callId)
     RegisterEntityState(object.id)
     NextId = NextId + 1
 
-    TriggerLatentClientEvent("Utility:Net:EntityCreated", -1, -1, callId, object)
+    -- The creator always receives it, since the client waits for it (callId) to get the id back
+    TriggerClientEventForModel("Utility:Net:EntityCreated", object.model, slice, creator, callId, object)
     return object.id
 end
 
@@ -120,7 +173,7 @@ UtilityNet.DeleteEntity = function(uNetId)
     Entities[entity.slice][entity.id] = nil
     AttachedEntities[uNetId] = nil
 
-    TriggerLatentClientEvent("Utility:Net:RequestDeletion", -1, -1, uNetId, entity.model, entity.coords, entity.options.rotation)
+    TriggerClientEventForModel("Utility:Net:RequestDeletion", entity.model, entity.slice, nil, uNetId, entity.model, entity.coords, entity.options.rotation)
     ClearEntityStates(uNetId) -- Clear states after trigger
     
     TriggerEvent("Utility:Net:EntityDeleted", uNetId)
@@ -178,7 +231,7 @@ UtilityNet.SetEntityRotation = function(uNetId, newRotation, skipRotationUpdate)
 
     Entities[slice][uNetId].options.rotation = newRotation
 
-    TriggerClientEventNearSlice("Utility:Net:RefreshRotation", slice, uNetId, newRotation, skipRotationUpdate)
+    TriggerCoalescedClientEventNearSlice("Utility:Net:RefreshRotation", slice, uNetId, newRotation, skipRotationUpdate)
 end
 
 UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
@@ -210,7 +263,7 @@ UtilityNet.SetEntityCoords = function(uNetId, newCoords, skipPositionUpdate)
     Entities[slice][uNetId].coords = newCoords
     Entities[slice][uNetId].slice = GetSliceFromCoords(newCoords)
     
-    TriggerClientEventNearSlice("Utility:Net:RefreshCoords", slice, uNetId, newCoords, skipPositionUpdate)
+    TriggerCoalescedClientEventNearSlice("Utility:Net:RefreshCoords", slice, uNetId, newCoords, skipPositionUpdate)
 end
 
 UtilityNet.SetEntityModel = function(uNetId, model)
@@ -378,7 +431,7 @@ end
 --#region Events
 UtilityNet.RegisterEvents = function()
     RegisterNetEvent("Utility:Net:CreateEntity", function(callId, model, coords, options)
-        UtilityNet.CreateEntity(model, coords, options, callId)
+        UtilityNet.CreateEntity(model, coords, options, callId, source)
     end)
     
     RegisterNetEvent("Utility:Net:DeleteEntity", function(uNetId)
@@ -387,6 +440,13 @@ UtilityNet.RegisterEvents = function()
 
     RegisterNetEvent("Utility:Net:SetModelRenderDistance", function(model, distance)
         UtilityNet.SetModelRenderDistance(model, distance)
+    end)
+
+    -- Clients can only widen the broadcast (never narrow it), so a client cannot hide events from others
+    RegisterNetEvent("Utility:Net:SetModelGlobalEvents", function(model)
+        if type(model) == "string" or type(model) == "number" then
+            UtilityNet.SetModelGlobalEvents(model, true)
+        end
     end)
 
     RegisterNetEvent("Utility:Net:AttachTo", function(uNetId, object, params)
@@ -441,6 +501,7 @@ end
 exports("CreateEntity", UtilityNet.CreateEntity)
 exports("DeleteEntity", UtilityNet.DeleteEntity)
 exports("SetModelRenderDistance", UtilityNet.SetModelRenderDistance)
+exports("SetModelGlobalEvents", UtilityNet.SetModelGlobalEvents)
 exports("GetEntities", UtilityNet.GetEntities)
 exports("InternalFindFromNetId", UtilityNet.InternalFindFromNetId)
 
